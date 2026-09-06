@@ -281,6 +281,7 @@
       <div class="user-box">
         <div class="user-name" id="ub-name"></div>
         <div class="user-role" id="ub-role"></div>
+        <div class="logout-link" onclick="openAccountModal(false)">Il mio account</div>
         <div class="logout-link" onclick="doLogout()">Esci</div>
       </div>
     </div>
@@ -457,6 +458,7 @@
             <option>Eccedenze 118</option>
             <option>Trasporto sangue</option>
             <option>Assistenze/Manifestazioni/Eventi</option>
+            <option>Servizio interno</option>
           </select>
         </div>
       </div>
@@ -709,7 +711,7 @@
 <div class="modal-backdrop" id="user-modal-backdrop">
   <div class="modal" style="max-width:420px;">
     <button class="close-x" onclick="closeUserModal()">✕</button>
-    <h3>Nuovo utente</h3>
+    <h3 id="user-modal-title">Nuovo utente</h3>
     <p class="modal-sub">Creato da amministratore</p>
     <form onsubmit="return saveUser(event)">
       <div class="grid2">
@@ -717,7 +719,9 @@
         <div class="field"><label>Cognome</label><input type="text" id="uf-cognome" required></div>
       </div>
       <div class="field"><label>Nome utente</label><input type="text" id="uf-username" required></div>
-      <div class="field"><label>Password</label><input type="text" id="uf-password" required></div>
+      <div class="field"><label id="uf-password-label">Password provvisoria</label><input type="text" id="uf-password" placeholder="Lascia vuoto per non cambiarla">
+        <p class="map-hint" id="uf-password-hint">L'utente dovrà cambiarla al primo accesso.</p>
+      </div>
       <div class="field"><label>Ruolo</label>
         <select id="uf-ruolo">
           <option value="operatore">Operatore</option>
@@ -728,7 +732,30 @@
         <div></div>
         <div style="display:flex;gap:10px;">
           <button type="button" class="btn btn-ghost" onclick="closeUserModal()">Annulla</button>
-          <button type="submit" class="btn btn-primary" style="width:auto;">Crea utente</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;" id="user-save-btn">Crea utente</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL IL MIO ACCOUNT -->
+<div class="modal-backdrop" id="account-modal-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <button class="close-x" id="account-modal-close" onclick="closeAccountModal()">✕</button>
+    <h3 id="account-modal-title">Il mio account</h3>
+    <p class="modal-sub" id="account-modal-sub">Modifica i tuoi dati di accesso</p>
+    <div id="account-modal-note"></div>
+    <form onsubmit="return saveOwnAccount(event)">
+      <div class="field"><label>Password attuale</label><input type="password" id="acc-passwordAttuale" required></div>
+      <div class="field"><label>Nome utente</label><input type="text" id="acc-username" required></div>
+      <div class="field"><label>Nuova password</label><input type="password" id="acc-nuovaPassword" placeholder="Lascia vuoto per non cambiarla"></div>
+      <div class="field"><label>Conferma nuova password</label><input type="password" id="acc-confermaPassword" placeholder="Ripeti la nuova password"></div>
+      <div class="modal-actions">
+        <div></div>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-ghost" id="account-modal-annulla" onclick="closeAccountModal()">Annulla</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;">Salva</button>
         </div>
       </div>
     </form>
@@ -817,9 +844,20 @@ const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
 const GIORNI = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
 
 /* ============ STORAGE (dati condivisi via Cloudflare KV) ============ */
+let authToken = null;
+
+async function sha256Hex(text){
+  const data = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 async function kvGet(key){
   try{
-    const res = await fetch('/api/kv?key=' + encodeURIComponent(key));
+    const res = await fetch('/api/kv?key=' + encodeURIComponent(key), {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if(res.status === 401){ sessioneScaduta(); return null; }
     if(res.status === 204 || !res.ok) return null;
     const text = await res.text();
     return text ? JSON.parse(text) : null;
@@ -829,21 +867,26 @@ async function kvSet(key, value){
   try{
     const res = await fetch('/api/kv?key=' + encodeURIComponent(key), {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + authToken},
       body: JSON.stringify(value)
     });
+    if(res.status === 401){ sessioneScaduta(); return; }
     if(!res.ok) throw new Error('risposta non ok');
   }catch(e){
     console.error('Errore salvataggio dati condivisi', e);
     alert('Attenzione: il salvataggio non è riuscito. Controlla la connessione e riprova.');
   }
 }
+function sessioneScaduta(){
+  authToken = null;
+  sessionStorage.removeItem('authToken');
+  currentUser = null;
+  document.getElementById('shell').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error-box').innerHTML = '<div class="login-error">La sessione è scaduta. Accedi di nuovo.</div>';
+}
 async function loadData(){
   utenti = (await kvGet('utenti')) || [];
-  if(utenti.length === 0){
-    utenti = [{id:'admin-1', username:'admin', password:'admin123', nome:'Amministratore', cognome:'Sistema', ruolo:'amministratore'}];
-    await kvSet('utenti', utenti);
-  }
   mezzi = (await kvGet('mezzi')) || [];
   servizi = (await kvGet('servizi')) || [];
   rimborsi = (await kvGet('rimborsi')) || [];
@@ -863,28 +906,58 @@ async function doLogin(){
   const password = document.getElementById('login-password').value;
   const errBox = document.getElementById('login-error-box');
   errBox.innerHTML = '';
-  const found = utenti.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
-  if(!found){
-    errBox.innerHTML = '<div class="login-error">Nome utente o password non corretti.</div>';
+  if(!username || !password){
+    errBox.innerHTML = '<div class="login-error">Inserisci nome utente e password.</div>';
     return;
   }
-  currentUser = found;
+  let risposta;
+  try{
+    risposta = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username, password })
+    });
+  }catch(e){
+    errBox.innerHTML = '<div class="login-error">Impossibile contattare il server. Controlla la connessione.</div>';
+    return;
+  }
+  if(!risposta.ok){
+    let messaggio = 'Nome utente o password non corretti.';
+    try{ const dati = await risposta.json(); if(dati.errore) messaggio = dati.errore; }catch(e){}
+    errBox.innerHTML = '<div class="login-error">' + escapeHtml(messaggio) + '</div>';
+    return;
+  }
+  const dati = await risposta.json();
+  authToken = dati.token;
+  sessionStorage.setItem('authToken', authToken);
+  currentUser = dati.utente;
+
+  await loadData();
+
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('shell').classList.add('active');
-  document.getElementById('ub-name').textContent = found.nome + ' ' + found.cognome;
-  document.getElementById('ub-role').textContent = found.ruolo;
-  document.getElementById('nav-utenti').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-mezzi').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-rimborsi').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-statistiche').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('ub-name').textContent = currentUser.nome + ' ' + currentUser.cognome;
+  document.getElementById('ub-role').textContent = currentUser.ruolo;
+  document.getElementById('nav-utenti').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-mezzi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-rimborsi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-statistiche').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   renderCalendar();
   renderElenco();
   renderUsers();
   renderMezzi();
   renderRimborsi();
   renderFogliMarcia();
+  if(currentUser.mustChangePassword){
+    openAccountModal(true);
+  }
 }
-function doLogout(){
+async function doLogout(){
+  try{
+    await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+  }catch(e){}
+  authToken = null;
+  sessionStorage.removeItem('authToken');
   currentUser = null;
   document.getElementById('shell').classList.remove('active');
   document.getElementById('login-screen').style.display = 'flex';
@@ -1049,6 +1122,7 @@ function formatDateTime(iso){
 }
 
 /* ============ UTENTI ============ */
+let editingUserId = null;
 function renderUsers(){
   if(!canManageUsers()) return;
   const container = document.getElementById('users-container');
@@ -1057,39 +1131,128 @@ function renderUsers(){
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
       <div class="un">@${escapeHtml(u.username)}</div>
       <span class="role-chip ${u.ruolo}">${u.ruolo}</span>
-      ${u.ruolo!=='amministratore' ? `<div style="margin-top:10px;"><button class="link-btn" onclick="deleteUser('${u.id}')">Elimina</button></div>` : ''}
+      ${u.mustChangePassword ? '<span class="tag-chiuso">Deve cambiare password</span>' : ''}
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="link-btn" onclick="openUserModal('${u.id}')">Modifica</button>
+        <button class="link-btn" onclick="resetPasswordUtente('${u.id}')">Reset password</button>
+        ${u.ruolo!=='amministratore' ? `<button class="link-btn" onclick="deleteUser('${u.id}')">Elimina</button>` : ''}
+      </div>
     </div>`).join('');
 }
-function openUserModal(){
-  document.getElementById('uf-nome').value='';
-  document.getElementById('uf-cognome').value='';
-  document.getElementById('uf-username').value='';
-  document.getElementById('uf-password').value='';
-  document.getElementById('uf-ruolo').value='operatore';
+function openUserModal(id){
+  editingUserId = id || null;
+  const u = id ? utenti.find(x=>x.id===id) : null;
+  document.getElementById('user-modal-title').textContent = u ? 'Modifica utente' : 'Nuovo utente';
+  document.getElementById('user-save-btn').textContent = u ? 'Salva modifiche' : 'Crea utente';
+  document.getElementById('uf-nome').value = u ? u.nome : '';
+  document.getElementById('uf-cognome').value = u ? u.cognome : '';
+  document.getElementById('uf-username').value = u ? u.username : '';
+  document.getElementById('uf-password').value = '';
+  document.getElementById('uf-password-label').textContent = u ? 'Nuova password' : 'Password provvisoria';
+  document.getElementById('uf-password-hint').textContent = u ? 'Lascia vuoto per non cambiarla. Se la imposti, l\'utente dovrà cambiarla al prossimo accesso.' : 'L\'utente dovrà cambiarla al primo accesso.';
+  document.getElementById('uf-ruolo').value = u ? u.ruolo : 'operatore';
   document.getElementById('user-modal-backdrop').classList.add('active');
 }
-function closeUserModal(){ document.getElementById('user-modal-backdrop').classList.remove('active'); }
+function closeUserModal(){ document.getElementById('user-modal-backdrop').classList.remove('active'); editingUserId = null; }
 async function saveUser(ev){
   ev.preventDefault();
   const username = document.getElementById('uf-username').value.trim();
-  if(utenti.some(u=>u.username.toLowerCase()===username.toLowerCase())){ alert('Nome utente già esistente.'); return false; }
-  utenti.push({
-    id: 'u-' + Date.now(),
-    nome: document.getElementById('uf-nome').value.trim(),
-    cognome: document.getElementById('uf-cognome').value.trim(),
-    username, password: document.getElementById('uf-password').value,
-    ruolo: document.getElementById('uf-ruolo').value
-  });
+  const duplicato = utenti.some(u=>u.username.toLowerCase()===username.toLowerCase() && u.id!==editingUserId);
+  if(duplicato){ alert('Nome utente già esistente.'); return false; }
+  const nuovaPassword = document.getElementById('uf-password').value;
+  if(editingUserId){
+    const idx = utenti.findIndex(u=>u.id===editingUserId);
+    const u = utenti[idx];
+    u.nome = document.getElementById('uf-nome').value.trim();
+    u.cognome = document.getElementById('uf-cognome').value.trim();
+    u.username = username;
+    if(u.ruolo !== 'amministratore') u.ruolo = document.getElementById('uf-ruolo').value;
+    if(nuovaPassword){
+      u.passwordHash = await sha256Hex(nuovaPassword);
+      delete u.password;
+      u.mustChangePassword = true;
+    }
+  } else {
+    utenti.push({
+      id: 'u-' + Date.now(),
+      nome: document.getElementById('uf-nome').value.trim(),
+      cognome: document.getElementById('uf-cognome').value.trim(),
+      username, passwordHash: await sha256Hex(nuovaPassword || 'cambiami123'),
+      ruolo: document.getElementById('uf-ruolo').value,
+      mustChangePassword: true
+    });
+  }
   await saveUtenti();
   renderUsers();
   closeUserModal();
   return false;
+}
+async function resetPasswordUtente(id){
+  const u = utenti.find(x=>x.id===id);
+  if(!u) return;
+  const nuova = prompt('Inserisci la nuova password provvisoria per ' + u.nome + ' ' + u.cognome + ':');
+  if(!nuova) return;
+  u.passwordHash = await sha256Hex(nuova);
+  delete u.password;
+  u.mustChangePassword = true;
+  await saveUtenti();
+  renderUsers();
+  alert('Password reimpostata. L\'utente dovrà cambiarla al prossimo accesso.');
 }
 async function deleteUser(id){
   if(!confirm('Eliminare questo utente?')) return;
   utenti = utenti.filter(u=>u.id!==id);
   await saveUtenti();
   renderUsers();
+}
+
+/* ============ IL MIO ACCOUNT ============ */
+function openAccountModal(forzato){
+  document.getElementById('acc-passwordAttuale').value = '';
+  document.getElementById('acc-username').value = currentUser.username;
+  document.getElementById('acc-nuovaPassword').value = '';
+  document.getElementById('acc-confermaPassword').value = '';
+  document.getElementById('account-modal-title').textContent = forzato ? 'Cambia la tua password' : 'Il mio account';
+  document.getElementById('account-modal-sub').textContent = forzato ? 'Per motivi di sicurezza devi impostare una nuova password prima di continuare' : 'Modifica i tuoi dati di accesso';
+  document.getElementById('account-modal-note').innerHTML = forzato ? '<div class="locked-note">Password provvisoria: devi cambiarla per accedere al programma.</div>' : '';
+  document.getElementById('account-modal-close').style.display = forzato ? 'none' : 'block';
+  document.getElementById('account-modal-annulla').style.display = forzato ? 'none' : 'inline-block';
+  document.getElementById('account-modal-backdrop').dataset.forzato = forzato ? '1' : '0';
+  document.getElementById('account-modal-backdrop').classList.add('active');
+}
+function closeAccountModal(){
+  if(document.getElementById('account-modal-backdrop').dataset.forzato === '1') return; // non chiudibile se obbligatorio
+  document.getElementById('account-modal-backdrop').classList.remove('active');
+}
+async function saveOwnAccount(ev){
+  ev.preventDefault();
+  const record = utenti.find(u=>u.id===currentUser.id);
+  if(!record){ alert('Utente non trovato.'); return false; }
+  const passwordAttuale = document.getElementById('acc-passwordAttuale').value;
+  const hashAttualeInserito = await sha256Hex(passwordAttuale);
+  const corrisponde = record.passwordHash ? (record.passwordHash === hashAttualeInserito) : (record.password === passwordAttuale);
+  if(!corrisponde){ alert('La password attuale non è corretta.'); return false; }
+  const nuovoUsername = document.getElementById('acc-username').value.trim();
+  const nuovaPassword = document.getElementById('acc-nuovaPassword').value;
+  const confermaPassword = document.getElementById('acc-confermaPassword').value;
+  const forzato = document.getElementById('account-modal-backdrop').dataset.forzato === '1';
+  if(forzato && !nuovaPassword){ alert('Devi impostare una nuova password per continuare.'); return false; }
+  if(nuovaPassword && nuovaPassword !== confermaPassword){ alert('Le due password non coincidono.'); return false; }
+  const duplicato = utenti.some(u=>u.username.toLowerCase()===nuovoUsername.toLowerCase() && u.id!==currentUser.id);
+  if(duplicato){ alert('Nome utente già esistente.'); return false; }
+  record.username = nuovoUsername;
+  if(nuovaPassword){
+    record.passwordHash = await sha256Hex(nuovaPassword);
+    delete record.password;
+    record.mustChangePassword = false;
+  }
+  currentUser = { id: record.id, username: record.username, nome: record.nome, cognome: record.cognome, ruolo: record.ruolo, mustChangePassword: !!record.mustChangePassword };
+  await saveUtenti();
+  document.getElementById('account-modal-backdrop').dataset.forzato = '0';
+  document.getElementById('account-modal-backdrop').classList.remove('active');
+  document.getElementById('ub-name').textContent = currentUser.nome + ' ' + currentUser.cognome;
+  alert('Dati di accesso aggiornati.');
+  return false;
 }
 
 /* ============ MEZZI ============ */
@@ -1406,6 +1569,7 @@ function cercaServizioPerFoglio(){
   const numero = document.getElementById('cs-numero').value.trim();
   const data = document.getElementById('cs-data').value;
   let risultati = servizi.filter(s => s.chiuso === true && s.mezzoId === mezzoId);
+  risultati = risultati.filter(s => !fogliMarcia.some(f => f.servizioId === s.id && f.id !== editingFoglioId));
   if(numero){
     const parti = numero.split('/');
     const prog = parseInt(parti[0]);
@@ -1537,6 +1701,8 @@ function exportFogliExcel(){
   });
   rows.push({ 'N°': '', 'Registrato il': '', 'Servizio': '', 'Motivazione servizio': '', 'N. Scheda 118': '', 'Data Scheda 118': '', 'Paziente': '', 'Da dove': '', 'A dove': '', 'E viceversa': '', 'Autista': '', '1° Soccorritore': '', '2° Soccorritore': '', 'Data partenza': '', 'Orario partenza': '', 'Data rientro': '', 'Orario rientro': '', 'Km iniziali': '', 'Km finali': 'TOTALE KM PERIODO:', 'Totale Km': kmTotaleRange, 'Ricevuta n.': '', 'Importo €': '', 'Carburante': '', 'Litri': '', 'Totale carburante €': '', 'Annotazioni': '', 'Compilatore': '' });
   const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+  ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Foglio di marcia');
   const nomeFile = 'Foglio_marcia_' + (mezzo ? (mezzo.tipo+'_'+mezzo.targa).replace(/[^a-zA-Z0-9]/g,'_') : mezzoId) + '.xlsx';
@@ -1552,25 +1718,53 @@ function printFogliMarcia(){
   const dataA = document.getElementById('fm-filtroDataA').value;
   const periodoTesto = (dataDa || dataA) ? ` — periodo: ${dataDa||'…'} → ${dataA||'…'}` : '';
   document.getElementById('print-fogli-title').textContent = 'Foglio di marcia — ' + (mezzo ? (mezzo.tipo+(mezzo.codice?' '+mezzo.codice:'')+' — '+mezzo.targa) : '') + periodoTesto;
-  let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Data</th><th>Paziente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km tot.</th><th>Importo</th><th>Compilatore</th></tr></thead><tbody>';
+  const intestazioni = ['N°','Registrato il','Motivazione','Servizio','Paziente','Da dove','A dove','E viceversa','N. Scheda 118','Data Scheda 118','Autista','1° Soccorritore','2° Soccorritore','Data/Ora partenza','Data/Ora rientro','Km iniziali','Km finali','Km tot.','Ricevuta n.','Importo','Carburante','Litri','Tot. carburante','Annotazioni','Compilatore'];
+  let html = '<table class="mini-table"><thead><tr>' + intestazioni.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
   righe.forEach(f=>{
+    const s = f.servizioId ? servizi.find(x=>x.id===f.servizioId) : null;
+    const numeroServ = s ? (s.numeroProgressivo+'/'+s.numeroAnno) : 'libero';
     html += `<tr>
       <td>${f.numeroProgressivo}</td>
       <td>${formatDateTime(f.registratoIl)}</td>
+      <td>${escapeHtml(f.motivazioneServizio||'—')}</td>
+      <td>${escapeHtml(numeroServ)}</td>
       <td>${escapeHtml(f.paziente||'—')}</td>
-      <td>${escapeHtml(f.daDove||'—')} → ${escapeHtml(f.aDove||'—')}</td>
-      <td>${f.dataPartenza||''} ${f.orarioPartenza||'—'} / ${f.dataArrivo||''} ${f.orarioRientro||'—'}</td>
+      <td>${escapeHtml(f.daDove||'—')}</td>
+      <td>${escapeHtml(f.aDove||'—')}</td>
+      <td>${f.viceversa?'Si':'No'}</td>
+      <td>${escapeHtml(f.numeroScheda118||'—')}</td>
+      <td>${f.dataScheda118||'—'}</td>
+      <td>${escapeHtml(f.autista||'—')}</td>
+      <td>${escapeHtml(f.soccorritore1||'—')}</td>
+      <td>${escapeHtml(f.soccorritore2||'—')}</td>
+      <td>${f.dataPartenza||''} ${f.orarioPartenza||'—'}</td>
+      <td>${f.dataArrivo||''} ${f.orarioRientro||'—'}</td>
+      <td>${f.kmIniziali||'—'}</td>
+      <td>${f.kmFinali||'—'}</td>
       <td>${f.kmTotale||'—'}</td>
+      <td>${escapeHtml(f.ricevutaNumero||'—')}</td>
       <td>${f.importo?'€ '+parseFloat(f.importo).toFixed(2):'—'}</td>
+      <td>${f.carburante||'No'}</td>
+      <td>${f.carburanteLitri||'—'}</td>
+      <td>${f.carburanteTotale?'€ '+parseFloat(f.carburanteTotale).toFixed(2):'—'}</td>
+      <td>${escapeHtml(f.annotazioni||'—')}</td>
       <td>${escapeHtml(f.compilatore||'—')}</td>
     </tr>`;
   });
-  html += `</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;">Totale km percorsi nel periodo:</td><td style="font-weight:700;">${kmTotaleRange}</td><td colspan="2"></td></tr></tfoot></table>`;
+  html += `</tbody><tfoot><tr><td colspan="${intestazioni.length-2}" style="text-align:right;font-weight:700;">Totale km percorsi nel periodo:</td><td style="font-weight:700;">${kmTotaleRange}</td><td></td></tr></tfoot></table>`;
   document.getElementById('print-fogli-content').innerHTML = html;
   const area = document.getElementById('print-area-fogli');
   area.style.display = 'block';
+  const stileOrizzontale = document.createElement('style');
+  stileOrizzontale.id = 'stile-stampa-orizzontale';
+  stileOrizzontale.textContent = '@page { size: landscape; margin: 8mm; }';
+  document.head.appendChild(stileOrizzontale);
   window.print();
-  setTimeout(()=>{ area.style.display = 'none'; }, 500);
+  setTimeout(()=>{
+    area.style.display = 'none';
+    const s = document.getElementById('stile-stampa-orizzontale');
+    if(s) s.remove();
+  }, 500);
 }
 
 /* ============ STATISTICHE ============ */
@@ -1945,6 +2139,31 @@ function nextProgressivo(anno){
   return max + 1;
 }
 
+const CAMPI_LABEL_SERVIZIO = {
+  enteSig:'Ente/Sig.', telRichiedente:'Telefono richiedente', relazione:'Relazione col paziente',
+  cognome:'Cognome', nome:'Nome', via:'Via', civico:'N°', citta:'Città', telPaziente:'Telefono paziente',
+  natoA:'Nato a', natoIl:'Nato il', residenteA:'Residente a', oraRicezione:'Ora di ricezione',
+  mezzoId:'Mezzo', perGiorno:'Data servizio', alleOre:'Ora servizio', aCasa:'A casa del paziente',
+  partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
+  peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
+  scale:'Presenza di scale', ascensore:'Ascensore', accompagnatore:'Accompagnatore', richiestoDa:'Richiesto da',
+  tipoRichiesta:'Tipo di richiesta', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Note',
+  rimborsoSuggerito:'Rimborso spesa', stato:'Stato',
+  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore', autorizzatoDa:'Autorizzato da'
+};
+function calcolaModificheServizio(vecchio, nuovo){
+  const cambi = [];
+  for(const key in CAMPI_LABEL_SERVIZIO){
+    const a = (vecchio[key] ?? '').toString();
+    const b = (nuovo[key] ?? '').toString();
+    if(a !== b) cambi.push(CAMPI_LABEL_SERVIZIO[key]);
+  }
+  const pa = JSON.stringify(vecchio.presidi || []);
+  const pb = JSON.stringify(nuovo.presidi || []);
+  if(pa !== pb) cambi.push('Presidi richiesti');
+  return cambi;
+}
+
 async function saveService(ev){
   ev.preventDefault();
   const g = id => document.getElementById(id).value.trim();
@@ -1996,12 +2215,21 @@ async function saveService(ev){
   if(!existing){
     data.cronologia.push({ tipo:'Presa in carico', chi: nomeUtenteCorrente, quando: adesso });
   } else {
-    data.cronologia.push({ tipo:'Modifica', chi: nomeUtenteCorrente, quando: adesso });
+    const cambi = calcolaModificheServizio(existing, data);
+    if(cambi.length){
+      data.cronologia.push({ tipo:'Modifica: ' + cambi.join(', '), chi: nomeUtenteCorrente, quando: adesso });
+    }
     if(data.stato === 'verde' && existing.stato !== 'verde'){
       data.cronologia.push({ tipo:'Confermato', chi: nomeUtenteCorrente, quando: adesso });
     }
     if(data.stato === 'rosso' && existing.stato !== 'rosso'){
       data.cronologia.push({ tipo:'Annullato', chi: nomeUtenteCorrente, quando: adesso });
+    }
+    if(data.chiuso && !existing.chiuso){
+      data.cronologia.push({ tipo:'Chiuso definitivamente', chi: nomeUtenteCorrente, quando: adesso });
+    }
+    if(!data.chiuso && existing.chiuso){
+      data.cronologia.push({ tipo:'Riaperto', chi: nomeUtenteCorrente, quando: adesso });
     }
   }
   const mezzoScelto = mezzi.find(m=>m.id===data.mezzoId);
@@ -2055,7 +2283,9 @@ function escapeHtml(str){
 }
 
 /* ============ AVVIO ============ */
-loadData();
+// I dati vengono caricati solo dopo un login riuscito (vedi doLogin),
+// perché il server ora richiede un token di sessione valido per ogni
+// lettura o scrittura.
 </script>
 </body>
 </html>
