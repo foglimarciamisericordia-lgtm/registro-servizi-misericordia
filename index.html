@@ -145,7 +145,38 @@
   .map-hint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
   .locked-note{font-size:12px;color:var(--amber);background:var(--amber-bg);padding:8px 11px;border-radius:7px;margin-bottom:14px;}
   .close-x{position:sticky;top:0;float:right;background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
+  .badge-apertura{display:inline-block;font-weight:600;font-size:13px;padding:7px 14px;border-radius:7px;background:var(--line-soft);color:var(--ink-soft);}
+  .badge-apertura.aperto{background:var(--teal-bg);color:var(--teal);}
+  .badge-apertura.chiuso{background:var(--line-soft);color:var(--ink-soft);}
+  .btn-toggle-chiuso{background:var(--navy);color:#fff;width:100%;}
+  .btn-toggle-chiuso:hover{background:var(--navy-dark);}
+  .btn-toggle-chiuso.riapri{background:var(--surface);color:var(--navy);border:1px solid var(--navy);}
+  .mini-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:20px;}
+  .mini-table th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:600;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line);}
+  .mini-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line-soft);}
+  .mini-table tr:last-child td{border-bottom:none;}
+  .inline-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;}
+  .inline-form .field{margin-bottom:0;min-width:130px;flex:1;}
+  .section-title{font-size:14px;font-weight:700;margin:22px 0 10px;color:var(--navy);}
+  .section-title:first-child{margin-top:0;}
+
+  /* ---------- SCHEDA VISUALIZZAZIONE ---------- */
+  .view-sheet h4{font-size:12.5px;font-weight:700;color:var(--navy);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line-soft);}
+  .view-sheet h4:first-child{margin-top:0;}
+  .view-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;}
+  @media(max-width:680px){.view-grid{grid-template-columns:1fr;}}
+  .view-item{font-size:13px;}
+  .view-item .vl{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
+  .view-item .vv{color:var(--ink);font-weight:500;}
+  .view-note{margin-top:6px;font-size:13px;background:var(--bg);border-radius:7px;padding:8px 10px;}
+  @media print{
+    body *{visibility:hidden;}
+    #print-area, #print-area *{visibility:visible;}
+    #print-area{position:absolute;left:0;top:0;width:100%;padding:20px;}
+    .modal-actions, .close-x{display:none !important;}
+  }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -182,6 +213,7 @@
       <div class="nav-item" data-view="elenco" onclick="switchView('elenco')">📋 Elenco servizi</div>
       <div class="nav-item" id="nav-utenti" data-view="utenti" onclick="switchView('utenti')" style="display:none;">👤 Gestione utenti</div>
       <div class="nav-item" id="nav-mezzi" data-view="mezzi" onclick="switchView('mezzi')" style="display:none;">🚑 Mezzi</div>
+      <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
       <div class="nav-spacer"></div>
       <div class="user-box">
         <div class="user-name" id="ub-name"></div>
@@ -261,6 +293,35 @@
         <div class="users-grid" id="mezzi-container"></div>
       </div>
 
+      <!-- RIMBORSO SPESE -->
+      <div class="view" id="view-rimborsi">
+        <div class="page-head">
+          <div>
+            <h2>Rimborso spese</h2>
+            <p>Tariffe per tratta e maggiorazioni ossigeno usate per calcolare il rimborso suggerito nella scheda servizio</p>
+          </div>
+        </div>
+
+        <div class="section-title">Tariffe per tratta</div>
+        <div class="inline-form">
+          <div class="field"><label>Comune di partenza</label><input type="text" id="rf-comunePartenza" placeholder="es. Santa Maria di Licodia"></div>
+          <div class="field"><label>Comune di arrivo</label><input type="text" id="rf-comuneArrivo" placeholder="es. Catania"></div>
+          <div class="field"><label>Tipo mezzo</label><select id="rf-tipoMezzo"></select></div>
+          <div class="field" style="max-width:120px;"><label>Importo €</label><input type="number" step="0.01" id="rf-importo"></div>
+          <button class="btn btn-add" type="button" onclick="addTariffa()">+ Aggiungi</button>
+        </div>
+        <div id="tariffe-container"></div>
+
+        <div class="section-title">Maggiorazione ossigeno (in base al flusso)</div>
+        <div class="inline-form">
+          <div class="field" style="max-width:110px;"><label>Flusso da (L/min)</label><input type="number" min="1" max="10" id="mo-flussoDa"></div>
+          <div class="field" style="max-width:110px;"><label>Flusso a (L/min)</label><input type="number" min="1" max="10" id="mo-flussoA"></div>
+          <div class="field" style="max-width:120px;"><label>Maggiorazione €</label><input type="number" step="0.01" id="mo-importo"></div>
+          <button class="btn btn-add" type="button" onclick="addMaggiorazione()">+ Aggiungi</button>
+        </div>
+        <div id="maggiorazioni-container"></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -288,23 +349,22 @@
         <div class="grid3">
           <div class="field"><label>Cognome</label><input type="text" id="sf-cognome"></div>
           <div class="field"><label>Nome</label><input type="text" id="sf-nome"></div>
-          <div class="field"><label>Via</label><input type="text" id="sf-via" oninput="scheduleGeoPreview()"></div>
+          <div class="field"><label>Via</label><input type="text" id="sf-via"></div>
           <div class="field"><label>N°</label><input type="text" id="sf-civico"></div>
-          <div class="field"><label>Città</label><input type="text" id="sf-citta" oninput="scheduleGeoPreview()"></div>
+          <div class="field"><label>Città</label><input type="text" id="sf-citta"></div>
           <div class="field"><label>Telefono</label><input type="text" id="sf-telPaziente"></div>
           <div class="field"><label>Nato a</label><input type="text" id="sf-natoA"></div>
           <div class="field"><label>Nato il</label><input type="date" id="sf-natoIl"></div>
           <div class="field"><label>Residente a</label><input type="text" id="sf-residenteA"></div>
         </div>
         <div class="field"><label>Ora di ricezione richiesta</label><input type="time" id="sf-oraRicezione"></div>
-        <div id="geo-preview-box"></div>
       </fieldset>
 
       <fieldset>
         <legend>Trasporto</legend>
         <div class="grid3">
           <div class="field"><label>Mezzo richiesto</label>
-            <select id="sf-mezzo"><option value="">-- seleziona --</option></select>
+            <select id="sf-mezzo" onchange="scheduleRimborsoCalc()"><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno</label><input type="date" id="sf-perGiorno"></div>
           <div class="field"><label>Alle ore</label><input type="time" id="sf-alleOre"></div>
@@ -313,8 +373,13 @@
           <div class="field"><label>A casa del paziente</label>
             <select id="sf-aCasa"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
           </div>
-          <div class="field"><label>Trasportare da (partenza)</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione"></div>
-          <div class="field"><label>A (destinazione)</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia"></div>
+          <div class="field"><label>Trasportare da (partenza)</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();"></div>
+          <div class="field"><label>A (destinazione)</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();"></div>
+        </div>
+        <div class="field"><label>Reparto / Padiglione / Ambulatorio (destinazione)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
+        <div class="grid2">
+          <div class="field"><label>Mappa partenza</label><div id="geo-preview-partenza"></div></div>
+          <div class="field"><label>Mappa destinazione</label><div id="geo-preview-destinazione"></div></div>
         </div>
       </fieldset>
 
@@ -353,16 +418,31 @@
         <div class="grid3">
           <div class="field"><label>Peso Kg</label><input type="number" id="sf-peso"></div>
           <div class="field"><label>Deambula</label><select id="sf-deambula"><option value="">-- non specificato --</option><option>Si</option><option>No</option><option>Con aiuto</option></select></div>
-          <div class="field"><label>Necessita ossigeno</label><select id="sf-ossigeno"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Necessita ossigeno</label><select id="sf-ossigeno" onchange="toggleFlussoOssigeno();scheduleRimborsoCalc();"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field" id="flusso-ossigeno-box" style="display:none;"><label>Flusso ossigeno (L/min)</label>
+            <select id="sf-flussoOssigeno" onchange="scheduleRimborsoCalc()">
+              <option value="">-- seleziona --</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+            </select>
+          </div>
           <div class="field"><label>Presenza di scale</label><select id="sf-scale"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Ascensore</label><select id="sf-ascensore"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Accompagnatore</label><select id="sf-accompagnatore"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Richiesto da</label><select id="sf-richiestoDa"><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Altro</option></select></div>
           <div class="field"><label>Tipo di richiesta</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione"></div>
-          <div class="field"><label>Routine</label><input type="text" id="sf-routine"></div>
         </div>
         <div class="field"><label>Affetto da</label><input type="text" id="sf-affettoDa"></div>
-        <div class="field"><label>Altro</label><input type="text" id="sf-altro" placeholder="es. sedia a rotelle nostra, solo andata"></div>
+        <div class="field">
+          <label>Presidi richiesti</label>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia">Sedia a rotelle</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina">Portantina</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale">Barella spinale</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-telo">Telo</label>
+          </div>
+          <input type="text" id="sf-presidiAltro" placeholder="Altro presidio (specificare)">
+        </div>
         <div class="field"><label>Note</label><textarea id="sf-note" rows="2"></textarea></div>
       </fieldset>
 
@@ -379,6 +459,14 @@
         </div>
       </fieldset>
 
+      <fieldset>
+        <legend>Rimborso spesa</legend>
+        <div class="grid2">
+          <div class="field"><label>Rimborso spesa suggerito</label><input type="text" id="sf-rimborsoSuggerito" readonly></div>
+          <div class="field"><label>Rimborso spesa (importo da applicare) €</label><input type="number" step="0.01" id="sf-rimborsoApplicato" oninput="rimborsoManuallyEdited=true"></div>
+        </div>
+      </fieldset>
+
       <fieldset id="fieldset-stato">
         <legend>Stato del servizio</legend>
         <div class="grid2">
@@ -389,7 +477,14 @@
               <option value="rosso">Annullato</option>
             </select>
           </div>
-          <div class="checkrow" style="align-self:end;"><input type="checkbox" id="sf-chiuso"> <label for="sf-chiuso" style="margin:0;">Chiudi definitivamente il servizio</label></div>
+          <div class="field" id="apertura-readonly-box">
+            <label>Apertura servizio</label>
+            <div id="badge-apertura" class="badge-apertura"></div>
+          </div>
+          <div class="field" id="apertura-toggle-box" style="display:none;">
+            <label>Gestione chiusura</label>
+            <button type="button" class="btn btn-toggle-chiuso" id="btn-toggle-chiuso" onclick="toggleChiusoStato()"></button>
+          </div>
         </div>
       </fieldset>
 
@@ -438,14 +533,16 @@
 <div class="modal-backdrop" id="mezzo-modal-backdrop">
   <div class="modal" style="max-width:380px;">
     <button class="close-x" onclick="closeMezzoModal()">✕</button>
-    <h3>Nuovo mezzo</h3>
+    <h3 id="mezzo-modal-title">Nuovo mezzo</h3>
     <p class="modal-sub">Disponibile poi nella scheda servizio</p>
     <form onsubmit="return saveMezzo(event)">
       <div class="field"><label>Tipo di mezzo</label>
         <select id="mf-tipo">
           <option>Ambulanza</option>
-          <option>Auto</option>
-          <option>Pulmino attrezzato</option>
+          <option>Automedica</option>
+          <option>Smart</option>
+          <option>L200</option>
+          <option>Pulmino disabili</option>
           <option>Altro</option>
         </select>
       </div>
@@ -461,16 +558,46 @@
     </form>
   </div>
 </div>
+
+<!-- MODAL VISUALIZZA SERVIZIO -->
+<div class="modal-backdrop" id="view-modal-backdrop">
+  <div class="modal" style="max-width:760px;">
+    <button class="close-x" onclick="closeViewModal()">✕</button>
+    <div id="print-area">
+      <h3 id="view-modal-title">Scheda servizio</h3>
+      <p class="modal-sub">Riepilogo di sola lettura</p>
+      <div class="view-sheet" id="view-sheet-content"></div>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost" onclick="closeViewModal()">Chiudi</button>
+        <button type="button" class="btn btn-ghost" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-ghost" onclick="downloadServicePdf()">Scarica PDF</button>
+        <button type="button" class="btn btn-primary" style="width:auto;background:#25D366;" onclick="shareServicePdfWhatsapp()">Invia su WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 /* ============ STATO GLOBALE ============ */
 let currentUser = null;
 let utenti = [];
 let mezzi = [];
 let servizi = [];
+let rimborsi = [];
+let maggiorazioniOssigeno = [];
 let calMode = 'month';
 let calDate = new Date();
 let editingServiceId = null;
+let editingMezzoId = null;
+let currentViewServiceId = null;
 let geoTimer = null;
+let rimborsoTimer = null;
+let currentChiusoState = false;
+let rimborsoManuallyEdited = false;
+
+const TIPI_MEZZO = ['Ambulanza','Automedica','Smart','L200','Pulmino disabili','Altro'];
 
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const GIORNI = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
@@ -505,10 +632,14 @@ async function loadData(){
   }
   mezzi = (await kvGet('mezzi')) || [];
   servizi = (await kvGet('servizi')) || [];
+  rimborsi = (await kvGet('rimborsi')) || [];
+  maggiorazioniOssigeno = (await kvGet('maggiorazioniOssigeno')) || [];
 }
 async function saveUtenti(){ await kvSet('utenti', utenti); }
 async function saveMezzi(){ await kvSet('mezzi', mezzi); }
 async function saveServizi(){ await kvSet('servizi', servizi); }
+async function saveRimborsi(){ await kvSet('rimborsi', rimborsi); }
+async function saveMaggiorazioni(){ await kvSet('maggiorazioniOssigeno', maggiorazioniOssigeno); }
 
 /* ============ LOGIN ============ */
 async function doLogin(){
@@ -528,10 +659,12 @@ async function doLogin(){
   document.getElementById('ub-role').textContent = found.ruolo;
   document.getElementById('nav-utenti').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-mezzi').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-rimborsi').style.display = (found.ruolo === 'amministratore') ? 'flex' : 'none';
   renderCalendar();
   renderElenco();
   renderUsers();
   renderMezzi();
+  renderRimborsi();
 }
 function doLogout(){
   currentUser = null;
@@ -549,12 +682,14 @@ function switchView(v){
   if(v === 'elenco') renderElenco();
   if(v === 'utenti') renderUsers();
   if(v === 'mezzi') renderMezzi();
+  if(v === 'rimborsi') renderRimborsi();
   if(v === 'dashboard') renderCalendar();
 }
 
 /* ============ PERMESSI ============ */
 function canManageUsers(){ return currentUser.ruolo === 'amministratore'; }
-function canEditEquipaggioEStato(){ return currentUser.ruolo === 'amministratore' || currentUser.ruolo === 'responsabile'; }
+function canEditEquipaggio(){ return currentUser.ruolo === 'amministratore' || currentUser.ruolo === 'responsabile'; }
+function canCloseService(){ return currentUser.ruolo === 'amministratore' || currentUser.ruolo === 'responsabile'; }
 function canEditServizio(sv){
   if(currentUser.ruolo === 'amministratore') return true;
   if(sv && sv.chiuso) return false;
@@ -656,20 +791,30 @@ function renderElenco(){
   if(cerca) list = list.filter(s=>(s.cognome||'').toLowerCase().includes(cerca));
   if(list.length===0){ container.innerHTML = '<div class="empty-state">Nessun servizio registrato con questi filtri.</div>'; return; }
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
-  let html = '<table class="servizi"><thead><tr><th>Stato</th><th>Data / Ora</th><th>Paziente</th><th>Destinazione</th><th>Mezzo</th><th>Operatore</th><th></th></tr></thead><tbody>';
+  let html = '<table class="servizi"><thead><tr><th>N°</th><th>Stato</th><th>Data / Ora</th><th>Paziente</th><th>Destinazione</th><th>Mezzo</th><th>Operatore</th><th></th></tr></thead><tbody>';
   list.forEach(s=>{
+    const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '/' + s.numeroAnno) : '—';
     html += `<tr>
+      <td class="mono">${numeroServizio}</td>
       <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-chiuso">Chiuso</span>':''}${s.gruppoRipetizione?'<span class="tag-chiuso">Ricorrente</span>':''}</td>
       <td class="mono">${s.perGiorno||'—'} ${s.alleOre||''}</td>
       <td>${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</td>
       <td>${escapeHtml(s.destinazione||'—')}</td>
       <td>${escapeHtml(s.mezzo||'—')}</td>
-      <td>${escapeHtml(s.operatoreInserimento||'—')}</td>
-      <td><button class="link-btn" onclick="openServiceModal('${s.id}')">Apri</button> · <button class="link-btn" onclick="duplicateService('${s.id}')">Duplica</button></td>
+      <td>${escapeHtml(s.operatoreInserimento||'—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.registratoIl)}</span></td>
+      <td><button class="link-btn" onclick="openServiceModal('${s.id}')">Apri</button> · <button class="link-btn" onclick="viewServiceModal('${s.id}')">Visualizza</button> · <button class="link-btn" onclick="duplicateService('${s.id}')">Duplica</button></td>
     </tr>`;
   });
   html += '</tbody></table>';
   container.innerHTML = html;
+}
+function formatDateTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return '—';
+  const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
 }
 
 /* ============ UTENTI ============ */
@@ -725,21 +870,33 @@ function renderMezzi(){
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
       <div class="un mono">${escapeHtml(m.targa)}</div>
-      <div style="margin-top:10px;"><button class="link-btn" onclick="deleteMezzo('${m.id}')">Elimina</button></div>
+      <div style="margin-top:10px;display:flex;gap:10px;">
+        <button class="link-btn" onclick="openMezzoModal('${m.id}')">Modifica</button>
+        <button class="link-btn" onclick="deleteMezzo('${m.id}')">Elimina</button>
+      </div>
     </div>`).join('');
 }
-function openMezzoModal(){
-  document.getElementById('mf-tipo').value = 'Ambulanza';
-  document.getElementById('mf-codice').value = '';
-  document.getElementById('mf-targa').value = '';
+function openMezzoModal(id){
+  editingMezzoId = id || null;
+  const m = id ? mezzi.find(x=>x.id===id) : null;
+  document.getElementById('mezzo-modal-title').textContent = m ? 'Modifica mezzo' : 'Nuovo mezzo';
+  document.getElementById('mf-tipo').value = m ? m.tipo : 'Ambulanza';
+  document.getElementById('mf-codice').value = m ? (m.codice||'') : '';
+  document.getElementById('mf-targa').value = m ? m.targa : '';
   document.getElementById('mezzo-modal-backdrop').classList.add('active');
 }
-function closeMezzoModal(){ document.getElementById('mezzo-modal-backdrop').classList.remove('active'); }
+function closeMezzoModal(){ document.getElementById('mezzo-modal-backdrop').classList.remove('active'); editingMezzoId = null; }
 async function saveMezzo(ev){
   ev.preventDefault();
   const targa = document.getElementById('mf-targa').value.trim().toUpperCase();
-  if(mezzi.some(m=>m.targa===targa)){ alert('Un mezzo con questa targa è già registrato.'); return false; }
-  mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa });
+  const duplicato = mezzi.some(m=>m.targa===targa && m.id!==editingMezzoId);
+  if(duplicato){ alert('Un mezzo con questa targa è già registrato.'); return false; }
+  if(editingMezzoId){
+    const idx = mezzi.findIndex(m=>m.id===editingMezzoId);
+    mezzi[idx] = { id: editingMezzoId, tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa };
+  } else {
+    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa });
+  }
   await saveMezzi();
   renderMezzi();
   closeMezzoModal();
@@ -758,6 +915,76 @@ function fillMezzoSelect(){
     return;
   }
   sel.innerHTML = '<option value="">-- seleziona --</option>' + mezzi.map(m=>`<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+}
+
+/* ============ RIMBORSO SPESE ============ */
+function renderRimborsi(){
+  if(currentUser.ruolo !== 'amministratore') return;
+  document.getElementById('rf-tipoMezzo').innerHTML = '<option value="">Qualsiasi mezzo</option>' + TIPI_MEZZO.map(t=>`<option>${t}</option>`).join('');
+
+  const tContainer = document.getElementById('tariffe-container');
+  if(rimborsi.length === 0){
+    tContainer.innerHTML = '<div class="empty-state">Nessuna tariffa registrata.</div>';
+  } else {
+    tContainer.innerHTML = '<table class="mini-table"><thead><tr><th>Partenza</th><th>Arrivo</th><th>Mezzo</th><th>Importo</th><th></th></tr></thead><tbody>' +
+      rimborsi.map(r=>`<tr>
+        <td>${escapeHtml(r.comunePartenza)}</td>
+        <td>${escapeHtml(r.comuneArrivo)}</td>
+        <td>${escapeHtml(r.tipoMezzo||'Qualsiasi')}</td>
+        <td class="mono">€ ${parseFloat(r.importo).toFixed(2)}</td>
+        <td><button class="link-btn" onclick="deleteTariffa('${r.id}')">Elimina</button></td>
+      </tr>`).join('') + '</tbody></table>';
+  }
+
+  const mContainer = document.getElementById('maggiorazioni-container');
+  if(maggiorazioniOssigeno.length === 0){
+    mContainer.innerHTML = '<div class="empty-state">Nessuna maggiorazione registrata.</div>';
+  } else {
+    mContainer.innerHTML = '<table class="mini-table"><thead><tr><th>Flusso da</th><th>Flusso a</th><th>Maggiorazione</th><th></th></tr></thead><tbody>' +
+      maggiorazioniOssigeno.map(m=>`<tr>
+        <td class="mono">${m.flussoDa} L/min</td>
+        <td class="mono">${m.flussoA} L/min</td>
+        <td class="mono">€ ${parseFloat(m.importo).toFixed(2)}</td>
+        <td><button class="link-btn" onclick="deleteMaggiorazione('${m.id}')">Elimina</button></td>
+      </tr>`).join('') + '</tbody></table>';
+  }
+}
+async function addTariffa(){
+  const comunePartenza = document.getElementById('rf-comunePartenza').value.trim();
+  const comuneArrivo = document.getElementById('rf-comuneArrivo').value.trim();
+  const tipoMezzo = document.getElementById('rf-tipoMezzo').value;
+  const importo = parseFloat(document.getElementById('rf-importo').value);
+  if(!comunePartenza || !comuneArrivo || isNaN(importo)){ alert('Compila comune di partenza, comune di arrivo e importo.'); return; }
+  rimborsi.push({ id:'r-'+Date.now(), comunePartenza, comuneArrivo, tipoMezzo, importo });
+  await saveRimborsi();
+  document.getElementById('rf-comunePartenza').value='';
+  document.getElementById('rf-comuneArrivo').value='';
+  document.getElementById('rf-importo').value='';
+  renderRimborsi();
+}
+async function deleteTariffa(id){
+  if(!confirm('Eliminare questa tariffa?')) return;
+  rimborsi = rimborsi.filter(r=>r.id!==id);
+  await saveRimborsi();
+  renderRimborsi();
+}
+async function addMaggiorazione(){
+  const flussoDa = parseInt(document.getElementById('mo-flussoDa').value);
+  const flussoA = parseInt(document.getElementById('mo-flussoA').value);
+  const importo = parseFloat(document.getElementById('mo-importo').value);
+  if(isNaN(flussoDa) || isNaN(flussoA) || isNaN(importo)){ alert('Compila flusso da, flusso a e importo maggiorazione.'); return; }
+  maggiorazioniOssigeno.push({ id:'mo-'+Date.now(), flussoDa, flussoA, importo });
+  await saveMaggiorazioni();
+  document.getElementById('mo-flussoDa').value='';
+  document.getElementById('mo-flussoA').value='';
+  document.getElementById('mo-importo').value='';
+  renderRimborsi();
+}
+async function deleteMaggiorazione(id){
+  if(!confirm('Eliminare questa maggiorazione?')) return;
+  maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m=>m.id!==id);
+  await saveMaggiorazioni();
+  renderRimborsi();
 }
 
 /* ============ MODAL SERVIZIO ============ */
@@ -819,7 +1046,7 @@ function duplicateService(id){
   editingServiceId = null;
   fillPersonSelects();
   fillMezzoSelect();
-  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false};
+  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:''};
   delete clone.gruppoRipetizione;
   document.getElementById('service-modal-title').textContent = 'Duplica servizio — ' + (clone.cognome||'') + ' ' + (clone.nome||'');
   fillServiceForm(null, null, clone);
@@ -828,25 +1055,253 @@ function duplicateService(id){
   document.getElementById('service-modal-backdrop').classList.add('active');
 }
 
+/* ============ VISUALIZZA SERVIZIO (scheda di sola lettura) ============ */
+function viewServiceModal(id){
+  const s = servizi.find(x=>x.id===id);
+  if(!s) return;
+  currentViewServiceId = id;
+  const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
+  const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
+  const presidiTesto = [...(s.presidi||[]), s.presidiAltro].filter(Boolean).join(', ') || '—';
+  const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '/' + s.numeroAnno) : '—';
+
+  document.getElementById('view-modal-title').textContent = 'Scheda servizio n° ' + numeroServizio + ' — ' + (s.cognome||'') + ' ' + (s.nome||'');
+
+  const html = `
+    <h4>Dati del richiedente</h4>
+    <div class="view-grid">
+      ${item('Ente/Sig.', s.enteSig)}
+      ${item('Telefono richiedente', s.telRichiedente)}
+      ${item('Relazione col paziente', s.relazione)}
+    </div>
+
+    <h4>Dati del paziente</h4>
+    <div class="view-grid">
+      ${item('Cognome', s.cognome)}
+      ${item('Nome', s.nome)}
+      ${item('Via', s.via)}
+      ${item('N°', s.civico)}
+      ${item('Città', s.citta)}
+      ${item('Telefono', s.telPaziente)}
+      ${item('Nato a', s.natoA)}
+      ${item('Nato il', s.natoIl)}
+      ${item('Residente a', s.residenteA)}
+      ${item('Ora di ricezione', s.oraRicezione)}
+    </div>
+
+    <h4>Trasporto</h4>
+    <div class="view-grid">
+      ${item('Mezzo', s.mezzo)}
+      ${item('Per il giorno', s.perGiorno)}
+      ${item('Alle ore', s.alleOre)}
+      ${item('A casa del paziente', s.aCasa)}
+      ${item('Partenza', s.partenza)}
+      ${item('Destinazione', s.destinazione)}
+      ${item('Reparto/Padiglione', s.repartoDestinazione)}
+    </div>
+
+    <h4>Condizioni del paziente</h4>
+    <div class="view-grid">
+      ${item('Peso Kg', s.peso)}
+      ${item('Deambula', s.deambula)}
+      ${item('Necessita ossigeno', s.ossigeno)}
+      ${item('Flusso ossigeno', s.flussoOssigeno ? s.flussoOssigeno+' L/min' : '')}
+      ${item('Presenza di scale', s.scale)}
+      ${item('Ascensore', s.ascensore)}
+      ${item('Accompagnatore', s.accompagnatore)}
+      ${item('Richiesto da', s.richiestoDa)}
+      ${item('Tipo di richiesta', s.tipoRichiesta)}
+      ${item('Affetto da', s.affettoDa)}
+    </div>
+    <div class="view-item" style="margin-top:8px;"><span class="vl">Presidi richiesti</span><span class="vv">${escapeHtml(presidiTesto)}</span></div>
+    ${s.note ? `<div class="view-note">${escapeHtml(s.note)}</div>` : ''}
+
+    <h4>Equipaggio previsto</h4>
+    <div class="view-grid">
+      ${item('Autista', s.autista)}
+      ${item('1° Soccorritore', s.soccorritore1)}
+      ${item('2° Soccorritore', s.soccorritore2)}
+      ${item('Centralinista', s.centralinista)}
+      ${item('Autorizzato da', s.autorizzatoDa)}
+    </div>
+
+    <h4>Rimborso spesa</h4>
+    <div class="view-grid">
+      ${item('Rimborso suggerito', s.rimborsoSuggerito)}
+      ${item('Rimborso applicato', s.rimborsoApplicato ? '€ '+parseFloat(s.rimborsoApplicato).toFixed(2) : '')}
+    </div>
+
+    <h4>Stato</h4>
+    <div class="view-grid">
+      ${item('Stato', statoLabel[s.stato] || s.stato)}
+      ${item('Apertura', s.chiuso ? 'Chiuso' : 'Aperto')}
+      ${item('Operatore', s.operatoreInserimento)}
+      ${item('Registrato il', formatDateTime(s.registratoIl))}
+    </div>
+  `;
+  document.getElementById('view-sheet-content').innerHTML = html;
+  document.getElementById('view-modal-backdrop').classList.add('active');
+}
+function closeViewModal(){
+  document.getElementById('view-modal-backdrop').classList.remove('active');
+}
+
+function buildServicePdf(s){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
+  const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '/' + s.numeroAnno) : '—';
+  const presidiTesto = [...(s.presidi||[]), s.presidiAltro].filter(Boolean).join(', ') || '—';
+  let y = 18;
+  const marginX = 14;
+  const lineH = 6;
+  const pageH = doc.internal.pageSize.getHeight();
+  function ensureSpace(extra){ if(y + extra > pageH - 14){ doc.addPage(); y = 18; } }
+  function title(t){ ensureSpace(10); doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.text(t, marginX, y); y += lineH + 1; doc.setFont(undefined,'normal'); doc.setFontSize(10); }
+  function row(label, val){
+    ensureSpace(lineH);
+    const text = label + ': ' + (val && String(val).trim() ? String(val) : '—');
+    const wrapped = doc.splitTextToSize(text, 180);
+    doc.text(wrapped, marginX, y);
+    y += lineH * wrapped.length;
+  }
+
+  doc.setFont(undefined,'bold'); doc.setFontSize(14);
+  doc.text('Fraternita di Misericordia di S.M. di Licodia ODV', marginX, y); y += 8;
+  doc.setFontSize(12);
+  doc.text('Scheda servizio n. ' + numeroServizio, marginX, y); y += 10;
+  doc.setFont(undefined,'normal'); doc.setFontSize(10);
+
+  title('Dati del richiedente');
+  row('Ente/Sig.', s.enteSig); row('Telefono richiedente', s.telRichiedente); row('Relazione col paziente', s.relazione);
+
+  title('Dati del paziente');
+  row('Cognome', s.cognome); row('Nome', s.nome); row('Via', s.via); row('N°', s.civico); row('Città', s.citta);
+  row('Telefono', s.telPaziente); row('Nato a', s.natoA); row('Nato il', s.natoIl); row('Residente a', s.residenteA);
+  row('Ora di ricezione', s.oraRicezione);
+
+  title('Trasporto');
+  row('Mezzo', s.mezzo); row('Per il giorno', s.perGiorno); row('Alle ore', s.alleOre); row('A casa del paziente', s.aCasa);
+  row('Partenza', s.partenza); row('Destinazione', s.destinazione); row('Reparto/Padiglione', s.repartoDestinazione);
+
+  title('Condizioni del paziente');
+  row('Peso Kg', s.peso); row('Deambula', s.deambula); row('Necessita ossigeno', s.ossigeno);
+  row('Flusso ossigeno', s.flussoOssigeno ? s.flussoOssigeno + ' L/min' : '');
+  row('Presenza di scale', s.scale); row('Ascensore', s.ascensore); row('Accompagnatore', s.accompagnatore);
+  row('Richiesto da', s.richiestoDa); row('Tipo di richiesta', s.tipoRichiesta); row('Affetto da', s.affettoDa);
+  row('Presidi richiesti', presidiTesto);
+  if(s.note) row('Note', s.note);
+
+  title('Equipaggio previsto');
+  row('Autista', s.autista); row('1° Soccorritore', s.soccorritore1); row('2° Soccorritore', s.soccorritore2);
+  row('Centralinista', s.centralinista); row('Autorizzato da', s.autorizzatoDa);
+
+  title('Rimborso spesa');
+  row('Rimborso suggerito', s.rimborsoSuggerito);
+  row('Rimborso applicato', s.rimborsoApplicato ? '€ ' + parseFloat(s.rimborsoApplicato).toFixed(2) : '');
+
+  title('Stato');
+  row('Stato', statoLabel[s.stato] || s.stato); row('Apertura', s.chiuso ? 'Chiuso' : 'Aperto');
+  row('Operatore', s.operatoreInserimento); row('Registrato il', formatDateTime(s.registratoIl));
+
+  return doc;
+}
+function servicePdfFilename(s){
+  const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '-' + s.numeroAnno) : 'servizio';
+  const cognome = (s.cognome||'').replace(/[^a-zA-Z0-9]/g,'') || 'paziente';
+  return `Servizio_${numeroServizio}_${cognome}.pdf`;
+}
+function downloadServicePdf(){
+  const s = servizi.find(x=>x.id===currentViewServiceId);
+  if(!s) return;
+  const doc = buildServicePdf(s);
+  doc.save(servicePdfFilename(s));
+}
+async function shareServicePdfWhatsapp(){
+  const s = servizi.find(x=>x.id===currentViewServiceId);
+  if(!s) return;
+  const doc = buildServicePdf(s);
+  const filename = servicePdfFilename(s);
+  const blob = doc.output('blob');
+  const file = new File([blob], filename, { type: 'application/pdf' });
+
+  if(navigator.canShare && navigator.canShare({ files: [file] })){
+    try{
+      await navigator.share({ files: [file], title: filename, text: 'Scheda servizio - Fraternita di Misericordia di S.M. di Licodia ODV' });
+      return;
+    }catch(e){
+      // l'utente ha annullato la condivisione, non fare nulla
+      return;
+    }
+  }
+  // Da computer (o browser senza supporto alla condivisione file): scarica il PDF e apre WhatsApp Web per l'invio manuale
+  doc.save(filename);
+  alert('Il PDF è stato scaricato sul computer.\nSi aprirà ora WhatsApp: allega manualmente il file appena scaricato alla chat desiderata.');
+  window.open('https://web.whatsapp.com/', '_blank');
+}
+
+function toggleFlussoOssigeno(){
+  const on = document.getElementById('sf-ossigeno').value === 'Si';
+  document.getElementById('flusso-ossigeno-box').style.display = on ? 'block' : 'none';
+  if(!on) document.getElementById('sf-flussoOssigeno').value = '';
+}
+
+function toggleChiusoStato(){
+  currentChiusoState = !currentChiusoState;
+  updateAperturaUI();
+}
+function updateAperturaUI(){
+  const badge = document.getElementById('badge-apertura');
+  badge.textContent = currentChiusoState ? 'Chiuso' : 'Aperto';
+  badge.className = 'badge-apertura ' + (currentChiusoState ? 'chiuso' : 'aperto');
+  const btn = document.getElementById('btn-toggle-chiuso');
+  btn.textContent = currentChiusoState ? 'Riapri servizio' : 'Chiudi definitivamente il servizio';
+  btn.classList.toggle('riapri', currentChiusoState);
+}
+
 function fillServiceForm(sv, prefillDate, cloneData){
   const data = cloneData || sv;
   const set = (elId, val) => { document.getElementById(elId).value = val || ''; };
   set('sf-enteSig', data?.enteSig); set('sf-telRichiedente', data?.telRichiedente); set('sf-relazione', data?.relazione);
   set('sf-cognome', data?.cognome); set('sf-nome', data?.nome); set('sf-via', data?.via); set('sf-civico', data?.civico);
   set('sf-citta', data?.citta); set('sf-telPaziente', data?.telPaziente); set('sf-natoA', data?.natoA); set('sf-natoIl', data?.natoIl);
-  set('sf-residenteA', data?.residenteA); set('sf-oraRicezione', data?.oraRicezione);
+  set('sf-residenteA', data?.residenteA);
+  if(data?.oraRicezione){
+    document.getElementById('sf-oraRicezione').value = data.oraRicezione;
+  } else {
+    const now = new Date();
+    document.getElementById('sf-oraRicezione').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
   set('sf-mezzo', data?.mezzoId); set('sf-perGiorno', data?.perGiorno || prefillDate); set('sf-alleOre', data?.alleOre);
   set('sf-aCasa', data?.aCasa); set('sf-partenza', data?.partenza); set('sf-destinazione', data?.destinazione);
+  set('sf-repartoDestinazione', data?.repartoDestinazione);
   set('sf-peso', data?.peso); set('sf-deambula', data?.deambula); set('sf-ossigeno', data?.ossigeno); set('sf-scale', data?.scale);
   set('sf-ascensore', data?.ascensore); set('sf-accompagnatore', data?.accompagnatore); set('sf-richiestoDa', data?.richiestoDa);
-  set('sf-tipoRichiesta', data?.tipoRichiesta); set('sf-routine', data?.routine); set('sf-affettoDa', data?.affettoDa); set('sf-altro', data?.altro);
+  set('sf-tipoRichiesta', data?.tipoRichiesta); set('sf-affettoDa', data?.affettoDa);
+  document.getElementById('sf-flussoOssigeno').value = data?.flussoOssigeno || '';
+  toggleFlussoOssigeno();
+  document.getElementById('sf-presidio-sedia').checked = !!(data?.presidi||[]).includes('Sedia a rotelle');
+  document.getElementById('sf-presidio-portantina').checked = !!(data?.presidi||[]).includes('Portantina');
+  document.getElementById('sf-presidio-spinale').checked = !!(data?.presidi||[]).includes('Barella spinale');
+  document.getElementById('sf-presidio-telo').checked = !!(data?.presidi||[]).includes('Telo');
+  set('sf-presidiAltro', data?.presidiAltro);
   set('sf-note', data?.note);
   set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2);
   set('sf-centralinista', data?.centralinista || (currentUser.nome+' '+currentUser.cognome)); set('sf-autorizzatoDa', data?.autorizzatoDa);
   document.getElementById('sf-stato').value = data?.stato || 'giallo';
-  document.getElementById('sf-chiuso').checked = !!data?.chiuso;
-  document.getElementById('geo-preview-box').innerHTML = '';
+  rimborsoManuallyEdited = false;
+  set('sf-rimborsoApplicato', data?.rimborsoApplicato);
+  document.getElementById('sf-rimborsoSuggerito').value = data?.rimborsoSuggerito || '';
+  document.getElementById('geo-preview-partenza').innerHTML = '';
+  document.getElementById('geo-preview-destinazione').innerHTML = '';
   scheduleGeoPreview();
+  scheduleRimborsoCalc();
+
+  currentChiusoState = !!data?.chiuso;
+  updateAperturaUI();
+  const puoChiudere = canCloseService();
+  document.getElementById('apertura-readonly-box').style.display = puoChiudere ? 'none' : 'block';
+  document.getElementById('apertura-toggle-box').style.display = puoChiudere ? 'block' : 'none';
 
   document.getElementById('sf-ripetitivo').checked = false;
   document.getElementById('sf-frequenza').value = 'giornaliero';
@@ -854,23 +1309,20 @@ function fillServiceForm(sv, prefillDate, cloneData){
   ['lun','mar','mer','gio','ven','sab','dom'].forEach(c=>{ document.getElementById('sf-giorno-'+c).checked = false; });
   toggleRipetizione();
 
-  const equipaggioAllowed = canEditEquipaggioEStato();
-  document.getElementById('fieldset-equipaggio').style.opacity = equipaggioAllowed ? '1' : '.5';
+  const equipaggioAllowed = canEditEquipaggio();
   document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = !equipaggioAllowed);
-  document.getElementById('fieldset-stato').style.opacity = equipaggioAllowed ? '1' : '.5';
-  document.getElementById('sf-stato').disabled = !equipaggioAllowed;
-  document.getElementById('sf-chiuso').disabled = !equipaggioAllowed;
 
   const locked = sv && sv.chiuso && currentUser.ruolo !== 'amministratore';
   document.getElementById('locked-note-box').innerHTML = locked ? '<div class="locked-note">Questo servizio è stato chiuso definitivamente: sola lettura, salvo per un amministratore.</div>' : '';
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>{
     el.disabled = false;
-    if(locked) el.disabled = true;
   });
   if(locked){
     document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = true);
     document.getElementById('sf-stato').disabled = true;
-    document.getElementById('sf-chiuso').disabled = true;
+    document.getElementById('btn-toggle-chiuso').disabled = true;
+  } else {
+    document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = !equipaggioAllowed);
   }
 }
 function closeServiceModal(){
@@ -881,18 +1333,69 @@ function closeServiceModal(){
 function scheduleGeoPreview(){
   clearTimeout(geoTimer);
   geoTimer = setTimeout(()=>{
-    const via = document.getElementById('sf-via').value.trim();
-    const citta = document.getElementById('sf-citta').value.trim();
-    const box = document.getElementById('geo-preview-box');
-    if(!via && !citta){ box.innerHTML=''; return; }
-    const q = encodeURIComponent([via, citta || 'Santa Maria di Licodia'].filter(Boolean).join(', '));
-    box.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${q}&output=embed" loading="lazy"></iframe></div><div class="map-hint">Geolocalizzazione indicativa in base all'indirizzo inserito.</div>`;
+    const partenza = document.getElementById('sf-partenza').value.trim();
+    const destinazione = document.getElementById('sf-destinazione').value.trim();
+    const boxP = document.getElementById('geo-preview-partenza');
+    const boxD = document.getElementById('geo-preview-destinazione');
+    if(!partenza){ boxP.innerHTML = '<div class="map-hint">Inserisci l\'indirizzo di partenza.</div>'; }
+    else {
+      const qP = encodeURIComponent(partenza + ' Santa Maria di Licodia');
+      boxP.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${qP}&output=embed" loading="lazy"></iframe></div>`;
+    }
+    if(!destinazione){ boxD.innerHTML = '<div class="map-hint">Inserisci l\'indirizzo di destinazione.</div>'; }
+    else {
+      const qD = encodeURIComponent(destinazione);
+      boxD.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${qD}&output=embed" loading="lazy"></iframe></div>`;
+    }
   }, 600);
+}
+function scheduleRimborsoCalc(){
+  clearTimeout(rimborsoTimer);
+  rimborsoTimer = setTimeout(computeRimborsoSuggerito, 500);
+}
+function computeRimborsoSuggerito(){
+  const partenza = document.getElementById('sf-partenza').value.trim().toLowerCase();
+  const destinazione = document.getElementById('sf-destinazione').value.trim().toLowerCase();
+  const mezzoObj = mezzi.find(m=>m.id===document.getElementById('sf-mezzo').value);
+  const tipoMezzo = mezzoObj ? mezzoObj.tipo : '';
+  let base = 0, matched = false;
+  if(partenza || destinazione){
+    rimborsi.forEach(r=>{
+      const okPartenza = !r.comunePartenza || partenza.includes(r.comunePartenza.toLowerCase());
+      const okArrivo = !r.comuneArrivo || destinazione.includes(r.comuneArrivo.toLowerCase());
+      const okMezzo = !r.tipoMezzo || r.tipoMezzo === tipoMezzo;
+      if(okPartenza && okArrivo && okMezzo){ base = parseFloat(r.importo) || 0; matched = true; }
+    });
+  }
+  let maggiorazione = 0;
+  const ossigeno = document.getElementById('sf-ossigeno').value;
+  const flusso = parseInt(document.getElementById('sf-flussoOssigeno').value) || 0;
+  if(ossigeno === 'Si' && flusso > 0){
+    maggiorazioniOssigeno.forEach(mo=>{
+      if(flusso >= mo.flussoDa && flusso <= mo.flussoA){ maggiorazione = parseFloat(mo.importo) || 0; }
+    });
+  }
+  const totale = base + maggiorazione;
+  document.getElementById('sf-rimborsoSuggerito').value = (matched || maggiorazione > 0) ? ('€ ' + totale.toFixed(2)) : '—';
+  if(!rimborsoManuallyEdited){
+    document.getElementById('sf-rimborsoApplicato').value = totale > 0 ? totale.toFixed(2) : '';
+  }
+}
+
+function nextProgressivo(anno){
+  let max = 0;
+  servizi.forEach(s=>{ if(s.numeroAnno === anno && s.numeroProgressivo > max) max = s.numeroProgressivo; });
+  return max + 1;
 }
 
 async function saveService(ev){
   ev.preventDefault();
   const g = id => document.getElementById(id).value.trim();
+  const presidi = [];
+  if(document.getElementById('sf-presidio-sedia').checked) presidi.push('Sedia a rotelle');
+  if(document.getElementById('sf-presidio-portantina').checked) presidi.push('Portantina');
+  if(document.getElementById('sf-presidio-spinale').checked) presidi.push('Barella spinale');
+  if(document.getElementById('sf-presidio-telo').checked) presidi.push('Telo');
   const data = {
     id: editingServiceId || ('s-' + Date.now()),
     enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), relazione: g('sf-relazione'),
@@ -901,25 +1404,34 @@ async function saveService(ev){
     residenteA: g('sf-residenteA'), oraRicezione: g('sf-oraRicezione'),
     mezzoId: g('sf-mezzo'), perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
     aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
-    peso: g('sf-peso'), deambula: g('sf-deambula'), ossigeno: g('sf-ossigeno'), scale: g('sf-scale'),
+    repartoDestinazione: g('sf-repartoDestinazione'),
+    peso: g('sf-peso'), deambula: g('sf-deambula'), ossigeno: g('sf-ossigeno'),
+    flussoOssigeno: g('sf-flussoOssigeno'), scale: g('sf-scale'),
     ascensore: g('sf-ascensore'), accompagnatore: g('sf-accompagnatore'), richiestoDa: g('sf-richiestoDa'),
-    tipoRichiesta: g('sf-tipoRichiesta'), routine: g('sf-routine'), affettoDa: g('sf-affettoDa'), altro: g('sf-altro'),
+    tipoRichiesta: g('sf-tipoRichiesta'), affettoDa: g('sf-affettoDa'),
+    presidi, presidiAltro: g('sf-presidiAltro'),
     note: g('sf-note'),
+    rimborsoSuggerito: document.getElementById('sf-rimborsoSuggerito').value,
+    rimborsoApplicato: g('sf-rimborsoApplicato'),
+    stato: document.getElementById('sf-stato').value,
   };
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
-  if(canEditEquipaggioEStato()){
+  if(canEditEquipaggio()){
     data.autista = g('sf-autista'); data.soccorritore1 = g('sf-soccorritore1'); data.soccorritore2 = g('sf-soccorritore2');
     data.centralinista = g('sf-centralinista'); data.autorizzatoDa = g('sf-autorizzatoDa');
-    data.stato = document.getElementById('sf-stato').value;
-    data.chiuso = document.getElementById('sf-chiuso').checked;
   } else if(existing){
     data.autista = existing.autista; data.soccorritore1 = existing.soccorritore1; data.soccorritore2 = existing.soccorritore2;
     data.centralinista = existing.centralinista; data.autorizzatoDa = existing.autorizzatoDa;
-    data.stato = existing.stato; data.chiuso = existing.chiuso;
+  }
+  if(canCloseService()){
+    data.chiuso = currentChiusoState;
+  } else if(existing){
+    data.chiuso = existing.chiuso;
   } else {
-    data.stato = 'giallo'; data.chiuso = false;
+    data.chiuso = false;
   }
   data.operatoreInserimento = existing ? existing.operatoreInserimento : (currentUser.nome + ' ' + currentUser.cognome);
+  data.registratoIl = existing ? existing.registratoIl : new Date().toISOString();
   const mezzoScelto = mezzi.find(m=>m.id===data.mezzoId);
   data.mezzoTipo = mezzoScelto ? mezzoScelto.tipo : '';
   data.mezzoCodice = mezzoScelto ? mezzoScelto.codice : '';
@@ -927,6 +1439,8 @@ async function saveService(ev){
   data.mezzo = mezzoScelto ? (mezzoScelto.tipo + (mezzoScelto.codice ? ' ' + mezzoScelto.codice : '') + ' — ' + mezzoScelto.targa) : '';
 
   if(existing){
+    data.numeroProgressivo = existing.numeroProgressivo;
+    data.numeroAnno = existing.numeroAnno;
     const idx = servizi.findIndex(s=>s.id===existing.id);
     servizi[idx] = data;
   } else if(document.getElementById('sf-ripetitivo').checked && !document.getElementById('sf-ripetitivo').disabled){
@@ -941,9 +1455,14 @@ async function saveService(ev){
     }
     const gruppoId = 'grp-' + Date.now();
     dateList.forEach((dk, i) => {
-      servizi.push({...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId});
+      const anno = new Date(dk+'T00:00:00').getFullYear();
+      const numeroProgressivo = nextProgressivo(anno);
+      servizi.push({...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo});
     });
   } else {
+    const anno = data.perGiorno ? new Date(data.perGiorno+'T00:00:00').getFullYear() : new Date().getFullYear();
+    data.numeroAnno = anno;
+    data.numeroProgressivo = nextProgressivo(anno);
     servizi.push(data);
   }
   await saveServizi();
