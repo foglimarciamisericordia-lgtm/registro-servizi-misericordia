@@ -1446,6 +1446,7 @@ async function renderElenco(){
         <button class="action-btn" onclick="visualizzaServizioAnno('${s.id}',${s.numeroAnno})">👁 Visualizza</button>
         <button class="action-btn" onclick="duplicaServizioAnno('${s.id}',${s.numeroAnno})">⧉ Duplica</button>
         <button class="action-btn" onclick="generaFoglioServizioAnno('${s.id}',${s.numeroAnno})">🚐 Foglio marcia</button>
+        ${currentUser.ruolo==='amministratore' ? `<button class="action-btn danger" onclick="eliminaServizioDaElenco('${s.id}',${s.numeroAnno})">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
   });
@@ -2240,6 +2241,12 @@ async function duplicaServizioAnno(id, anno){
 async function generaFoglioServizioAnno(id, anno){
   if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
   generaFoglioDaServizio(id);
+}
+async function eliminaServizioDaElenco(id, anno){
+  if(!confirm('Spostare questo servizio nel cestino? Potrai ripristinarlo entro 7 giorni, dall\'apposita sezione Cestino.')) return;
+  if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
+  await cestinaServizio(id, anno);
+  renderElenco(); renderCalendar();
 }
 /* ============ CESTINO ============ */
 const GIORNI_CONSERVAZIONE_CESTINO = 7;
