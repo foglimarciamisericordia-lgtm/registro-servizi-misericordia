@@ -348,7 +348,7 @@
           </div>
           <button class="btn btn-add" onclick="openUserModal()">+ Nuovo utente</button>
         </div>
-        <div class="users-grid" id="users-container"></div>
+        <div id="users-container"></div>
       </div>
 
       <!-- MEZZI -->
@@ -360,7 +360,7 @@
           </div>
           <button class="btn btn-add" onclick="openMezzoModal()">+ Nuovo mezzo</button>
         </div>
-        <div class="users-grid" id="mezzi-container"></div>
+        <div id="mezzi-container"></div>
 
         <div class="section-title">Tipi di mezzo</div>
         <div class="inline-form">
@@ -822,7 +822,8 @@
       <div></div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeViewModal()">Chiudi</button>
-        <button type="button" class="btn btn-primary" style="width:auto;" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-ghost" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="modificaDaVisualizzazione()">Modifica</button>
       </div>
     </div>
   </div>
@@ -1217,7 +1218,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();openServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}</div>`).join('')}
+        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}</div>`).join('')}
         ${dayServices.length>4?`<div style="font-size:10.5px;color:var(--ink-soft);">+${dayServices.length-4} altri</div>`:''}
       </div>`;
     }
@@ -1239,7 +1240,7 @@ function renderCalendar(){
       days.forEach(d=>{
         const k = dateKey(d);
         const hourServices = attivi.filter(s => s.perGiorno===k && s.alleOre && parseInt(s.alleOre.split(':')[0])===h);
-        body += `<div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();openServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')}</div>`).join('')}</div>`;
+        body += `<div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')}</div>`).join('')}</div>`;
       });
     }
     container.innerHTML = `<div class="cal-grid"><div class="cal-week-grid" style="--cols:7;">${head}${body}</div></div>`;
@@ -1253,7 +1254,7 @@ function renderCalendar(){
     const dayServices = attivi.filter(s=>s.perGiorno===k);
     for(let h=7;h<21;h++){
       const hourServices = dayServices.filter(s=>s.alleOre && parseInt(s.alleOre.split(':')[0])===h);
-      body += `<div class="hourlabel">${String(h).padStart(2,'0')}:00</div><div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();openServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')} — ${escapeHtml(s.destinazione||'')}</div>`).join('')}</div>`;
+      body += `<div class="hourlabel">${String(h).padStart(2,'0')}:00</div><div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')} — ${escapeHtml(s.destinazione||'')}</div>`).join('')}</div>`;
     }
     container.innerHTML = `<div class="cal-grid"><div class="cal-day-grid" style="--cols:1;">${head}${body}</div></div>`;
   }
@@ -1282,7 +1283,7 @@ function renderElenco(){
       <td>${escapeHtml(s.destinazione||'—')}</td>
       <td>${escapeHtml(s.mezzo||'—')}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
-      <td><button class="link-btn" onclick="openServiceModal('${s.id}')">Apri</button> · <button class="link-btn" onclick="viewServiceModal('${s.id}')">Visualizza</button> · <button class="link-btn" onclick="duplicateService('${s.id}')">Duplica</button> · <button class="link-btn" onclick="generaFoglioDaServizio('${s.id}')">Genera foglio marcia</button></td>
+      <td>${(!s.chiuso || currentUser.ruolo!=='operatore') ? `<button class="link-btn" onclick="openServiceModal('${s.id}')">Modifica</button> · ` : ''}<button class="link-btn" onclick="viewServiceModal('${s.id}')">Visualizza</button> · <button class="link-btn" onclick="duplicateService('${s.id}')">Duplica</button> · <button class="link-btn" onclick="generaFoglioDaServizio('${s.id}')">Genera foglio marcia</button></td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -1594,14 +1595,23 @@ function renderRimborsi(){
   if(rimborsi.length === 0){
     tContainer.innerHTML = '<div class="empty-state">Nessuna tariffa registrata.</div>';
   } else {
-    tContainer.innerHTML = '<table class="mini-table"><thead><tr><th>Partenza</th><th>Arrivo</th><th>Mezzo</th><th>Importo</th><th></th></tr></thead><tbody>' +
-      rimborsi.map(r=>`<tr>
-        <td>${escapeHtml(r.comunePartenza)}</td>
-        <td>${escapeHtml(r.comuneArrivo)}</td>
-        <td>${escapeHtml(r.tipoMezzo||'Qualsiasi')}</td>
-        <td class="mono">€ ${parseFloat(r.importo).toFixed(2)}</td>
-        <td><button class="link-btn" onclick="editTariffa('${r.id}')">Modifica</button> · <button class="link-btn" onclick="deleteTariffa('${r.id}')">Elimina</button></td>
-      </tr>`).join('') + '</tbody></table>';
+    const gruppi = {};
+    rimborsi.forEach(r=>{
+      const chiave = r.tipoMezzo || 'Qualsiasi mezzo';
+      if(!gruppi[chiave]) gruppi[chiave] = [];
+      gruppi[chiave].push(r);
+    });
+    const ordineGruppi = Object.keys(gruppi).sort((a,b)=> a==='Qualsiasi mezzo' ? 1 : b==='Qualsiasi mezzo' ? -1 : a.localeCompare(b));
+    tContainer.innerHTML = ordineGruppi.map(mezzoNome => `
+      <h4 style="font-size:13px;color:var(--navy);margin:14px 0 6px;">${escapeHtml(mezzoNome)}</h4>
+      <table class="mini-table"><thead><tr><th>Partenza</th><th>Arrivo</th><th>Importo</th><th></th></tr></thead><tbody>
+        ${gruppi[mezzoNome].map(r=>`<tr>
+          <td>${escapeHtml(r.comunePartenza)}</td>
+          <td>${escapeHtml(r.comuneArrivo)}</td>
+          <td class="mono">€ ${parseFloat(r.importo).toFixed(2)}</td>
+          <td><button class="link-btn" onclick="editTariffa('${r.id}')">Modifica</button> · <button class="link-btn" onclick="deleteTariffa('${r.id}')">Elimina</button></td>
+        </tr>`).join('')}
+      </tbody></table>`).join('');
   }
 
   const mContainer = document.getElementById('maggiorazioni-container');
@@ -2289,6 +2299,11 @@ function viewServiceModal(id){
 }
 function closeViewModal(){
   document.getElementById('view-modal-backdrop').classList.remove('active');
+}
+function modificaDaVisualizzazione(){
+  const id = currentViewServiceId;
+  closeViewModal();
+  if(id) openServiceModal(id);
 }
 
 function toggleFlussoOssigeno(){
