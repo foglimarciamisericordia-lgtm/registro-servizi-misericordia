@@ -112,6 +112,13 @@
   .status-dot.rosso{background:var(--red);}
   .tag-chiuso{font-size:10.5px;background:var(--line-soft);color:var(--ink-soft);padding:2px 7px;border-radius:10px;margin-left:6px;}
   .link-btn{background:none;border:none;color:var(--navy);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:0;font-family:inherit;}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .action-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .12s,border-color .12s;}
+  .action-btn:hover{background:var(--bg);border-color:var(--navy);}
+  .action-btn.primary{color:var(--navy);border-color:#C7D5E5;background:#EEF3FA;}
+  .action-btn.primary:hover{background:#E2EBF7;}
+  .action-btn.danger{color:var(--red);border-color:#EAC7C2;background:var(--red-bg);}
+  .action-btn.danger:hover{background:#F0D9D5;}
   .empty-state{background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:40px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
   /* ---------- UTENTI ---------- */
@@ -593,7 +600,7 @@
         <legend>Trasporto</legend>
         <div class="grid3">
           <div class="field"><label>Mezzo richiesto</label>
-            <select id="sf-mezzo" onchange="scheduleRimborsoCalc()"><option value="">-- seleziona --</option></select>
+            <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()"><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno</label><input type="date" id="sf-perGiorno"></div>
           <div class="field"><label>Alle ore</label><input type="time" id="sf-alleOre"></div>
@@ -676,13 +683,14 @@
       </fieldset>
 
       <fieldset id="fieldset-equipaggio">
-        <legend>Equipaggio previsto</legend>
+        <legend>Equipaggio e mezzo assegnato</legend>
         <div class="grid3">
           <div class="field"><label>Autista</label><select id="sf-autista"></select></div>
           <div class="field"><label>1° Soccorritore</label><select id="sf-soccorritore1"></select></div>
           <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2"></select></div>
         </div>
         <div class="grid2">
+          <div class="field"><label>Mezzo assegnato</label><select id="sf-mezzo"><option value="">-- seleziona --</option></select></div>
           <div class="field"><label>Autorizzato da (visto del responsabile)</label><select id="sf-autorizzatoDa"></select></div>
         </div>
       </fieldset>
@@ -901,30 +909,48 @@ function sessioneScaduta(){
   document.getElementById('login-error-box').innerHTML = '<div class="login-error">La sessione è scaduta. Accedi di nuovo.</div>';
 }
 async function loadData(){
-  utenti = (await kvGet('utenti')) || [];
-  mezzi = (await kvGet('mezzi')) || [];
-  rimborsi = (await kvGet('rimborsi')) || [];
-  maggiorazioniOssigeno = (await kvGet('maggiorazioniOssigeno')) || [];
-  const tipiSalvati = await kvGet('tipiMezzo');
-  if(tipiSalvati && tipiSalvati.length){
-    tipiMezzo = tipiSalvati;
+  const annoOggi = new Date().getFullYear();
+
+  // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
+  // invece che una dopo l'altra — l'attesa totale diventa quella della
+  // richiesta più lenta, non la somma di tutte quante.
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli] = await Promise.all([
+    kvGet('utenti'),
+    kvGet('mezzi'),
+    kvGet('rimborsi'),
+    kvGet('maggiorazioniOssigeno'),
+    kvGet('tipiMezzo'),
+    migraServiziLegacy(),
+    migraFogliLegacy()
+  ]);
+
+  utenti = utentiRes || [];
+  mezzi = mezziRes || [];
+  rimborsi = rimborsiRes || [];
+  maggiorazioniOssigeno = maggiorazioniRes || [];
+  if(tipiRes && tipiRes.length){
+    tipiMezzo = tipiRes;
   } else {
     await kvSet('tipiMezzo', tipiMezzo);
   }
 
-  await migraServiziLegacy();
-  await migraFogliLegacy();
-
-  const annoOggi = new Date().getFullYear();
-  anniDisponibiliServizi = (await kvGet('servizi-index')) || [annoOggi];
+  anniDisponibiliServizi = indiceServizi || [annoOggi];
   if(!anniDisponibiliServizi.includes(annoOggi)) anniDisponibiliServizi.push(annoOggi);
   anniDisponibiliServizi.sort((a,b)=>a-b);
-  await caricaAnnoServizi(annoOggi);
 
-  anniDisponibiliFogli = (await kvGet('fogli-index')) || [annoOggi];
+  anniDisponibiliFogli = indiceFogli || [annoOggi];
   if(!anniDisponibiliFogli.includes(annoOggi)) anniDisponibiliFogli.push(annoOggi);
   anniDisponibiliFogli.sort((a,b)=>a-b);
-  await caricaAnnoFogli(annoOggi);
+
+  // Seconda "ondata": i due archivi dell'anno corrente, anche questi in parallelo.
+  const [serviziAnno, fogliAnno] = await Promise.all([
+    kvGet('servizi-' + annoOggi),
+    kvGet('fogli-' + annoOggi)
+  ]);
+  servizi = serviziAnno || [];
+  annoCorrenteServizi = annoOggi;
+  fogliMarcia = fogliAnno || [];
+  annoCorrenteFogli = annoOggi;
 }
 async function saveUtenti(){ await kvSet('utenti', utenti); }
 async function saveMezzi(){ await kvSet('mezzi', mezzi); }
@@ -934,12 +960,13 @@ async function saveMaggiorazioni(){ await kvSet('maggiorazioniOssigeno', maggior
 /* ---- Partizione dei servizi per anno (per non scaricare tutto l'archivio ad ogni apertura) ---- */
 async function migraServiziLegacy(){
   const indiceEsistente = await kvGet('servizi-index');
-  if(indiceEsistente) return; // già migrato in passato
+  if(indiceEsistente) return indiceEsistente; // già migrato in passato
   const legacy = await kvGet('servizi');
   const annoOggi = new Date().getFullYear();
   if(!legacy || legacy.length === 0){
-    await kvSet('servizi-index', [annoOggi]);
-    return;
+    const indice = [annoOggi];
+    await kvSet('servizi-index', indice);
+    return indice;
   }
   const perAnno = {};
   const contatori = {};
@@ -954,14 +981,18 @@ async function migraServiziLegacy(){
     await kvSet('servizi-' + anno, perAnno[anno]);
   }
   await kvSet('servizi-contatori', contatori);
-  await kvSet('servizi-index', anni.length ? anni : [annoOggi]);
+  const indiceFinale = anni.length ? anni : [annoOggi];
+  await kvSet('servizi-index', indiceFinale);
+  return indiceFinale;
 }
 async function caricaAnnoServizi(anno){
   servizi = (await kvGet('servizi-' + anno)) || [];
   annoCorrenteServizi = anno;
 }
 async function fetchServiziAnno(anno){
-  if(anno === annoCorrenteServizi) return servizi;
+  // Va sempre a leggere la versione reale sul server: la copia in memoria
+  // (servizi) potrebbe essere superata da modifiche fatte nel frattempo
+  // da un'altra postazione collegata contemporaneamente.
   return (await kvGet('servizi-' + anno)) || [];
 }
 async function aggiornaIndiceServizi(anno){
@@ -973,8 +1004,38 @@ async function aggiornaIndiceServizi(anno){
   }
 }
 async function saveServizi(){
-  await kvSet('servizi-' + annoCorrenteServizi, servizi);
   await aggiornaIndiceServizi(annoCorrenteServizi);
+}
+async function salvaUnServizio(servizioObj, anno){
+  // Rilegge sempre la versione più recente dal server prima di scrivere,
+  // così un'eventuale aggiunta fatta nel frattempo da un'altra postazione
+  // non viene persa (niente più "ultimo che salva vince su tutto").
+  const aggiornati = await fetchServiziAnno(anno);
+  const idx = aggiornati.findIndex(s=>s.id===servizioObj.id);
+  if(idx >= 0) aggiornati[idx] = servizioObj; else aggiornati.push(servizioObj);
+  await kvSet('servizi-' + anno, aggiornati);
+  await aggiornaIndiceServizi(anno);
+  if(anno === annoCorrenteServizi) servizi = aggiornati;
+  return aggiornati;
+}
+async function salvaNuovoServizioConNumeroSicuro(servizioObj, anno){
+  // Caso rarissimo: due postazioni salvano un nuovo servizio nello stesso
+  // istante e ricevono lo stesso numero progressivo. Dopo il salvataggio
+  // verifichiamo che non ci sia doppione; se c'è, correggiamo da soli
+  // assegnando un nuovo numero libero, senza intervento manuale.
+  let aggiornati = await salvaUnServizio(servizioObj, anno);
+  const conflitti = aggiornati.filter(s => s.numeroAnno === servizioObj.numeroAnno && s.numeroProgressivo === servizioObj.numeroProgressivo);
+  if(conflitti.length > 1){
+    servizioObj.numeroProgressivo = await prossimoNumeroServizio(anno);
+    aggiornati = await salvaUnServizio(servizioObj, anno);
+  }
+  return aggiornati;
+}
+async function eliminaUnServizio(id, anno){
+  const aggiornati = (await fetchServiziAnno(anno)).filter(s=>s.id!==id);
+  await kvSet('servizi-' + anno, aggiornati);
+  if(anno === annoCorrenteServizi) servizi = aggiornati;
+  return aggiornati;
 }
 async function prossimoNumeroServizio(anno){
   const contatori = (await kvGet('servizi-contatori')) || {};
@@ -994,12 +1055,13 @@ async function cambiaAnnoServizi(anno){
 /* ---- Partizione dei fogli di marcia per anno ---- */
 async function migraFogliLegacy(){
   const indiceEsistente = await kvGet('fogli-index');
-  if(indiceEsistente) return;
+  if(indiceEsistente) return indiceEsistente;
   const legacy = await kvGet('fogliMarcia');
   const annoOggi = new Date().getFullYear();
   if(!legacy || legacy.length === 0){
-    await kvSet('fogli-index', [annoOggi]);
-    return;
+    const indice = [annoOggi];
+    await kvSet('fogli-index', indice);
+    return indice;
   }
   const perAnno = {};
   const contatori = {};
@@ -1020,7 +1082,9 @@ async function migraFogliLegacy(){
   }
   await kvSet('fogli-contatori', contatori);
   await kvSet('fogli-ultimo-km', ultimoKm);
-  await kvSet('fogli-index', anni.length ? anni : [annoOggi]);
+  const indiceFinale = anni.length ? anni : [annoOggi];
+  await kvSet('fogli-index', indiceFinale);
+  return indiceFinale;
 }
 async function caricaAnnoFogli(anno){
   fogliMarcia = (await kvGet('fogli-' + anno)) || [];
@@ -1283,7 +1347,12 @@ function renderElenco(){
       <td>${escapeHtml(s.destinazione||'—')}</td>
       <td>${escapeHtml(s.mezzo||'—')}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
-      <td>${(!s.chiuso || currentUser.ruolo!=='operatore') ? `<button class="link-btn" onclick="openServiceModal('${s.id}')">Modifica</button> · ` : ''}<button class="link-btn" onclick="viewServiceModal('${s.id}')">Visualizza</button> · <button class="link-btn" onclick="duplicateService('${s.id}')">Duplica</button> · <button class="link-btn" onclick="generaFoglioDaServizio('${s.id}')">Genera foglio marcia</button></td>
+      <td><div class="row-actions">
+        ${(!s.chiuso || currentUser.ruolo!=='operatore') ? `<button class="action-btn primary" onclick="openServiceModal('${s.id}')">✎ Modifica</button>` : ''}
+        <button class="action-btn" onclick="viewServiceModal('${s.id}')">👁 Visualizza</button>
+        <button class="action-btn" onclick="duplicateService('${s.id}')">⧉ Duplica</button>
+        <button class="action-btn" onclick="generaFoglioDaServizio('${s.id}')">🚐 Foglio marcia</button>
+      </div></td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -2243,7 +2312,7 @@ function viewServiceModal(id){
 
     <h4>Trasporto</h4>
     <div class="view-grid">
-      ${item('Mezzo', s.mezzo)}
+      ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno)}
       ${item('Alle ore', s.alleOre)}
       ${item('A casa del paziente', s.aCasa)}
@@ -2268,11 +2337,12 @@ function viewServiceModal(id){
     <div class="view-item" style="margin-top:8px;"><span class="vl">Presidi richiesti</span><span class="vv">${escapeHtml(presidiTesto)}</span></div>
     ${s.note ? `<div class="view-note">${escapeHtml(s.note)}</div>` : ''}
 
-    <h4>Equipaggio previsto</h4>
+    <h4>Equipaggio e mezzo assegnato</h4>
     <div class="view-grid">
       ${item('Autista', s.autista)}
       ${item('1° Soccorritore', s.soccorritore1)}
       ${item('2° Soccorritore', s.soccorritore2)}
+      ${item('Mezzo assegnato', s.mezzo)}
       ${item('Autorizzato da', s.autorizzatoDa)}
     </div>
 
@@ -2339,6 +2409,8 @@ function fillServiceForm(sv, prefillDate, cloneData){
     document.getElementById('sf-oraRicezione').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   }
   set('sf-mezzo', data?.mezzoId); set('sf-perGiorno', data?.perGiorno || prefillDate); set('sf-alleOre', data?.alleOre);
+  document.getElementById('sf-tipoMezzoRichiesto').innerHTML = '<option value="">-- seleziona --</option>' + tipiMezzo.map(t=>`<option>${escapeHtml(t)}</option>`).join('');
+  document.getElementById('sf-tipoMezzoRichiesto').value = data?.tipoMezzoRichiesto || '';
   set('sf-aCasa', data?.aCasa); set('sf-partenza', data?.partenza); set('sf-destinazione', data?.destinazione);
   set('sf-repartoDestinazione', data?.repartoDestinazione);
   set('sf-peso', data?.peso); set('sf-deambula', data?.deambula); set('sf-ossigeno', data?.ossigeno); set('sf-scale', data?.scale);
@@ -2424,8 +2496,7 @@ function scheduleRimborsoCalc(){
 function computeRimborsoSuggerito(){
   const partenza = document.getElementById('sf-partenza').value.trim().toLowerCase();
   const destinazione = document.getElementById('sf-destinazione').value.trim().toLowerCase();
-  const mezzoObj = mezzi.find(m=>m.id===document.getElementById('sf-mezzo').value);
-  const tipoMezzo = mezzoObj ? mezzoObj.tipo : '';
+  const tipoMezzo = document.getElementById('sf-tipoMezzoRichiesto').value;
   let base = 0, matched = false;
   if(partenza || destinazione){
     rimborsi.forEach(r=>{
@@ -2453,7 +2524,7 @@ const CAMPI_LABEL_SERVIZIO = {
   enteSig:'Ente/Sig.', telRichiedente:'Telefono richiedente', relazione:'Relazione col paziente',
   cognome:'Cognome', nome:'Nome', via:'Via', civico:'N°', citta:'Città', telPaziente:'Telefono paziente',
   natoA:'Nato a', natoIl:'Nato il', residenteA:'Residente a', oraRicezione:'Ora di ricezione',
-  mezzoId:'Mezzo', perGiorno:'Data servizio', alleOre:'Ora servizio', aCasa:'A casa del paziente',
+  mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Ora servizio', aCasa:'A casa del paziente',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
   scale:'Presenza di scale', ascensore:'Ascensore', accompagnatore:'Accompagnatore', richiestoDa:'Richiesto da',
@@ -2488,7 +2559,7 @@ async function saveService(ev){
     cognome: g('sf-cognome'), nome: g('sf-nome'), via: g('sf-via'), civico: g('sf-civico'),
     citta: g('sf-citta'), telPaziente: g('sf-telPaziente'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
     residenteA: g('sf-residenteA'), oraRicezione: g('sf-oraRicezione'),
-    mezzoId: g('sf-mezzo'), perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
+    mezzoId: g('sf-mezzo'), tipoMezzoRichiesto: document.getElementById('sf-tipoMezzoRichiesto').value, perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
     aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
     repartoDestinazione: g('sf-repartoDestinazione'),
     peso: g('sf-peso'), deambula: g('sf-deambula'), ossigeno: g('sf-ossigeno'),
@@ -2551,9 +2622,7 @@ async function saveService(ev){
   if(existing){
     data.numeroProgressivo = existing.numeroProgressivo;
     data.numeroAnno = existing.numeroAnno;
-    const idx = servizi.findIndex(s=>s.id===existing.id);
-    servizi[idx] = data;
-    await saveServizi();
+    await salvaUnServizio(data, existing.numeroAnno);
   } else if(document.getElementById('sf-ripetitivo').checked && !document.getElementById('sf-ripetitivo').disabled){
     const freq = document.getElementById('sf-frequenza').value;
     const finoAl = document.getElementById('sf-ripetiFinoAl').value;
@@ -2565,39 +2634,45 @@ async function saveService(ev){
       return false;
     }
     const gruppoId = 'grp-' + Date.now();
+    // Un bucket fresco per ogni anno coinvolto, letto una sola volta dal
+    // server: dato che sono tutte righe generate da questo stesso salvataggio,
+    // non c'è rischio di conflitto interno, ma la lettura resta comunque
+    // "fresca" rispetto a eventuali altre postazioni collegate.
     const bucketCache = {};
-    let toccatoAnnoCorrente = false;
     for(let i=0;i<dateList.length;i++){
       const dk = dateList[i];
       const anno = new Date(dk+'T00:00:00').getFullYear();
       const numeroProgressivo = await prossimoNumeroServizio(anno);
       const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
-      if(anno === annoCorrenteServizi){
-        servizi.push(nuovoServizio);
-        toccatoAnnoCorrente = true;
-      } else {
-        if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
-        bucketCache[anno].push(nuovoServizio);
-      }
+      if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
+      bucketCache[anno].push(nuovoServizio);
     }
     for(const anno in bucketCache){
       await kvSet('servizi-' + anno, bucketCache[anno]);
       await aggiornaIndiceServizi(parseInt(anno));
+      let contenuto = bucketCache[anno];
+      // Stesso controllo di sicurezza: se una delle righe appena create
+      // condivide un numero con un servizio già presente (scritto da
+      // un'altra postazione tra la nostra lettura e la nostra scrittura),
+      // la rinumeriamo al volo.
+      const contatiNumeri = {};
+      contenuto.forEach(s=>{ contatiNumeri[s.numeroProgressivo] = (contatiNumeri[s.numeroProgressivo]||0)+1; });
+      let daRisalvare = false;
+      for(const s of contenuto){
+        if(s.gruppoRipetizione && contatiNumeri[s.numeroProgressivo] > 1){
+          s.numeroProgressivo = await prossimoNumeroServizio(parseInt(anno));
+          contatiNumeri[s.numeroProgressivo] = 1;
+          daRisalvare = true;
+        }
+      }
+      if(daRisalvare) await kvSet('servizi-' + anno, contenuto);
+      if(parseInt(anno) === annoCorrenteServizi) servizi = contenuto;
     }
-    if(toccatoAnnoCorrente) await saveServizi();
   } else {
     const anno = data.perGiorno ? new Date(data.perGiorno+'T00:00:00').getFullYear() : new Date().getFullYear();
     data.numeroAnno = anno;
     data.numeroProgressivo = await prossimoNumeroServizio(anno);
-    if(anno === annoCorrenteServizi){
-      servizi.push(data);
-      await saveServizi();
-    } else {
-      const bucket = await fetchServiziAnno(anno);
-      bucket.push(data);
-      await kvSet('servizi-' + anno, bucket);
-      await aggiornaIndiceServizi(anno);
-    }
+    await salvaNuovoServizioConNumeroSicuro(data, anno);
   }
   closeServiceModal();
   renderCalendar(); renderElenco();
@@ -2605,8 +2680,9 @@ async function saveService(ev){
 }
 async function deleteService(){
   if(!confirm('Eliminare definitivamente questo servizio?')) return;
-  servizi = servizi.filter(s=>s.id!==editingServiceId);
-  await saveServizi();
+  const daEliminare = servizi.find(s=>s.id===editingServiceId);
+  const anno = daEliminare ? daEliminare.numeroAnno : annoCorrenteServizi;
+  await eliminaUnServizio(editingServiceId, anno);
   closeServiceModal();
   renderCalendar(); renderElenco();
 }
