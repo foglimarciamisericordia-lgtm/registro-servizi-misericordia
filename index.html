@@ -92,11 +92,18 @@
   .pill.giallo{background:var(--amber-bg);color:var(--amber);border-left-color:var(--amber);}
   .pill.rosso{background:var(--red-bg);color:var(--red);border-left-color:var(--red);}
 
-  .cal-week-grid, .cal-day-grid{display:grid;grid-template-columns:56px repeat(var(--cols,7),1fr);max-height:640px;overflow-y:auto;}
-  .cal-week-grid .hourlabel, .cal-day-grid .hourlabel{font-size:10.5px;color:var(--ink-soft);text-align:right;padding:2px 6px 0 0;border-right:1px solid var(--line-soft);}
-  .cal-week-grid .slot, .cal-day-grid .slot{border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);min-height:44px;padding:2px;position:relative;cursor:pointer;}
-  .cal-week-grid .slot:hover, .cal-day-grid .slot:hover{background:#F7F9FA;}
-  .week-daycol-head{padding:8px 4px;text-align:center;font-size:11.5px;font-weight:600;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line);background:var(--bg);}
+  .cal-week-cols{display:grid;grid-template-columns:repeat(7,1fr);min-height:400px;}
+  .week-day-col{border-right:1px solid var(--line-soft);padding:6px;}
+  .week-day-col:last-child{border-right:none;}
+  .week-day-header{padding:8px 4px;text-align:center;font-size:11.5px;font-weight:600;background:var(--bg);border-bottom:1px solid var(--line);margin:-6px -6px 8px -6px;cursor:pointer;}
+  .week-day-header.today{color:var(--navy);background:#DCE6F0;}
+
+  .pill-giorno{border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:4px solid var(--teal);background:var(--teal-bg);cursor:pointer;}
+  .pill-giorno.giallo{border-left-color:var(--amber);background:var(--amber-bg);}
+  .pill-giorno.rosso{border-left-color:var(--red);background:var(--red-bg);}
+  .pill-giorno .pg-titolo{font-weight:700;font-size:13.5px;color:var(--ink);}
+  .pill-giorno .pg-orario{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin:3px 0;}
+  .pill-giorno .pg-percorso{font-size:12.5px;color:var(--ink-soft);}
 
   /* ---------- TABLE (elenco servizi) ---------- */
   .filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
@@ -222,7 +229,7 @@
     #main{padding:16px;width:100%;}
     .cal-grid{overflow-x:auto;}
     .cal-dow, .cal-month-grid{min-width:640px;}
-    .cal-week-grid, .cal-day-grid{min-width:640px;}
+    .cal-week-cols{min-width:640px;}
     table.servizi, table.mini-table{min-width:640px;}
     #elenco-container, #tariffe-container, #maggiorazioni-container, #fogli-container, #users-container.table-wrap{overflow-x:auto;}
     .grid3, .grid2, .view-grid{grid-template-columns:1fr;}
@@ -569,7 +576,7 @@
     <h3>Cerca servizio</h3>
     <p class="modal-sub">Cerca per numero servizio (es. 12/2026) o per data</p>
     <div class="grid2">
-      <div class="field"><label>Numero servizio</label><input type="text" id="cs-numero" placeholder="es. 12/2026"></div>
+      <div class="field"><label>Numero servizio</label><input type="text" id="cs-numero" placeholder="es. 12/26"></div>
       <div class="field"><label>Data servizio</label><input type="date" id="cs-data"></div>
     </div>
     <button class="btn btn-add" type="button" onclick="cercaServizioPerFoglio()">Cerca</button>
@@ -1352,32 +1359,41 @@ function renderCalendar(){
     start.setDate(start.getDate()-offset);
     const end = new Date(start); end.setDate(start.getDate()+6);
     titleEl.textContent = start.getDate()+' '+MESI[start.getMonth()].slice(0,3)+' – '+end.getDate()+' '+MESI[end.getMonth()].slice(0,3)+' '+end.getFullYear();
-    let head = '<div class="hourlabel"></div>';
-    const days = [];
-    for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d); head += `<div class="week-daycol-head">${GIORNI[i]} ${d.getDate()}</div>`; }
-    let body = '';
-    for(let h=7;h<21;h++){
-      body += `<div class="hourlabel">${String(h).padStart(2,'0')}:00</div>`;
-      days.forEach(d=>{
-        const k = dateKey(d);
-        const hourServices = attivi.filter(s => s.perGiorno===k && s.alleOre && parseInt(s.alleOre.split(':')[0])===h);
-        body += `<div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')}</div>`).join('')}</div>`;
-      });
+    const oggi = dateKey(new Date());
+    let html = '<div class="cal-grid"><div class="cal-week-cols">';
+    for(let i=0;i<7;i++){
+      const d = new Date(start); d.setDate(start.getDate()+i);
+      const k = dateKey(d);
+      const isToday = k === oggi;
+      const dayServices = attivi.filter(s => s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+      html += `<div class="week-day-col">
+        <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
+        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}</div>`).join('')}
+      </div>`;
     }
-    container.innerHTML = `<div class="cal-grid"><div class="cal-week-grid" style="--cols:7;">${head}${body}</div></div>`;
+    html += '</div></div>';
+    container.innerHTML = html;
   }
   else { // day
     const d = calDate;
     const k = dateKey(d);
     titleEl.textContent = d.getDate()+' '+MESI[d.getMonth()]+' '+d.getFullYear();
-    let head = '<div class="hourlabel"></div><div class="week-daycol-head">'+GIORNI[(d.getDay()+6)%7]+'</div>';
-    let body = '';
-    const dayServices = attivi.filter(s=>s.perGiorno===k);
-    for(let h=7;h<21;h++){
-      const hourServices = dayServices.filter(s=>s.alleOre && parseInt(s.alleOre.split(':')[0])===h);
-      body += `<div class="hourlabel">${String(h).padStart(2,'0')}:00</div><div class="slot" onclick="openServiceModal(null,'${k}')">${hourServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre} ${escapeHtml(s.cognome||'')} — ${escapeHtml(s.destinazione||'')}</div>`).join('')}</div>`;
+    const dayServices = attivi.filter(s=>s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+    let html = '<div class="cal-grid" style="padding:16px;">';
+    if(dayServices.length === 0){
+      html += '<div class="empty-state">Nessun servizio in programma per questo giorno.</div>';
+    } else {
+      html += dayServices.map(s=>{
+        const nomeMezzo = s.tipoMezzoRichiesto ? (escapeHtml(s.cognome||'')+' '+escapeHtml(s.nome||'')+'/'+escapeHtml(s.tipoMezzoRichiesto)) : (escapeHtml(s.cognome||'')+' '+escapeHtml(s.nome||''));
+        return `<div class="pill-giorno ${s.stato}" onclick="viewServiceModal('${s.id}')">
+          <div class="pg-titolo">${nomeMezzo}</div>
+          <div class="pg-orario">${s.alleOre||'—'}</div>
+          <div class="pg-percorso">${escapeHtml(s.partenza||'—')} → ${escapeHtml(s.destinazione||'—')}</div>
+        </div>`;
+      }).join('');
     }
-    container.innerHTML = `<div class="cal-grid"><div class="cal-day-grid" style="--cols:1;">${head}${body}</div></div>`;
+    html += `<button class="btn btn-add" style="margin-top:10px;" onclick="openServiceModal(null,'${k}')">+ Aggiungi servizio in questo giorno</button></div>`;
+    container.innerHTML = html;
   }
 }
 
@@ -1413,14 +1429,15 @@ async function renderElenco(){
   if(dataServizio) list = list.filter(s=>s.perGiorno === dataServizio);
   if(list.length===0){ container.innerHTML = '<div class="empty-state">Nessun servizio registrato con questi filtri.</div>'; return; }
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
-  let html = '<table class="servizi"><thead><tr><th>N°</th><th>Stato</th><th>Data / Ora</th><th>Paziente</th><th>Destinazione</th><th>Mezzo</th><th>Ultimo operatore</th><th></th></tr></thead><tbody>';
+  let html = '<table class="servizi"><thead><tr><th>N°</th><th>Stato</th><th>Data / Ora</th><th>Paziente</th><th>Mezzo richiesto</th><th>Destinazione</th><th>Mezzo assegnato</th><th>Ultimo operatore</th><th></th></tr></thead><tbody>';
   list.forEach(s=>{
-    const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '/' + s.numeroAnno) : '—';
+    const numeroServizio = formatNumeroServizio(s.numeroProgressivo, s.numeroAnno);
     html += `<tr>
       <td class="mono">${numeroServizio}</td>
       <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-chiuso">Chiuso</span>':''}${s.gruppoRipetizione?'<span class="tag-chiuso">Ricorrente</span>':''}</td>
-      <td class="mono">${s.perGiorno||'—'} ${s.alleOre||''}</td>
+      <td class="mono">${formatDataIt(s.perGiorno)} ${s.alleOre||''}</td>
       <td>${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</td>
+      <td>${escapeHtml(s.tipoMezzoRichiesto||'—')}</td>
       <td>${escapeHtml(s.destinazione||'—')}</td>
       <td>${escapeHtml(s.mezzo||'—')}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
@@ -1441,7 +1458,21 @@ function formatDateTime(iso){
   if(isNaN(d)) return '—';
   const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
   const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
-  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+  return `${dd}-${mm}-${yy} ${hh}:${mi}`;
+}
+function formatDataIt(dataIso){
+  // Converte una data in formato ISO (AAAA-MM-GG, quella usata dai campi
+  // <input type="date">) nel formato richiesto GG-MM-AAAA per la visualizzazione.
+  if(!dataIso) return '—';
+  const parti = dataIso.split('-');
+  if(parti.length !== 3) return dataIso;
+  return `${parti[2]}-${parti[1]}-${parti[0]}`;
+}
+function formatNumeroServizio(numero, anno){
+  if(!numero || !anno) return '—';
+  const nn = String(numero).padStart(2,'0');
+  const aa = String(anno).slice(-2);
+  return `${nn}/${aa}`;
 }
 
 /* ============ UTENTI ============ */
@@ -1947,7 +1978,8 @@ function renderFogliMarcia(){
   }
   let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Registrato il</th><th>Motivazione</th><th>Servizio</th><th>Paziente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km tot.</th><th>Importo</th><th>Carburante</th><th>Compilatore</th><th></th></tr></thead><tbody>';
   righe.forEach(f=>{
-    const numeroServ = f.servizioId ? (servizi.find(s=>s.id===f.servizioId)?.numeroProgressivo ? (servizi.find(s=>s.id===f.servizioId).numeroProgressivo + '/' + servizi.find(s=>s.id===f.servizioId).numeroAnno) : '—') : 'libero';
+    const servCollegato = f.servizioId ? servizi.find(s=>s.id===f.servizioId) : null;
+    const numeroServ = servCollegato ? formatNumeroServizio(servCollegato.numeroProgressivo, servCollegato.numeroAnno) : 'libero';
     html += `<tr>
       <td class="mono">${f.numeroProgressivo}</td>
       <td class="mono">${formatDateTime(f.registratoIl)}</td>
@@ -1955,7 +1987,7 @@ function renderFogliMarcia(){
       <td>${escapeHtml(numeroServ)}</td>
       <td>${escapeHtml(f.paziente||'—')}</td>
       <td>${escapeHtml(f.daDove||'—')} → ${escapeHtml(f.aDove||'—')}${f.viceversa?' (e viceversa)':''}</td>
-      <td class="mono">${f.dataPartenza||''} ${f.orarioPartenza||'—'} / ${f.dataArrivo||''} ${f.orarioRientro||'—'}</td>
+      <td class="mono">${formatDataIt(f.dataPartenza)} ${f.orarioPartenza||'—'} / ${formatDataIt(f.dataArrivo)} ${f.orarioRientro||'—'}</td>
       <td class="mono">${f.kmTotale||'—'}</td>
       <td class="mono">${f.importo ? '€ '+parseFloat(f.importo).toFixed(2) : '—'}</td>
       <td>${f.carburante==='Si' ? ('Si — '+(f.carburanteLitri||0)+'L / €'+parseFloat(f.carburanteTotale||0).toFixed(2)) : 'No'}</td>
@@ -2069,7 +2101,8 @@ function cercaServizioPerFoglio(){
   if(numero){
     const parti = numero.split('/');
     const prog = parseInt(parti[0]);
-    const anno = parti[1] ? parseInt(parti[1]) : null;
+    let anno = parti[1] ? parseInt(parti[1]) : null;
+    if(anno && anno < 100) anno += 2000; // accetta sia "12/2026" sia "12/26"
     risultati = risultati.filter(s => s.numeroProgressivo === prog && (!anno || s.numeroAnno === anno));
   }
   if(data){
@@ -2078,10 +2111,10 @@ function cercaServizioPerFoglio(){
   const box = document.getElementById('cerca-servizio-risultati');
   if(risultati.length === 0){ box.innerHTML = '<div class="empty-state">Nessun servizio chiuso trovato per questo mezzo con questi filtri.</div>'; return; }
   box.innerHTML = risultati.slice(0,20).map(s=>{
-    const num = s.numeroProgressivo ? (s.numeroProgressivo+'/'+s.numeroAnno) : '—';
+    const num = formatNumeroServizio(s.numeroProgressivo, s.numeroAnno);
     return `<div class="user-card" style="margin-bottom:8px;cursor:pointer;" onclick="selezionaServizioPerFoglio('${s.id}')">
       <div class="nm">N° ${escapeHtml(num)} — ${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</div>
-      <div class="un">${escapeHtml(s.perGiorno||'')} — ${escapeHtml(s.partenza||'')} → ${escapeHtml(s.destinazione||'')}</div>
+      <div class="un">${formatDataIt(s.perGiorno)} — ${escapeHtml(s.partenza||'')} → ${escapeHtml(s.destinazione||'')}</div>
     </div>`;
   }).join('');
 }
@@ -2103,7 +2136,7 @@ function selezionaServizioPerFoglio(servizioId){
 }
 function testoServizioCollegato(f){
   if(!f || !f.servizioId) return '';
-  const numero = (f.servizioNumero && f.servizioAnno) ? (f.servizioNumero+'/'+f.servizioAnno) : '';
+  const numero = (f.servizioNumero && f.servizioAnno) ? formatNumeroServizio(f.servizioNumero, f.servizioAnno) : '';
   return `Collegato al servizio <a href="#" onclick="event.preventDefault();apriServizioCollegato('${f.servizioId}', ${f.servizioAnno||'null'})" style="color:var(--navy);font-weight:600;text-decoration:underline;">${numero||'—'}</a>`;
 }
 async function apriServizioCollegato(servizioId, anno){
@@ -2145,8 +2178,8 @@ function viewFoglioModal(id){
 
     <h4>Orari</h4>
     <div class="view-grid">
-      ${item('Data/Ora partenza', [f.dataPartenza, f.orarioPartenza].filter(Boolean).join(' '))}
-      ${item('Data/Ora rientro', [f.dataArrivo, f.orarioRientro].filter(Boolean).join(' '))}
+      ${item('Data/Ora partenza', [f.dataPartenza?formatDataIt(f.dataPartenza):'', f.orarioPartenza].filter(Boolean).join(' '))}
+      ${item('Data/Ora rientro', [f.dataArrivo?formatDataIt(f.dataArrivo):'', f.orarioRientro].filter(Boolean).join(' '))}
     </div>
 
     <h4>Equipaggio</h4>
@@ -2159,7 +2192,7 @@ function viewFoglioModal(id){
     <h4>Scheda 118</h4>
     <div class="view-grid">
       ${item('N. Scheda 118', f.numeroScheda118)}
-      ${item('Data Scheda 118', f.dataScheda118)}
+      ${item('Data Scheda 118', f.dataScheda118 ? formatDataIt(f.dataScheda118) : '')}
     </div>
 
     <h4>Chilometraggio e spese</h4>
@@ -2272,7 +2305,7 @@ async function renderCestino(){
   let html = '';
 
   html += sezione(`Servizi (anno ${annoCorrenteServizi})`, servizi.filter(s=>s.cestinato), s => `<tr>
-    <td>${s.numeroProgressivo?(s.numeroProgressivo+'/'+s.numeroAnno):''} — ${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</td>
+    <td>${formatNumeroServizio(s.numeroProgressivo, s.numeroAnno)} — ${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(s.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaServizioECestino('${s.id}',${s.numeroAnno})">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaServizioDefinitivoECestino('${s.id}',${s.numeroAnno})">🗑 Elimina definitivo</button></div></td>
   </tr>`);
@@ -2410,10 +2443,10 @@ function exportFogliExcel(){
     return {
       'N°': f.numeroProgressivo,
       'Registrato il': formatDateTime(f.registratoIl),
-      'Servizio': s ? (s.numeroProgressivo+'/'+s.numeroAnno) : 'libero',
+      'Servizio': s ? formatNumeroServizio(s.numeroProgressivo, s.numeroAnno) : 'libero',
       'Motivazione servizio': f.motivazioneServizio || '',
       'N. Scheda 118': f.numeroScheda118 || '',
-      'Data Scheda 118': f.dataScheda118 || '',
+      'Data Scheda 118': f.dataScheda118 ? formatDataIt(f.dataScheda118) : '',
       'Paziente': f.paziente || '',
       'Da dove': f.daDove || '',
       'A dove': f.aDove || '',
@@ -2421,8 +2454,8 @@ function exportFogliExcel(){
       'Autista': f.autista || '',
       '1° Soccorritore': f.soccorritore1 || '',
       '2° Soccorritore': f.soccorritore2 || '',
-      'Data partenza': f.dataPartenza || '', 'Orario partenza': f.orarioPartenza || '',
-      'Data rientro': f.dataArrivo || '', 'Orario rientro': f.orarioRientro || '',
+      'Data partenza': f.dataPartenza ? formatDataIt(f.dataPartenza) : '', 'Orario partenza': f.orarioPartenza || '',
+      'Data rientro': f.dataArrivo ? formatDataIt(f.dataArrivo) : '', 'Orario rientro': f.orarioRientro || '',
       'Km iniziali': f.kmIniziali || '',
       'Km finali': f.kmFinali || '',
       'Totale Km': f.kmTotale || '',
@@ -2452,13 +2485,13 @@ function printFogliMarcia(){
   const kmTotaleRange = righe.reduce((tot,f)=> tot + (parseFloat(f.kmTotale)||0), 0);
   const dataDa = document.getElementById('fm-filtroDataDa').value;
   const dataA = document.getElementById('fm-filtroDataA').value;
-  const periodoTesto = (dataDa || dataA) ? ` — periodo: ${dataDa||'…'} → ${dataA||'…'}` : '';
+  const periodoTesto = (dataDa || dataA) ? ` — periodo: ${dataDa?formatDataIt(dataDa):'…'} → ${dataA?formatDataIt(dataA):'…'}` : '';
   document.getElementById('print-fogli-title').textContent = 'Foglio di marcia — ' + (mezzo ? (mezzo.tipo+' — '+mezzo.targa) : '') + periodoTesto;
   const intestazioni = ['N°','Data e ora registrazione','Rif. servizio','Da dove','A dove','Viceversa','Data/Ora partenza','Data/Ora rientro','Motivazione','Km iniziali','Km finali','Km totali','Autista','1° Soccorritore','2° Soccorritore','N. Scheda 118','Data Scheda 118','Paziente','Ricevuta n.','Importo','Carburante','Litri','Tot. carburante €','Annotazioni'];
   let html = '<table class="mini-table"><thead><tr>' + intestazioni.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
   righe.forEach(f=>{
     const s = f.servizioId ? servizi.find(x=>x.id===f.servizioId) : null;
-    const numeroServ = s ? (s.numeroProgressivo+'/'+s.numeroAnno) : 'libero';
+    const numeroServ = s ? formatNumeroServizio(s.numeroProgressivo, s.numeroAnno) : 'libero';
     html += `<tr>
       <td>${f.numeroProgressivo}</td>
       <td>${formatDateTime(f.registratoIl)}</td>
@@ -2466,8 +2499,8 @@ function printFogliMarcia(){
       <td>${escapeHtml(f.daDove||'—')}</td>
       <td>${escapeHtml(f.aDove||'—')}</td>
       <td>${f.viceversa?'Si':'No'}</td>
-      <td>${f.dataPartenza||''} ${f.orarioPartenza||'—'}</td>
-      <td>${f.dataArrivo||''} ${f.orarioRientro||'—'}</td>
+      <td>${formatDataIt(f.dataPartenza)} ${f.orarioPartenza||'—'}</td>
+      <td>${formatDataIt(f.dataArrivo)} ${f.orarioRientro||'—'}</td>
       <td>${escapeHtml(f.motivazioneServizio||'—')}</td>
       <td>${f.kmIniziali||'—'}</td>
       <td>${f.kmFinali||'—'}</td>
@@ -2476,7 +2509,7 @@ function printFogliMarcia(){
       <td>${escapeHtml(f.soccorritore1||'—')}</td>
       <td>${escapeHtml(f.soccorritore2||'—')}</td>
       <td>${escapeHtml(f.numeroScheda118||'—')}</td>
-      <td>${f.dataScheda118||'—'}</td>
+      <td>${formatDataIt(f.dataScheda118)}</td>
       <td>${escapeHtml(f.paziente||'—')}</td>
       <td>${escapeHtml(f.ricevutaNumero||'—')}</td>
       <td>${f.importo?'€ '+parseFloat(f.importo).toFixed(2):'—'}</td>
@@ -2661,7 +2694,7 @@ function viewServiceModal(id){
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
   const presidiTesto = [...(s.presidi||[]), s.presidiAltro].filter(Boolean).join(', ') || '—';
-  const numeroServizio = s.numeroProgressivo ? (s.numeroProgressivo + '/' + s.numeroAnno) : '—';
+  const numeroServizio = formatNumeroServizio(s.numeroProgressivo, s.numeroAnno);
 
   document.getElementById('view-modal-title').textContent = 'Scheda servizio n° ' + numeroServizio + ' — ' + (s.cognome||'') + ' ' + (s.nome||'');
 
@@ -2682,7 +2715,7 @@ function viewServiceModal(id){
       ${item('Città', s.citta)}
       ${item('Telefono', s.telPaziente)}
       ${item('Nato a', s.natoA)}
-      ${item('Nato il', s.natoIl)}
+      ${item('Nato il', s.natoIl ? formatDataIt(s.natoIl) : '')}
       ${item('Residente a', s.residenteA)}
       ${item('Ora di ricezione', s.oraRicezione)}
     </div>
@@ -2690,7 +2723,7 @@ function viewServiceModal(id){
     <h4>Trasporto</h4>
     <div class="view-grid">
       ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
-      ${item('Per il giorno', s.perGiorno)}
+      ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
       ${item('Alle ore', s.alleOre)}
       ${item('A casa del paziente', s.aCasa)}
       ${item('Partenza', s.partenza)}
