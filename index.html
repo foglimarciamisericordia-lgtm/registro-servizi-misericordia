@@ -288,6 +288,7 @@
       <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
       <div class="nav-item" data-view="fogli" onclick="switchView('fogli')">🚐 Fogli di marcia</div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
+      <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
       <div class="nav-spacer"></div>
       <div class="user-box">
         <div class="user-name" id="ub-name"></div>
@@ -339,10 +340,11 @@
             <option value="giallo">Da confermare</option>
             <option value="rosso">Annullato</option>
           </select>
-          <input type="text" id="f-cerca" placeholder="Cerca per cognome paziente..." oninput="renderElenco()">
+          <input type="text" id="f-cerca" placeholder="Cerca per cognome paziente (su tutti gli anni)..." oninput="scheduleRenderElenco()">
           <input type="date" id="f-dataServizio" onchange="renderElenco()" title="Filtra per data di svolgimento del servizio">
           <button class="link-btn" type="button" onclick="document.getElementById('f-dataServizio').value='';renderElenco();">Azzera data</button>
         </div>
+        <p id="elenco-ricerca-avviso" style="font-size:12px;color:var(--ink-soft);margin:-8px 0 12px;"></p>
         <div id="elenco-container"></div>
       </div>
 
@@ -458,6 +460,17 @@
           </div>
         </div>
         <div id="statistiche-container"></div>
+      </div>
+
+      <!-- CESTINO -->
+      <div class="view" id="view-cestino">
+        <div class="page-head">
+          <div>
+            <h2>Cestino</h2>
+            <p>Gli elementi eliminati restano qui 7 giorni prima di essere rimossi automaticamente. Servizi e fogli di marcia mostrati si riferiscono all'anno attualmente selezionato.</p>
+          </div>
+        </div>
+        <div id="cestino-container"></div>
       </div>
 
     </div>
@@ -1065,6 +1078,20 @@ async function eliminaUnServizio(id, anno){
   if(anno === annoCorrenteServizi) servizi = aggiornati;
   return aggiornati;
 }
+async function cestinaServizio(id, anno){
+  const aggiornati = await fetchServiziAnno(anno);
+  const idx = aggiornati.findIndex(s=>s.id===id);
+  if(idx>=0){ aggiornati[idx].cestinato = true; aggiornati[idx].cestinatoIl = new Date().toISOString(); }
+  await kvSet('servizi-' + anno, aggiornati);
+  if(anno === annoCorrenteServizi) servizi = aggiornati;
+}
+async function ripristinaServizio(id, anno){
+  const aggiornati = await fetchServiziAnno(anno);
+  const idx = aggiornati.findIndex(s=>s.id===id);
+  if(idx>=0){ aggiornati[idx].cestinato = false; aggiornati[idx].cestinatoIl = null; }
+  await kvSet('servizi-' + anno, aggiornati);
+  if(anno === annoCorrenteServizi) servizi = aggiornati;
+}
 async function prossimoNumeroServizio(anno){
   const contatori = (await kvGet('servizi-contatori')) || {};
   const prossimo = (contatori[anno] || 0) + 1;
@@ -1211,6 +1238,7 @@ async function doLogin(){
   document.getElementById('nav-mezzi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-rimborsi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-statistiche').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-cestino').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   renderCalendar();
   renderElenco();
   renderUsers();
@@ -1245,6 +1273,7 @@ function switchView(v){
   if(v === 'rimborsi') renderRimborsi();
   if(v === 'fogli') renderFogliMarcia();
   if(v === 'statistiche') renderStatistiche();
+  if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
   if(window.innerWidth <= 900) closeSidebarMobile();
 }
@@ -1284,8 +1313,8 @@ function calToday(){ calDate = new Date(); renderCalendar(); }
 function dateKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function serviziAttivi(){
-  // Annullati: rimossi dal calendario, restano solo in elenco
-  return servizi.filter(s => s.stato !== 'rosso' && s.perGiorno);
+  // Annullati: rimossi dal calendario, restano solo in elenco. Cestinati: mai visibili.
+  return servizi.filter(s => s.stato !== 'rosso' && s.perGiorno && !s.cestinato);
 }
 
 function renderCalendar(){
@@ -1353,12 +1382,32 @@ function renderCalendar(){
 }
 
 /* ============ ELENCO SERVIZI ============ */
-function renderElenco(){
+let elencoCercaTimer = null;
+function scheduleRenderElenco(){
+  clearTimeout(elencoCercaTimer);
+  elencoCercaTimer = setTimeout(renderElenco, 400);
+}
+async function renderElenco(){
   const stato = document.getElementById('f-stato') ? document.getElementById('f-stato').value : '';
   const cerca = document.getElementById('f-cerca') ? document.getElementById('f-cerca').value.trim().toLowerCase() : '';
   const dataServizio = document.getElementById('f-dataServizio') ? document.getElementById('f-dataServizio').value : '';
   const container = document.getElementById('elenco-container');
-  let list = [...servizi].sort((a,b)=> (b.perGiorno||'').localeCompare(a.perGiorno||'') || (b.alleOre||'').localeCompare(a.alleOre||''));
+  const avvisoRicerca = document.getElementById('elenco-ricerca-avviso');
+
+  let list;
+  if(cerca){
+    // La ricerca per cognome scavalca il limite dell'anno corrente:
+    // interroga tutti gli anni disponibili, non solo quello caricato.
+    if(avvisoRicerca) avvisoRicerca.textContent = 'Ricerca in corso su tutti gli anni…';
+    const risultatiPerAnno = await Promise.all(anniDisponibiliServizi.map(anno => fetchServiziAnno(anno)));
+    list = risultatiPerAnno.flat();
+    if(avvisoRicerca) avvisoRicerca.textContent = `Ricerca "${cerca}" su tutti gli anni (${anniDisponibiliServizi.join(', ')}).`;
+  } else {
+    list = [...servizi];
+    if(avvisoRicerca) avvisoRicerca.textContent = '';
+  }
+  list = list.filter(s => !s.cestinato);
+  list.sort((a,b)=> (b.perGiorno||'').localeCompare(a.perGiorno||'') || (b.alleOre||'').localeCompare(a.alleOre||''));
   if(stato) list = list.filter(s=>s.stato===stato);
   if(cerca) list = list.filter(s=>(s.cognome||'').toLowerCase().includes(cerca));
   if(dataServizio) list = list.filter(s=>s.perGiorno === dataServizio);
@@ -1376,10 +1425,10 @@ function renderElenco(){
       <td>${escapeHtml(s.mezzo||'—')}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
       <td><div class="row-actions">
-        ${(!s.chiuso || currentUser.ruolo!=='operatore') ? `<button class="action-btn primary" onclick="openServiceModal('${s.id}')">✎ Modifica</button>` : ''}
-        <button class="action-btn" onclick="viewServiceModal('${s.id}')">👁 Visualizza</button>
-        <button class="action-btn" onclick="duplicateService('${s.id}')">⧉ Duplica</button>
-        <button class="action-btn" onclick="generaFoglioDaServizio('${s.id}')">🚐 Foglio marcia</button>
+        ${(!s.chiuso || currentUser.ruolo!=='operatore') ? `<button class="action-btn primary" onclick="modificaServizioAnno('${s.id}',${s.numeroAnno})">✎ Modifica</button>` : ''}
+        <button class="action-btn" onclick="visualizzaServizioAnno('${s.id}',${s.numeroAnno})">👁 Visualizza</button>
+        <button class="action-btn" onclick="duplicaServizioAnno('${s.id}',${s.numeroAnno})">⧉ Duplica</button>
+        <button class="action-btn" onclick="generaFoglioServizioAnno('${s.id}',${s.numeroAnno})">🚐 Foglio marcia</button>
       </div></td>
     </tr>`;
   });
@@ -1400,8 +1449,8 @@ let editingUserId = null;
 function renderUsers(){
   if(!canManageUsers()) return;
   const container = document.getElementById('users-container');
-  const attivi = utenti.filter(u=>!u.archiviato);
-  const archiviati = utenti.filter(u=>u.archiviato);
+  const attivi = utenti.filter(u=>!u.archiviato && !u.cestinato);
+  const archiviati = utenti.filter(u=>u.archiviato && !u.cestinato);
   const cardUtente = u => `
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
@@ -1501,10 +1550,26 @@ async function resetPasswordUtente(id){
   alert('Password reimpostata. L\'utente dovrà cambiarla al prossimo accesso.');
 }
 async function deleteUser(id){
-  if(!confirm('Eliminare questo utente?')) return;
-  utenti = utenti.filter(u=>u.id!==id);
+  if(!confirm('Spostare questo utente nel cestino? Potrai ripristinarlo entro 7 giorni.')) return;
+  const u = utenti.find(x=>x.id===id);
+  if(!u) return;
+  u.cestinato = true;
+  u.cestinatoIl = new Date().toISOString();
   await saveUtenti();
   renderUsers();
+}
+async function ripristinaUtenteCestino(id){
+  const u = utenti.find(x=>x.id===id);
+  if(!u) return;
+  u.cestinato = false; u.cestinatoIl = null;
+  await saveUtenti();
+  renderUsers(); renderCestino();
+}
+async function eliminaUtenteDefinitivo(id){
+  if(!confirm('Eliminare definitivamente questo utente? L\'azione non è reversibile.')) return;
+  utenti = utenti.filter(u=>u.id!==id);
+  await saveUtenti();
+  renderCestino();
 }
 
 /* ============ IL MIO ACCOUNT ============ */
@@ -1560,8 +1625,8 @@ async function saveOwnAccount(ev){
 function renderMezzi(){
   if(currentUser.ruolo !== 'amministratore') return;
   const container = document.getElementById('mezzi-container');
-  const attivi = mezzi.filter(m=>!m.archiviato);
-  const archiviati = mezzi.filter(m=>m.archiviato);
+  const attivi = mezzi.filter(m=>!m.archiviato && !m.cestinato);
+  const archiviati = mezzi.filter(m=>m.archiviato && !m.cestinato);
   const cardMezzo = m => `
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
@@ -1660,10 +1725,26 @@ async function saveMezzo(ev){
   return false;
 }
 async function deleteMezzo(id){
-  if(!confirm('Eliminare questo mezzo?')) return;
-  mezzi = mezzi.filter(m=>m.id!==id);
+  if(!confirm('Spostare questo mezzo nel cestino? Potrai ripristinarlo entro 7 giorni.')) return;
+  const m = mezzi.find(x=>x.id===id);
+  if(!m) return;
+  m.cestinato = true;
+  m.cestinatoIl = new Date().toISOString();
   await saveMezzi();
   renderMezzi();
+}
+async function ripristinaMezzoCestino(id){
+  const m = mezzi.find(x=>x.id===id);
+  if(!m) return;
+  m.cestinato = false; m.cestinatoIl = null;
+  await saveMezzi();
+  renderMezzi(); renderCestino();
+}
+async function eliminaMezzoDefinitivo(id){
+  if(!confirm('Eliminare definitivamente questo mezzo? L\'azione non è reversibile.')) return;
+  mezzi = mezzi.filter(m=>m.id!==id);
+  await saveMezzi();
+  renderCestino();
 }
 function fillMezzoSelect(valoreCorrente){
   const sel = document.getElementById('sf-mezzo');
@@ -1689,11 +1770,12 @@ function renderRimborsi(){
   document.getElementById('rf-tipoMezzo').innerHTML = '<option value="">Qualsiasi mezzo</option>' + tipiMezzo.map(t=>`<option>${t}</option>`).join('');
 
   const tContainer = document.getElementById('tariffe-container');
-  if(rimborsi.length === 0){
+  const rimborsiVisibili = rimborsi.filter(r=>!r.cestinato);
+  if(rimborsiVisibili.length === 0){
     tContainer.innerHTML = '<div class="empty-state">Nessuna tariffa registrata.</div>';
   } else {
     const gruppi = {};
-    rimborsi.forEach(r=>{
+    rimborsiVisibili.forEach(r=>{
       const chiave = r.tipoMezzo || 'Qualsiasi mezzo';
       if(!gruppi[chiave]) gruppi[chiave] = [];
       gruppi[chiave].push(r);
@@ -1712,11 +1794,12 @@ function renderRimborsi(){
   }
 
   const mContainer = document.getElementById('maggiorazioni-container');
-  if(maggiorazioniOssigeno.length === 0){
+  const maggiorazioniVisibili = maggiorazioniOssigeno.filter(m=>!m.cestinato);
+  if(maggiorazioniVisibili.length === 0){
     mContainer.innerHTML = '<div class="empty-state">Nessuna maggiorazione registrata.</div>';
   } else {
     mContainer.innerHTML = '<table class="mini-table"><thead><tr><th>Flusso da</th><th>Flusso a</th><th>Maggiorazione</th><th></th></tr></thead><tbody>' +
-      maggiorazioniOssigeno.map(m=>`<tr>
+      maggiorazioniVisibili.map(m=>`<tr>
         <td class="mono">${m.flussoDa} L/min</td>
         <td class="mono">${m.flussoA} L/min</td>
         <td class="mono">€ ${parseFloat(m.importo).toFixed(2)}</td>
@@ -1756,10 +1839,26 @@ async function addTariffa(){
   renderRimborsi();
 }
 async function deleteTariffa(id){
-  if(!confirm('Eliminare questa tariffa?')) return;
-  rimborsi = rimborsi.filter(r=>r.id!==id);
+  if(!confirm('Spostare questa tariffa nel cestino?')) return;
+  const r = rimborsi.find(x=>x.id===id);
+  if(!r) return;
+  r.cestinato = true;
+  r.cestinatoIl = new Date().toISOString();
   await saveRimborsi();
   renderRimborsi();
+}
+async function ripristinaTariffaCestino(id){
+  const r = rimborsi.find(x=>x.id===id);
+  if(!r) return;
+  r.cestinato = false; r.cestinatoIl = null;
+  await saveRimborsi();
+  renderRimborsi(); renderCestino();
+}
+async function eliminaTariffaDefinitivo(id){
+  if(!confirm('Eliminare definitivamente questa tariffa?')) return;
+  rimborsi = rimborsi.filter(r=>r.id!==id);
+  await saveRimborsi();
+  renderCestino();
 }
 function editMaggiorazione(id){
   const m = maggiorazioniOssigeno.find(x=>x.id===id);
@@ -1791,15 +1890,31 @@ async function addMaggiorazione(){
   renderRimborsi();
 }
 async function deleteMaggiorazione(id){
-  if(!confirm('Eliminare questa maggiorazione?')) return;
-  maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m=>m.id!==id);
+  if(!confirm('Spostare questa maggiorazione nel cestino?')) return;
+  const m = maggiorazioniOssigeno.find(x=>x.id===id);
+  if(!m) return;
+  m.cestinato = true;
+  m.cestinatoIl = new Date().toISOString();
   await saveMaggiorazioni();
   renderRimborsi();
+}
+async function ripristinaMaggiorazioneCestino(id){
+  const m = maggiorazioniOssigeno.find(x=>x.id===id);
+  if(!m) return;
+  m.cestinato = false; m.cestinatoIl = null;
+  await saveMaggiorazioni();
+  renderRimborsi(); renderCestino();
+}
+async function eliminaMaggiorazioneDefinitivo(id){
+  if(!confirm('Eliminare definitivamente questa maggiorazione?')) return;
+  maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m=>m.id!==id);
+  await saveMaggiorazioni();
+  renderCestino();
 }
 
 /* ============ FOGLI DI MARCIA ============ */
 function getFogliFiltrati(mezzoId){
-  let righe = fogliMarcia.filter(f=>f.mezzoId===mezzoId);
+  let righe = fogliMarcia.filter(f=>f.mezzoId===mezzoId && !f.cestinato);
   const dataDa = document.getElementById('fm-filtroDataDa').value;
   const dataA = document.getElementById('fm-filtroDataA').value;
   if(dataDa) righe = righe.filter(f => (f.dataPartenza||'') >= dataDa);
@@ -2077,6 +2192,126 @@ function modificaDaVisualizzazioneFoglio(){
   closeViewFoglioModal();
   if(id) openFoglioModal(id);
 }
+async function modificaServizioAnno(id, anno){
+  if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
+  openServiceModal(id);
+}
+async function visualizzaServizioAnno(id, anno){
+  if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
+  viewServiceModal(id);
+}
+async function duplicaServizioAnno(id, anno){
+  if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
+  duplicateService(id);
+}
+async function generaFoglioServizioAnno(id, anno){
+  if(anno && anno !== annoCorrenteServizi){ await cambiaAnnoServizi(anno); }
+  generaFoglioDaServizio(id);
+}
+/* ============ CESTINO ============ */
+const GIORNI_CONSERVAZIONE_CESTINO = 7;
+function giorniTrascorsi(dataIso){
+  if(!dataIso) return 0;
+  return (Date.now() - new Date(dataIso).getTime()) / (1000*60*60*24);
+}
+async function purgaCestinoScaduti(){
+  // Pulizia "pigra": ogni volta che si apre il Cestino, chi è scaduto da più
+  // di 7 giorni viene rimosso definitivamente. Riguarda solo i dati già
+  // caricati (per servizi e fogli di marcia: l'anno attualmente selezionato) —
+  // una pulizia completa su tutti gli anni avviene automaticamente ogni notte
+  // tramite il backup pianificato.
+  const scaduto = dataIso => dataIso && giorniTrascorsi(dataIso) > GIORNI_CONSERVAZIONE_CESTINO;
+
+  if(servizi.some(s=>s.cestinato && scaduto(s.cestinatoIl))){
+    servizi = servizi.filter(s => !(s.cestinato && scaduto(s.cestinatoIl)));
+    await saveServizi();
+  }
+  if(fogliMarcia.some(f=>f.cestinato && scaduto(f.cestinatoIl))){
+    fogliMarcia = fogliMarcia.filter(f => !(f.cestinato && scaduto(f.cestinatoIl)));
+    await saveFogliMarciaData();
+  }
+  if(mezzi.some(m=>m.cestinato && scaduto(m.cestinatoIl))){
+    mezzi = mezzi.filter(m => !(m.cestinato && scaduto(m.cestinatoIl)));
+    await saveMezzi();
+  }
+  if(utenti.some(u=>u.cestinato && scaduto(u.cestinatoIl))){
+    utenti = utenti.filter(u => !(u.cestinato && scaduto(u.cestinatoIl)));
+    await saveUtenti();
+  }
+  if(rimborsi.some(r=>r.cestinato && scaduto(r.cestinatoIl))){
+    rimborsi = rimborsi.filter(r => !(r.cestinato && scaduto(r.cestinatoIl)));
+    await saveRimborsi();
+  }
+  if(maggiorazioniOssigeno.some(m=>m.cestinato && scaduto(m.cestinatoIl))){
+    maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m => !(m.cestinato && scaduto(m.cestinatoIl)));
+    await saveMaggiorazioni();
+  }
+}
+async function ripristinaServizioECestino(id, anno){
+  await ripristinaServizio(id, anno);
+  renderCestino(); renderElenco(); renderCalendar();
+}
+async function eliminaServizioDefinitivoECestino(id, anno){
+  if(!confirm('Eliminare definitivamente questo servizio? L\'azione non è reversibile.')) return;
+  await eliminaUnServizio(id, anno);
+  renderCestino();
+}
+async function renderCestino(){
+  if(currentUser.ruolo !== 'amministratore') return;
+  await purgaCestinoScaduti();
+
+  const formatResiduo = dataIso => {
+    const restano = Math.max(0, Math.ceil(GIORNI_CONSERVAZIONE_CESTINO - giorniTrascorsi(dataIso)));
+    return `${formatDateTime(dataIso)} — eliminato tra ${restano} giorno${restano===1?'':'i'}`;
+  };
+  const sezione = (titolo, elementi, renderRiga) => {
+    if(elementi.length === 0) return `<div class="section-title">${titolo}</div><div class="empty-state">Cestino vuoto.</div>`;
+    return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Elemento</th><th>Cestinato il</th><th></th></tr></thead><tbody>${elementi.map(renderRiga).join('')}</tbody></table>`;
+  };
+
+  let html = '';
+
+  html += sezione(`Servizi (anno ${annoCorrenteServizi})`, servizi.filter(s=>s.cestinato), s => `<tr>
+    <td>${s.numeroProgressivo?(s.numeroProgressivo+'/'+s.numeroAnno):''} — ${escapeHtml(s.cognome||'')} ${escapeHtml(s.nome||'')}</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(s.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaServizioECestino('${s.id}',${s.numeroAnno})">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaServizioDefinitivoECestino('${s.id}',${s.numeroAnno})">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  html += sezione(`Fogli di marcia (anno ${annoCorrenteFogli})`, fogliMarcia.filter(f=>f.cestinato), f => {
+    const mezzo = mezzi.find(x=>x.id===f.mezzoId);
+    return `<tr>
+    <td>N° ${f.numeroProgressivo} — ${mezzo?(escapeHtml(mezzo.tipo)+' '+escapeHtml(mezzo.targa)):''}</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(f.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaFoglioCestino('${f.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaFoglioDefinitivo('${f.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`;});
+
+  html += sezione('Mezzi', mezzi.filter(m=>m.cestinato), m => `<tr>
+    <td>${escapeHtml(m.tipo)} — ${escapeHtml(m.targa)}</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(m.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaMezzoCestino('${m.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaMezzoDefinitivo('${m.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  html += sezione('Utenti', utenti.filter(u=>u.cestinato), u => `<tr>
+    <td>${escapeHtml(u.nome)} ${escapeHtml(u.cognome)} (@${escapeHtml(u.username)})</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(u.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaUtenteCestino('${u.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaUtenteDefinitivo('${u.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  html += sezione('Tariffe rimborso', rimborsi.filter(r=>r.cestinato), r => `<tr>
+    <td>${escapeHtml(r.comunePartenza)} → ${escapeHtml(r.comuneArrivo)} (${escapeHtml(r.tipoMezzo||'Qualsiasi')})</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(r.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaTariffaCestino('${r.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaTariffaDefinitivo('${r.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  html += sezione('Maggiorazioni ossigeno', maggiorazioniOssigeno.filter(m=>m.cestinato), m => `<tr>
+    <td>${m.flussoDa}-${m.flussoA} L/min</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(m.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaMaggiorazioneCestino('${m.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaMaggiorazioneDefinitivo('${m.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  document.getElementById('cestino-container').innerHTML = html;
+}
+
 function generaFoglioDaServizio(servizioId){
   const s = servizi.find(x=>x.id===servizioId);
   if(!s) return;
@@ -2142,11 +2377,27 @@ async function saveFoglio(ev){
   return false;
 }
 async function deleteFoglio(id){
-  if(!confirm('Eliminare questa riga del foglio di marcia?')) return;
-  fogliMarcia = fogliMarcia.filter(f=>f.id!==id);
+  if(!confirm('Spostare questa riga nel cestino? Potrai ripristinarla entro 7 giorni.')) return;
+  const f = fogliMarcia.find(x=>x.id===id);
+  if(!f) return;
+  f.cestinato = true;
+  f.cestinatoIl = new Date().toISOString();
   await saveFogliMarciaData();
   closeFoglioModal();
   renderFogliMarcia();
+}
+async function ripristinaFoglioCestino(id){
+  const f = fogliMarcia.find(x=>x.id===id);
+  if(!f) return;
+  f.cestinato = false; f.cestinatoIl = null;
+  await saveFogliMarciaData();
+  renderFogliMarcia(); renderCestino();
+}
+async function eliminaFoglioDefinitivo(id){
+  if(!confirm('Eliminare definitivamente questa riga del foglio di marcia?')) return;
+  fogliMarcia = fogliMarcia.filter(f=>f.id!==id);
+  await saveFogliMarciaData();
+  renderCestino();
 }
 function exportFogliExcel(){
   const mezzoId = document.getElementById('fm-selettoreMezzo').value;
@@ -2805,10 +3056,10 @@ async function saveService(ev){
   return false;
 }
 async function deleteService(){
-  if(!confirm('Eliminare definitivamente questo servizio?')) return;
+  if(!confirm('Spostare questo servizio nel cestino? Potrai ripristinarlo entro 7 giorni, dopodiché verrà eliminato automaticamente.')) return;
   const daEliminare = servizi.find(s=>s.id===editingServiceId);
   const anno = daEliminare ? daEliminare.numeroAnno : annoCorrenteServizi;
-  await eliminaUnServizio(editingServiceId, anno);
+  await cestinaServizio(editingServiceId, anno);
   closeServiceModal();
   renderCalendar(); renderElenco();
 }
