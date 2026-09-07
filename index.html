@@ -270,6 +270,10 @@
         <div class="brand-name">Fraternita di Misericordia<br>di S.M. di Licodia ODV</div>
         <div class="brand-sub">Registro Servizi</div>
       </div>
+      <div style="padding:0 20px 14px;">
+        <label style="font-size:10.5px;color:#9FB1C6;display:block;margin-bottom:4px;">Anno dati (servizi)</label>
+        <select id="anno-servizi-select" onchange="cambiaAnnoServizi(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;"></select>
+      </div>
       <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">📅 Dashboard</div>
       <div class="nav-item" data-view="elenco" onclick="switchView('elenco')">📋 Elenco servizi</div>
       <div class="nav-item" id="nav-utenti" data-view="utenti" onclick="switchView('utenti')" style="display:none;">👤 Gestione utenti</div>
@@ -357,6 +361,13 @@
           <button class="btn btn-add" onclick="openMezzoModal()">+ Nuovo mezzo</button>
         </div>
         <div class="users-grid" id="mezzi-container"></div>
+
+        <div class="section-title">Tipi di mezzo</div>
+        <div class="inline-form">
+          <div class="field"><label>Nuovo tipo</label><input type="text" id="tm-nuovoTipo" placeholder="es. Furgone attrezzato"></div>
+          <button class="btn btn-add" type="button" onclick="aggiungiTipoMezzo()">+ Aggiungi</button>
+        </div>
+        <div id="tipi-mezzo-container"></div>
       </div>
 
       <!-- RIMBORSO SPESE -->
@@ -401,9 +412,15 @@
             <button class="btn btn-add" onclick="openFoglioModal()">Compila foglio marcia</button>
           </div>
         </div>
-        <div class="field" style="max-width:340px;margin-bottom:16px;">
-          <label>Visualizza foglio di marcia del mezzo</label>
-          <select id="fm-selettoreMezzo" onchange="renderFogliMarcia()"></select>
+        <div class="grid2" style="max-width:600px;">
+          <div class="field">
+            <label>Visualizza foglio di marcia del mezzo</label>
+            <select id="fm-selettoreMezzo" onchange="renderFogliMarcia()"></select>
+          </div>
+          <div class="field">
+            <label>Anno</label>
+            <select id="fm-selettoreAnno" onchange="cambiaAnnoFogli(this.value)"></select>
+          </div>
         </div>
         <div class="filters">
           <input type="date" id="fm-filtroDataDa" onchange="renderFogliMarcia()" title="Data da">
@@ -770,14 +787,7 @@
     <p class="modal-sub">Disponibile poi nella scheda servizio</p>
     <form onsubmit="return saveMezzo(event)">
       <div class="field"><label>Tipo di mezzo</label>
-        <select id="mf-tipo">
-          <option>Ambulanza</option>
-          <option>Automedica</option>
-          <option>Smart</option>
-          <option>L200</option>
-          <option>Pulmino disabili</option>
-          <option>Altro</option>
-        </select>
+        <select id="mf-tipo"></select>
       </div>
       <div class="field"><label>Codice mezzo</label><input type="text" id="mf-codice" placeholder="es. M03"></div>
       <div class="field"><label>Targa</label><input type="text" id="mf-targa" required style="text-transform:uppercase;"></div>
@@ -837,8 +847,12 @@ let rimborsoManuallyEdited = false;
 let fogliMarcia = [];
 let editingFoglioId = null;
 let servizioCollegatoFoglio = null;
+let annoCorrenteServizi = new Date().getFullYear();
+let anniDisponibiliServizi = [];
+let annoCorrenteFogli = new Date().getFullYear();
+let anniDisponibiliFogli = [];
 
-const TIPI_MEZZO = ['Ambulanza','Automedica','Smart','L200','Pulmino disabili','Altro'];
+let tipiMezzo = ['Ambulanza','Automedica','Smart','L200','Pulmino disabili','Altro'];
 
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const GIORNI = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
@@ -888,17 +902,178 @@ function sessioneScaduta(){
 async function loadData(){
   utenti = (await kvGet('utenti')) || [];
   mezzi = (await kvGet('mezzi')) || [];
-  servizi = (await kvGet('servizi')) || [];
   rimborsi = (await kvGet('rimborsi')) || [];
   maggiorazioniOssigeno = (await kvGet('maggiorazioniOssigeno')) || [];
-  fogliMarcia = (await kvGet('fogliMarcia')) || [];
+  const tipiSalvati = await kvGet('tipiMezzo');
+  if(tipiSalvati && tipiSalvati.length){
+    tipiMezzo = tipiSalvati;
+  } else {
+    await kvSet('tipiMezzo', tipiMezzo);
+  }
+
+  await migraServiziLegacy();
+  await migraFogliLegacy();
+
+  const annoOggi = new Date().getFullYear();
+  anniDisponibiliServizi = (await kvGet('servizi-index')) || [annoOggi];
+  if(!anniDisponibiliServizi.includes(annoOggi)) anniDisponibiliServizi.push(annoOggi);
+  anniDisponibiliServizi.sort((a,b)=>a-b);
+  await caricaAnnoServizi(annoOggi);
+
+  anniDisponibiliFogli = (await kvGet('fogli-index')) || [annoOggi];
+  if(!anniDisponibiliFogli.includes(annoOggi)) anniDisponibiliFogli.push(annoOggi);
+  anniDisponibiliFogli.sort((a,b)=>a-b);
+  await caricaAnnoFogli(annoOggi);
 }
 async function saveUtenti(){ await kvSet('utenti', utenti); }
 async function saveMezzi(){ await kvSet('mezzi', mezzi); }
-async function saveServizi(){ await kvSet('servizi', servizi); }
 async function saveRimborsi(){ await kvSet('rimborsi', rimborsi); }
 async function saveMaggiorazioni(){ await kvSet('maggiorazioniOssigeno', maggiorazioniOssigeno); }
-async function saveFogliMarciaData(){ await kvSet('fogliMarcia', fogliMarcia); }
+
+/* ---- Partizione dei servizi per anno (per non scaricare tutto l'archivio ad ogni apertura) ---- */
+async function migraServiziLegacy(){
+  const indiceEsistente = await kvGet('servizi-index');
+  if(indiceEsistente) return; // già migrato in passato
+  const legacy = await kvGet('servizi');
+  const annoOggi = new Date().getFullYear();
+  if(!legacy || legacy.length === 0){
+    await kvSet('servizi-index', [annoOggi]);
+    return;
+  }
+  const perAnno = {};
+  const contatori = {};
+  legacy.forEach(s=>{
+    const anno = s.numeroAnno || (s.perGiorno ? new Date(s.perGiorno+'T00:00:00').getFullYear() : annoOggi);
+    if(!perAnno[anno]) perAnno[anno] = [];
+    perAnno[anno].push(s);
+    if(s.numeroProgressivo && s.numeroProgressivo > (contatori[anno]||0)) contatori[anno] = s.numeroProgressivo;
+  });
+  const anni = Object.keys(perAnno).map(Number).sort((a,b)=>a-b);
+  for(const anno of anni){
+    await kvSet('servizi-' + anno, perAnno[anno]);
+  }
+  await kvSet('servizi-contatori', contatori);
+  await kvSet('servizi-index', anni.length ? anni : [annoOggi]);
+}
+async function caricaAnnoServizi(anno){
+  servizi = (await kvGet('servizi-' + anno)) || [];
+  annoCorrenteServizi = anno;
+}
+async function fetchServiziAnno(anno){
+  if(anno === annoCorrenteServizi) return servizi;
+  return (await kvGet('servizi-' + anno)) || [];
+}
+async function aggiornaIndiceServizi(anno){
+  if(!anniDisponibiliServizi.includes(anno)){
+    anniDisponibiliServizi.push(anno);
+    anniDisponibiliServizi.sort((a,b)=>a-b);
+    await kvSet('servizi-index', anniDisponibiliServizi);
+    aggiornaSelettoriAnno();
+  }
+}
+async function saveServizi(){
+  await kvSet('servizi-' + annoCorrenteServizi, servizi);
+  await aggiornaIndiceServizi(annoCorrenteServizi);
+}
+async function prossimoNumeroServizio(anno){
+  const contatori = (await kvGet('servizi-contatori')) || {};
+  const prossimo = (contatori[anno] || 0) + 1;
+  contatori[anno] = prossimo;
+  await kvSet('servizi-contatori', contatori);
+  return prossimo;
+}
+async function cambiaAnnoServizi(anno){
+  anno = parseInt(anno);
+  await caricaAnnoServizi(anno);
+  renderCalendar();
+  renderElenco();
+  if(document.getElementById('view-statistiche').classList.contains('active')) renderStatistiche();
+}
+
+/* ---- Partizione dei fogli di marcia per anno ---- */
+async function migraFogliLegacy(){
+  const indiceEsistente = await kvGet('fogli-index');
+  if(indiceEsistente) return;
+  const legacy = await kvGet('fogliMarcia');
+  const annoOggi = new Date().getFullYear();
+  if(!legacy || legacy.length === 0){
+    await kvSet('fogli-index', [annoOggi]);
+    return;
+  }
+  const perAnno = {};
+  const contatori = {};
+  const ultimoKm = {};
+  legacy.forEach(f=>{
+    const anno = f.dataPartenza ? new Date(f.dataPartenza+'T00:00:00').getFullYear() : (f.registratoIl ? new Date(f.registratoIl).getFullYear() : annoOggi);
+    if(!perAnno[anno]) perAnno[anno] = [];
+    perAnno[anno].push(f);
+    const chiave = f.mezzoId + '-' + anno;
+    if(f.numeroProgressivo && f.numeroProgressivo > (contatori[chiave]||0)) contatori[chiave] = f.numeroProgressivo;
+  });
+  legacy.forEach(f=>{
+    if(f.kmFinali) ultimoKm[f.mezzoId] = f.kmFinali; // resta l'ultimo dell'array (gia' in ordine cronologico di inserimento)
+  });
+  const anni = Object.keys(perAnno).map(Number).sort((a,b)=>a-b);
+  for(const anno of anni){
+    await kvSet('fogli-' + anno, perAnno[anno]);
+  }
+  await kvSet('fogli-contatori', contatori);
+  await kvSet('fogli-ultimo-km', ultimoKm);
+  await kvSet('fogli-index', anni.length ? anni : [annoOggi]);
+}
+async function caricaAnnoFogli(anno){
+  fogliMarcia = (await kvGet('fogli-' + anno)) || [];
+  annoCorrenteFogli = anno;
+}
+async function fetchFogliAnno(anno){
+  if(anno === annoCorrenteFogli) return fogliMarcia;
+  return (await kvGet('fogli-' + anno)) || [];
+}
+async function aggiornaIndiceFogli(anno){
+  if(!anniDisponibiliFogli.includes(anno)){
+    anniDisponibiliFogli.push(anno);
+    anniDisponibiliFogli.sort((a,b)=>a-b);
+    await kvSet('fogli-index', anniDisponibiliFogli);
+    aggiornaSelettoriAnno();
+  }
+}
+async function saveFogliMarciaData(){
+  await kvSet('fogli-' + annoCorrenteFogli, fogliMarcia);
+  await aggiornaIndiceFogli(annoCorrenteFogli);
+}
+async function prossimoNumeroFoglio(mezzoId, anno){
+  const contatori = (await kvGet('fogli-contatori')) || {};
+  const chiave = mezzoId + '-' + anno;
+  const prossimo = (contatori[chiave] || 0) + 1;
+  contatori[chiave] = prossimo;
+  await kvSet('fogli-contatori', contatori);
+  return prossimo;
+}
+async function ultimoKmFinaliAsync(mezzoId){
+  const mappa = (await kvGet('fogli-ultimo-km')) || {};
+  return mappa[mezzoId] || '';
+}
+async function aggiornaUltimoKm(mezzoId, km){
+  if(!km) return;
+  const mappa = (await kvGet('fogli-ultimo-km')) || {};
+  mappa[mezzoId] = km;
+  await kvSet('fogli-ultimo-km', mappa);
+}
+async function cambiaAnnoFogli(anno){
+  anno = parseInt(anno);
+  await caricaAnnoFogli(anno);
+  renderFogliMarcia();
+}
+function aggiornaSelettoriAnno(){
+  const selServizi = document.getElementById('anno-servizi-select');
+  if(selServizi){
+    selServizi.innerHTML = anniDisponibiliServizi.map(a=>`<option value="${a}" ${a===annoCorrenteServizi?'selected':''}>${a}</option>`).join('');
+  }
+  const selFogli = document.getElementById('fm-selettoreAnno');
+  if(selFogli){
+    selFogli.innerHTML = anniDisponibiliFogli.map(a=>`<option value="${a}" ${a===annoCorrenteFogli?'selected':''}>${a}</option>`).join('');
+  }
+}
 
 /* ============ LOGIN ============ */
 async function doLogin(){
@@ -933,6 +1108,7 @@ async function doLogin(){
   currentUser = dati.utente;
 
   await loadData();
+  aggiornaSelettoriAnno();
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('shell').classList.add('active');
@@ -1126,18 +1302,45 @@ let editingUserId = null;
 function renderUsers(){
   if(!canManageUsers()) return;
   const container = document.getElementById('users-container');
-  container.innerHTML = utenti.map(u => `
+  const attivi = utenti.filter(u=>!u.archiviato);
+  const archiviati = utenti.filter(u=>u.archiviato);
+  const cardUtente = u => `
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
       <div class="un">@${escapeHtml(u.username)}</div>
       <span class="role-chip ${u.ruolo}">${u.ruolo}</span>
       ${u.mustChangePassword ? '<span class="tag-chiuso">Deve cambiare password</span>' : ''}
+      ${u.archiviato ? `<span class="tag-chiuso">Archiviato il ${u.dataArchiviazione||''}</span>` : ''}
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="link-btn" onclick="openUserModal('${u.id}')">Modifica</button>
-        <button class="link-btn" onclick="resetPasswordUtente('${u.id}')">Reset password</button>
-        ${u.ruolo!=='amministratore' ? `<button class="link-btn" onclick="deleteUser('${u.id}')">Elimina</button>` : ''}
+        ${u.archiviato ? `<button class="link-btn" onclick="riattivaUtente('${u.id}')">Riattiva</button>` : `
+          <button class="link-btn" onclick="openUserModal('${u.id}')">Modifica</button>
+          <button class="link-btn" onclick="resetPasswordUtente('${u.id}')">Reset password</button>
+          ${u.ruolo!=='amministratore' ? `<button class="link-btn" onclick="archiviaUtente('${u.id}')">Archivia</button> <button class="link-btn" onclick="deleteUser('${u.id}')">Elimina</button>` : ''}
+        `}
       </div>
-    </div>`).join('');
+    </div>`;
+  let html = '<div class="section-title">Utenti attivi</div><div class="users-grid">' + attivi.map(cardUtente).join('') + '</div>';
+  if(archiviati.length){
+    html += '<div class="section-title">Utenti archiviati</div><div class="users-grid">' + archiviati.map(cardUtente).join('') + '</div>';
+  }
+  container.innerHTML = html;
+}
+async function archiviaUtente(id){
+  const u = utenti.find(x=>x.id===id);
+  if(!u) return;
+  if(!confirm('Archiviare ' + u.nome + ' ' + u.cognome + '? Non potrà più accedere, ma la cronologia dei servizi resterà intatta.')) return;
+  u.archiviato = true;
+  u.dataArchiviazione = new Date().toISOString().slice(0,10);
+  await saveUtenti();
+  renderUsers();
+}
+async function riattivaUtente(id){
+  const u = utenti.find(x=>x.id===id);
+  if(!u) return;
+  u.archiviato = false;
+  u.dataArchiviazione = null;
+  await saveUtenti();
+  renderUsers();
 }
 function openUserModal(id){
   editingUserId = id || null;
@@ -1259,22 +1462,84 @@ async function saveOwnAccount(ev){
 function renderMezzi(){
   if(currentUser.ruolo !== 'amministratore') return;
   const container = document.getElementById('mezzi-container');
-  if(mezzi.length === 0){ container.innerHTML = '<div class="empty-state">Nessun mezzo registrato.</div>'; return; }
-  container.innerHTML = mezzi.map(m => `
+  const attivi = mezzi.filter(m=>!m.archiviato);
+  const archiviati = mezzi.filter(m=>m.archiviato);
+  const cardMezzo = m => `
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
       <div class="un mono">${escapeHtml(m.targa)}</div>
-      <div style="margin-top:10px;display:flex;gap:10px;">
-        <button class="link-btn" onclick="openMezzoModal('${m.id}')">Modifica</button>
-        <button class="link-btn" onclick="deleteMezzo('${m.id}')">Elimina</button>
+      ${m.archiviato ? `<span class="tag-chiuso">Archiviato il ${m.dataArchiviazione||''}</span>` : ''}
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        ${m.archiviato ? `<button class="link-btn" onclick="riattivaMezzo('${m.id}')">Riattiva</button>` : `
+          <button class="link-btn" onclick="openMezzoModal('${m.id}')">Modifica</button>
+          <button class="link-btn" onclick="archiviaMezzo('${m.id}')">Archivia</button>
+          <button class="link-btn" onclick="deleteMezzo('${m.id}')">Elimina</button>
+        `}
       </div>
-    </div>`).join('');
+    </div>`;
+  let html = '';
+  if(attivi.length === 0 && archiviati.length === 0){
+    html = '<div class="empty-state">Nessun mezzo registrato.</div>';
+  } else {
+    html = '<div class="section-title">Mezzi attivi</div><div class="users-grid">' + (attivi.length ? attivi.map(cardMezzo).join('') : '<div class="empty-state">Nessun mezzo attivo.</div>') + '</div>';
+    if(archiviati.length){
+      html += '<div class="section-title">Mezzi archiviati</div><div class="users-grid">' + archiviati.map(cardMezzo).join('') + '</div>';
+    }
+  }
+  container.innerHTML = html;
+  renderTipiMezzo();
+}
+async function archiviaMezzo(id){
+  const m = mezzi.find(x=>x.id===id);
+  if(!m) return;
+  if(!confirm('Archiviare questo mezzo? Non sarà più selezionabile per nuovi servizi, ma lo storico resterà intatto.')) return;
+  m.archiviato = true;
+  m.dataArchiviazione = new Date().toISOString().slice(0,10);
+  await saveMezzi();
+  renderMezzi();
+}
+async function riattivaMezzo(id){
+  const m = mezzi.find(x=>x.id===id);
+  if(!m) return;
+  m.archiviato = false;
+  m.dataArchiviazione = null;
+  await saveMezzi();
+  renderMezzi();
+}
+function renderTipiMezzo(){
+  const container = document.getElementById('tipi-mezzo-container');
+  if(!container) return;
+  container.innerHTML = '<table class="mini-table"><thead><tr><th>Tipo</th><th></th></tr></thead><tbody>' +
+    tipiMezzo.map(t=>`<tr><td>${escapeHtml(t)}</td><td><button class="link-btn" onclick="eliminaTipoMezzo('${escapeHtml(t)}')">Elimina</button></td></tr>`).join('') +
+    '</tbody></table>';
+}
+async function aggiungiTipoMezzo(){
+  const nuovo = document.getElementById('tm-nuovoTipo').value.trim();
+  if(!nuovo){ return; }
+  if(tipiMezzo.some(t=>t.toLowerCase()===nuovo.toLowerCase())){ alert('Questo tipo di mezzo esiste già.'); return; }
+  tipiMezzo.push(nuovo);
+  await kvSet('tipiMezzo', tipiMezzo);
+  document.getElementById('tm-nuovoTipo').value = '';
+  renderTipiMezzo();
+}
+async function eliminaTipoMezzo(tipo){
+  if(!confirm('Eliminare il tipo di mezzo "' + tipo + '"? I mezzi già registrati con questo tipo non verranno modificati.')) return;
+  tipiMezzo = tipiMezzo.filter(t=>t!==tipo);
+  await kvSet('tipiMezzo', tipiMezzo);
+  renderTipiMezzo();
+}
+function fillTipoMezzoSelect(selEl, valoreCorrente){
+  selEl.innerHTML = tipiMezzo.map(t=>`<option>${escapeHtml(t)}</option>`).join('');
+  if(valoreCorrente && !tipiMezzo.includes(valoreCorrente)){
+    selEl.innerHTML += `<option>${escapeHtml(valoreCorrente)}</option>`;
+  }
+  selEl.value = valoreCorrente || tipiMezzo[0] || '';
 }
 function openMezzoModal(id){
   editingMezzoId = id || null;
   const m = id ? mezzi.find(x=>x.id===id) : null;
   document.getElementById('mezzo-modal-title').textContent = m ? 'Modifica mezzo' : 'Nuovo mezzo';
-  document.getElementById('mf-tipo').value = m ? m.tipo : 'Ambulanza';
+  fillTipoMezzoSelect(document.getElementById('mf-tipo'), m ? m.tipo : null);
   document.getElementById('mf-codice').value = m ? (m.codice||'') : '';
   document.getElementById('mf-targa').value = m ? m.targa : '';
   document.getElementById('mezzo-modal-backdrop').classList.add('active');
@@ -1287,9 +1552,9 @@ async function saveMezzo(ev){
   if(duplicato){ alert('Un mezzo con questa targa è già registrato.'); return false; }
   if(editingMezzoId){
     const idx = mezzi.findIndex(m=>m.id===editingMezzoId);
-    mezzi[idx] = { id: editingMezzoId, tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa };
+    mezzi[idx] = { ...mezzi[idx], tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa };
   } else {
-    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa });
+    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false });
   }
   await saveMezzi();
   renderMezzi();
@@ -1302,13 +1567,20 @@ async function deleteMezzo(id){
   await saveMezzi();
   renderMezzi();
 }
-function fillMezzoSelect(){
+function fillMezzoSelect(valoreCorrente){
   const sel = document.getElementById('sf-mezzo');
+  const attivi = mezzi.filter(m=>!m.archiviato);
   if(mezzi.length === 0){
     sel.innerHTML = '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
     return;
   }
-  sel.innerHTML = '<option value="">-- seleziona --</option>' + mezzi.map(m=>`<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  const opt = m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}</option>`;
+  let elenco = attivi;
+  if(valoreCorrente && !attivi.some(m=>m.id===valoreCorrente)){
+    const storico = mezzi.find(m=>m.id===valoreCorrente);
+    if(storico) elenco = [...attivi, storico];
+  }
+  sel.innerHTML = '<option value="">-- seleziona --</option>' + elenco.map(opt).join('');
 }
 
 /* ============ RIMBORSO SPESE ============ */
@@ -1316,7 +1588,7 @@ let editingTariffaId = null;
 let editingMaggiorazioneId = null;
 function renderRimborsi(){
   if(currentUser.ruolo !== 'amministratore') return;
-  document.getElementById('rf-tipoMezzo').innerHTML = '<option value="">Qualsiasi mezzo</option>' + TIPI_MEZZO.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('rf-tipoMezzo').innerHTML = '<option value="">Qualsiasi mezzo</option>' + tipiMezzo.map(t=>`<option>${t}</option>`).join('');
 
   const tContainer = document.getElementById('tariffe-container');
   if(rimborsi.length === 0){
@@ -1419,15 +1691,6 @@ async function deleteMaggiorazione(id){
 }
 
 /* ============ FOGLI DI MARCIA ============ */
-function nextProgressivoFoglio(mezzoId){
-  let max = 0;
-  fogliMarcia.forEach(f=>{ if(f.mezzoId === mezzoId && f.numeroProgressivo > max) max = f.numeroProgressivo; });
-  return max + 1;
-}
-function ultimoKmFinali(mezzoId){
-  const righe = fogliMarcia.filter(f=>f.mezzoId===mezzoId).sort((a,b)=> (b.numeroProgressivo||0) - (a.numeroProgressivo||0));
-  return righe.length ? (righe[0].kmFinali || '') : '';
-}
 function getFogliFiltrati(mezzoId){
   let righe = fogliMarcia.filter(f=>f.mezzoId===mezzoId);
   const dataDa = document.getElementById('fm-filtroDataDa').value;
@@ -1490,19 +1753,25 @@ function toggleCarburanteFoglio(){
   const on = document.getElementById('fm-carburante').value === 'Si';
   document.getElementById('fm-carburante-box').style.display = on ? 'grid' : 'none';
 }
-function onFoglioMezzoChange(){
+async function onFoglioMezzoChange(){
   if(editingFoglioId) return; // non alterare km iniziali se si sta modificando una riga esistente
   const mezzoId = document.getElementById('fm-mezzoId').value;
-  document.getElementById('fm-kmIniziali').value = mezzoId ? ultimoKmFinali(mezzoId) : '';
+  document.getElementById('fm-kmIniziali').value = mezzoId ? (await ultimoKmFinaliAsync(mezzoId)) : '';
 }
-function openFoglioModal(id){
+async function openFoglioModal(id){
   editingFoglioId = id || null;
   fillFoglioPersonSelects();
   const f = id ? fogliMarcia.find(x=>x.id===id) : null;
   const mezzoEsterno = document.getElementById('fm-selettoreMezzo').value;
 
   const selMezzo = document.getElementById('fm-mezzoId');
-  selMezzo.innerHTML = '<option value="">-- seleziona --</option>' + mezzi.map(m=>`<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  const attiviMezzi = mezzi.filter(m=>!m.archiviato);
+  let elencoMezzi = attiviMezzi;
+  if(f && f.mezzoId && !attiviMezzi.some(m=>m.id===f.mezzoId)){
+    const storico = mezzi.find(m=>m.id===f.mezzoId);
+    if(storico) elencoMezzi = [...attiviMezzi, storico];
+  }
+  selMezzo.innerHTML = '<option value="">-- seleziona --</option>' + elencoMezzi.map(m=>`<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}</option>`).join('');
   selMezzo.value = f ? f.mezzoId : (mezzoEsterno || '');
 
   document.getElementById('foglio-modal-title').textContent = f ? ('Riga n° ' + f.numeroProgressivo) : 'Compila foglio di marcia';
@@ -1527,7 +1796,7 @@ function openFoglioModal(id){
   document.getElementById('fm-orarioPartenza').value = f?.orarioPartenza || '';
   document.getElementById('fm-dataArrivo').value = f?.dataArrivo || oggi;
   document.getElementById('fm-orarioRientro').value = f?.orarioRientro || '';
-  document.getElementById('fm-kmIniziali').value = f ? f.kmIniziali : (selMezzo.value ? ultimoKmFinali(selMezzo.value) : '');
+  document.getElementById('fm-kmIniziali').value = f ? f.kmIniziali : (selMezzo.value ? (await ultimoKmFinaliAsync(selMezzo.value)) : '');
   document.getElementById('fm-kmFinali').value = f?.kmFinali || '';
   document.getElementById('fm-kmTotale').value = f?.kmTotale || '';
   document.getElementById('fm-ricevutaNumero').value = f?.ricevutaNumero || '';
@@ -1645,13 +1914,23 @@ async function saveFoglio(ev){
     data.compilatore = existing.compilatore;
     const idx = fogliMarcia.findIndex(f=>f.id===editingFoglioId);
     fogliMarcia[idx] = data;
+    await saveFogliMarciaData();
   } else {
-    data.numeroProgressivo = nextProgressivoFoglio(mezzoId);
+    const annoRiga = data.dataPartenza ? new Date(data.dataPartenza+'T00:00:00').getFullYear() : annoCorrenteFogli;
+    data.numeroProgressivo = await prossimoNumeroFoglio(mezzoId, annoRiga);
     data.registratoIl = new Date().toISOString();
     data.compilatore = currentUser.nome + ' ' + currentUser.cognome;
-    fogliMarcia.push(data);
+    if(annoRiga === annoCorrenteFogli){
+      fogliMarcia.push(data);
+      await saveFogliMarciaData();
+    } else {
+      const bucket = (await kvGet('fogli-' + annoRiga)) || [];
+      bucket.push(data);
+      await kvSet('fogli-' + annoRiga, bucket);
+      await aggiornaIndiceFogli(annoRiga);
+    }
+    await aggiornaUltimoKm(mezzoId, data.kmFinali);
   }
-  await saveFogliMarciaData();
   closeFoglioModal();
   renderFogliMarcia();
   return false;
@@ -1768,7 +2047,7 @@ function printFogliMarcia(){
 }
 
 /* ============ STATISTICHE ============ */
-function renderStatistiche(){
+async function renderStatistiche(){
   if(currentUser.ruolo !== 'amministratore') return;
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const totaleServizi = servizi.length;
@@ -1776,29 +2055,39 @@ function renderStatistiche(){
   const perStato = {verde:0, giallo:0, rosso:0};
   servizi.forEach(s=>{ if(perStato[s.stato]!==undefined) perStato[s.stato]++; });
 
-  const perMezzo = {};
-  servizi.forEach(s=>{ const k = s.mezzo || 'Non assegnato'; perMezzo[k] = (perMezzo[k]||0)+1; });
+  const fogliAnno = await fetchFogliAnno(annoCorrenteServizi);
+
+  const perMezzoConteggio = {};
+  servizi.forEach(s=>{ const k = s.mezzoId || ''; perMezzoConteggio[k] = (perMezzoConteggio[k]||0)+1; });
+  const kmPerMezzo = {};
+  fogliAnno.forEach(f=>{ const k = f.mezzoId || ''; kmPerMezzo[k] = (kmPerMezzo[k]||0) + (parseFloat(f.kmTotale)||0); });
+  const mezzoIds = new Set([...Object.keys(perMezzoConteggio), ...Object.keys(kmPerMezzo)]);
+  const righeMezzo = [...mezzoIds].map(id=>{
+    const m = mezzi.find(x=>x.id===id);
+    const nome = m ? (m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa) : 'Non assegnato';
+    return { nome, conteggio: perMezzoConteggio[id]||0, km: kmPerMezzo[id]||0 };
+  }).sort((a,b)=> b.conteggio - a.conteggio);
 
   const perOperatore = {};
   servizi.forEach(s=>{ const k = s.ultimoOperatore || s.operatoreInserimento || 'Sconosciuto'; perOperatore[k] = (perOperatore[k]||0)+1; });
 
   const perMotivazione = {};
-  fogliMarcia.forEach(f=>{ const k = f.motivazioneServizio || 'Non specificata'; perMotivazione[k] = (perMotivazione[k]||0)+1; });
+  fogliAnno.forEach(f=>{ const k = f.motivazioneServizio || 'Non specificata'; perMotivazione[k] = (perMotivazione[k]||0)+1; });
 
-  const kmTotaliGenerali = fogliMarcia.reduce((tot,f)=> tot + (parseFloat(f.kmTotale)||0), 0);
+  const kmTotaliGenerali = fogliAnno.reduce((tot,f)=> tot + (parseFloat(f.kmTotale)||0), 0);
   const rimborsoTotaleSuggerito = servizi.reduce((tot,s)=> tot + (parseFloat(s.rimborsoSuggerito)||0), 0);
 
-  const annoCorrente = new Date().getFullYear();
   const perMese = Array(12).fill(0);
   servizi.forEach(s=>{
     if(s.perGiorno){
       const d = new Date(s.perGiorno+'T00:00:00');
-      if(d.getFullYear() === annoCorrente) perMese[d.getMonth()]++;
+      if(d.getFullYear() === annoCorrenteServizi) perMese[d.getMonth()]++;
     }
   });
   const nomiMesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
   const cardsHtml = `
+    <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;">Dati riferiti all'anno ${annoCorrenteServizi} (cambia anno dalla barra laterale)</p>
     <div class="users-grid" style="margin-bottom:24px;">
       <div class="user-card"><div class="nm" style="font-size:22px;">${totaleServizi}</div><div class="un">Servizi totali registrati</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.verde}</div><div class="un">Confermati</div></div>
@@ -1814,25 +2103,37 @@ function renderStatistiche(){
     return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Voce</th><th>Conteggio</th></tr></thead><tbody>${righe.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td class="mono">${v}</td></tr>`).join('')}</tbody></table>`;
   };
 
-  const tabellaMesi = `<div class="section-title">Servizi per mese (${annoCorrente})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
+  const tabellaMese = `<div class="section-title">Servizi per mese (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
+
+  const tabellaMezzo = righeMezzo.length
+    ? `<div class="section-title">Servizi per mezzo</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Servizi</th><th>Km totali (fogli di marcia)</th></tr></thead><tbody>${righeMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.conteggio}</td><td class="mono">${r.km}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="section-title">Servizi per mezzo</div><div class="empty-state">Nessun dato.</div>`;
 
   document.getElementById('statistiche-container').innerHTML =
     cardsHtml +
-    tabellaMesi +
-    tabellaSemplice('Servizi per mezzo', perMezzo) +
+    tabellaMese +
+    tabellaMezzo +
     tabellaSemplice('Servizi per operatore (ultima modifica)', perOperatore) +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
 }
 
 /* ============ MODAL SERVIZIO ============ */
 function fillPersonSelects(){
-  const options = '<option value="">-- seleziona --</option>' + utenti.map(u=>`<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}</option>`).join('');
+  const attivi = utenti.filter(u=>!u.archiviato);
+  const archiviati = utenti.filter(u=>u.archiviato);
+  const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
+  const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['sf-autista','sf-soccorritore1','sf-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
-  const responsabiliAdmin = utenti.filter(u=>u.ruolo==='responsabile'||u.ruolo==='amministratore');
-  document.getElementById('sf-autorizzatoDa').innerHTML = '<option value="">-- seleziona --</option>' + responsabiliAdmin.map(u=>`<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}</option>`).join('');
+  const responsabiliAdmin = utenti.filter(u=>(u.ruolo==='responsabile'||u.ruolo==='amministratore'));
+  const attiviRA = responsabiliAdmin.filter(u=>!u.archiviato);
+  const archiviatiRA = responsabiliAdmin.filter(u=>u.archiviato);
+  document.getElementById('sf-autorizzatoDa').innerHTML = '<option value="">-- seleziona --</option>' + attiviRA.map(opt).join('') + archiviatiRA.map(opt).join('');
 }
 function fillFoglioPersonSelects(){
-  const options = '<option value="">-- seleziona --</option>' + utenti.map(u=>`<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}</option>`).join('');
+  const attivi = utenti.filter(u=>!u.archiviato);
+  const archiviati = utenti.filter(u=>u.archiviato);
+  const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
+  const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['fm-autista','fm-soccorritore1','fm-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
 }
 
@@ -1864,8 +2165,8 @@ function generaDateRipetizione(startStr, endStr, freq, giorniSel){
 function openServiceModal(id, prefillDate){
   editingServiceId = id || null;
   fillPersonSelects();
-  fillMezzoSelect();
   const sv = id ? servizi.find(s=>s.id===id) : null;
+  fillMezzoSelect(sv?.mezzoId);
   document.getElementById('service-modal-title').textContent = sv ? 'Servizio — ' + (sv.cognome||'') + ' ' + (sv.nome||'') : 'Nuovo servizio';
   fillServiceForm(sv, prefillDate);
 
@@ -1886,7 +2187,7 @@ function duplicateService(id){
   if(!src) return;
   editingServiceId = null;
   fillPersonSelects();
-  fillMezzoSelect();
+  fillMezzoSelect(src.mezzoId);
   const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:''};
   delete clone.gruppoRipetizione;
   document.getElementById('service-modal-title').textContent = 'Duplica servizio — ' + (clone.cognome||'') + ' ' + (clone.nome||'');
@@ -2133,12 +2434,6 @@ function computeRimborsoSuggerito(){
   }
 }
 
-function nextProgressivo(anno){
-  let max = 0;
-  servizi.forEach(s=>{ if(s.numeroAnno === anno && s.numeroProgressivo > max) max = s.numeroProgressivo; });
-  return max + 1;
-}
-
 const CAMPI_LABEL_SERVIZIO = {
   enteSig:'Ente/Sig.', telRichiedente:'Telefono richiedente', relazione:'Relazione col paziente',
   cognome:'Cognome', nome:'Nome', via:'Via', civico:'N°', citta:'Città', telPaziente:'Telefono paziente',
@@ -2243,6 +2538,7 @@ async function saveService(ev){
     data.numeroAnno = existing.numeroAnno;
     const idx = servizi.findIndex(s=>s.id===existing.id);
     servizi[idx] = data;
+    await saveServizi();
   } else if(document.getElementById('sf-ripetitivo').checked && !document.getElementById('sf-ripetitivo').disabled){
     const freq = document.getElementById('sf-frequenza').value;
     const finoAl = document.getElementById('sf-ripetiFinoAl').value;
@@ -2254,18 +2550,40 @@ async function saveService(ev){
       return false;
     }
     const gruppoId = 'grp-' + Date.now();
-    dateList.forEach((dk, i) => {
+    const bucketCache = {};
+    let toccatoAnnoCorrente = false;
+    for(let i=0;i<dateList.length;i++){
+      const dk = dateList[i];
       const anno = new Date(dk+'T00:00:00').getFullYear();
-      const numeroProgressivo = nextProgressivo(anno);
-      servizi.push({...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]});
-    });
+      const numeroProgressivo = await prossimoNumeroServizio(anno);
+      const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
+      if(anno === annoCorrenteServizi){
+        servizi.push(nuovoServizio);
+        toccatoAnnoCorrente = true;
+      } else {
+        if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
+        bucketCache[anno].push(nuovoServizio);
+      }
+    }
+    for(const anno in bucketCache){
+      await kvSet('servizi-' + anno, bucketCache[anno]);
+      await aggiornaIndiceServizi(parseInt(anno));
+    }
+    if(toccatoAnnoCorrente) await saveServizi();
   } else {
     const anno = data.perGiorno ? new Date(data.perGiorno+'T00:00:00').getFullYear() : new Date().getFullYear();
     data.numeroAnno = anno;
-    data.numeroProgressivo = nextProgressivo(anno);
-    servizi.push(data);
+    data.numeroProgressivo = await prossimoNumeroServizio(anno);
+    if(anno === annoCorrenteServizi){
+      servizi.push(data);
+      await saveServizi();
+    } else {
+      const bucket = await fetchServiziAnno(anno);
+      bucket.push(data);
+      await kvSet('servizi-' + anno, bucket);
+      await aggiornaIndiceServizi(anno);
+    }
   }
-  await saveServizi();
   closeServiceModal();
   renderCalendar(); renderElenco();
   return false;
