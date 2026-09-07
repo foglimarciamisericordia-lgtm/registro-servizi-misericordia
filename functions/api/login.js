@@ -75,6 +75,10 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ errore: 'Nome utente o password non corretti.' }), { status: 401 });
   }
 
+  if (utente.archiviato) {
+    return new Response(JSON.stringify({ errore: 'Questo account è stato archiviato. Rivolgiti a un amministratore.' }), { status: 403 });
+  }
+
   const token = crypto.randomUUID();
   const sessione = { userId: utente.id, creatoIl: Date.now() };
   await env.REGISTRO_KV.put('session:' + token, JSON.stringify(sessione), { expirationTtl: DURATA_SESSIONE_SECONDI });
