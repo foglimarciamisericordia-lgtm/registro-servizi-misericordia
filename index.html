@@ -1095,16 +1095,27 @@ async function cestinaServizio(id, anno){
 async function ripristinaServizio(id, anno){
   const aggiornati = await fetchServiziAnno(anno);
   const idx = aggiornati.findIndex(s=>s.id===id);
-  if(idx>=0){ aggiornati[idx].cestinato = false; aggiornati[idx].cestinatoIl = null; }
+  if(idx<0) return;
+  // Se nel frattempo il suo numero è stato riassegnato a un altro servizio
+  // attivo, evitiamo il doppione dandogli il primo numero libero.
+  const conflitto = aggiornati.some(s => s.id!==id && !s.cestinato && s.numeroProgressivo === aggiornati[idx].numeroProgressivo);
+  if(conflitto){
+    aggiornati[idx].numeroProgressivo = await prossimoNumeroServizio(anno);
+  }
+  aggiornati[idx].cestinato = false;
+  aggiornati[idx].cestinatoIl = null;
   await kvSet('servizi-' + anno, aggiornati);
   if(anno === annoCorrenteServizi) servizi = aggiornati;
 }
 async function prossimoNumeroServizio(anno){
-  const contatori = (await kvGet('servizi-contatori')) || {};
-  const prossimo = (contatori[anno] || 0) + 1;
-  contatori[anno] = prossimo;
-  await kvSet('servizi-contatori', contatori);
-  return prossimo;
+  // La numerazione riutilizza i numeri liberati: se elimini il servizio n. 5,
+  // il prossimo nuovo servizio dell'anno riceverà di nuovo il n. 5 (non n. 6
+  // o successivo). Se elimini tutti i servizi, si riparte da 1.
+  const lista = await fetchServiziAnno(anno);
+  const usati = new Set(lista.filter(s => !s.cestinato && s.numeroProgressivo).map(s => s.numeroProgressivo));
+  let n = 1;
+  while(usati.has(n)) n++;
+  return n;
 }
 async function cambiaAnnoServizi(anno){
   anno = parseInt(anno);
@@ -1169,12 +1180,13 @@ async function saveFogliMarciaData(){
   await aggiornaIndiceFogli(annoCorrenteFogli);
 }
 async function prossimoNumeroFoglio(mezzoId, anno){
-  const contatori = (await kvGet('fogli-contatori')) || {};
-  const chiave = mezzoId + '-' + anno;
-  const prossimo = (contatori[chiave] || 0) + 1;
-  contatori[chiave] = prossimo;
-  await kvSet('fogli-contatori', contatori);
-  return prossimo;
+  // Stessa logica dei servizi: riutilizza il primo numero libero per quel
+  // mezzo in quell'anno, invece di incrementare all'infinito.
+  const lista = await fetchFogliAnno(anno);
+  const usati = new Set(lista.filter(f => f.mezzoId===mezzoId && !f.cestinato && f.numeroProgressivo).map(f => f.numeroProgressivo));
+  let n = 1;
+  while(usati.has(n)) n++;
+  return n;
 }
 async function ultimoKmFinaliAsync(mezzoId){
   const mappa = (await kvGet('fogli-ultimo-km')) || {};
@@ -2429,6 +2441,10 @@ async function deleteFoglio(id){
 async function ripristinaFoglioCestino(id){
   const f = fogliMarcia.find(x=>x.id===id);
   if(!f) return;
+  const conflitto = fogliMarcia.some(x => x.id!==id && x.mezzoId===f.mezzoId && !x.cestinato && x.numeroProgressivo === f.numeroProgressivo);
+  if(conflitto){
+    f.numeroProgressivo = await prossimoNumeroFoglio(f.mezzoId, annoCorrenteFogli);
+  }
   f.cestinato = false; f.cestinatoIl = null;
   await saveFogliMarciaData();
   renderFogliMarcia(); renderCestino();
