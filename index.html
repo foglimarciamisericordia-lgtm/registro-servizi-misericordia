@@ -158,6 +158,7 @@
   .map-preview iframe{width:100%;height:100%;border:0;}
   .map-hint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
   .locked-note{font-size:12px;color:var(--amber);background:var(--amber-bg);padding:8px 11px;border-radius:7px;margin-bottom:14px;}
+  .campo-invalido{border-color:var(--red) !important;background:var(--red-bg) !important;}
   .close-x{position:sticky;top:0;float:right;background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
   .badge-apertura{display:inline-block;font-weight:600;font-size:13px;padding:7px 14px;border-radius:7px;background:var(--line-soft);color:var(--ink-soft);}
   .badge-apertura.aperto{background:var(--teal-bg);color:var(--teal);}
@@ -490,7 +491,7 @@
     <button class="close-x" onclick="closeFoglioModal()">✕</button>
     <h3 id="foglio-modal-title">Compila foglio di marcia</h3>
     <p class="modal-sub" id="foglio-modal-sub">Seleziona il mezzo e compila i dati dell'uscita</p>
-    <form onsubmit="return saveFoglio(event)">
+    <form id="foglio-form" onsubmit="return saveFoglio(event)">
       <div class="grid2">
         <div class="field"><label>Mezzo</label><select id="fm-mezzoId" onchange="onFoglioMezzoChange()"></select></div>
         <div class="field"><label>Motivazione servizio *</label>
@@ -634,8 +635,9 @@
         <div class="field">
           <label>Seleziona il tipo di scheda</label>
           <select id="sf-tipoScheda" onchange="toggleTipoScheda()">
-            <option value="secondario">Servizio secondario/disabili</option>
+            <option value="secondario">Servizi secondari/disabili</option>
             <option value="evento">Eventi/manifestazioni</option>
+            <option value="convenzione">Servizi in convenzione</option>
           </select>
         </div>
       </fieldset>
@@ -737,16 +739,17 @@
           <div class="field"><label>Presenza di scale *</label><select id="sf-scale" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Ascensore *</label><select id="sf-ascensore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Presenza accompagnatore *</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
-          <div class="field"><label>Ulteriori dettagli *</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione" required></div>
+          <div class="field"><label>Ulteriori dettagli</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione"></div>
         </div>
         <div class="field"><label>Affetto da *</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
           <label>Presidi richiesti *</label>
           <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia">Sedia a rotelle</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina">Portantina</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale">Barella spinale</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-telo">Telo</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-telo" onchange="gestisciPresidioSelezionato(this)">Telo</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-nessuna" onchange="gestisciPresidioNessuna(this)">Nessuna</label>
           </div>
           <input type="text" id="sf-presidiAltro" placeholder="Altro presidio (specificare)">
         </div>
@@ -772,9 +775,9 @@
       <fieldset>
         <legend id="legend-dati-richiedente-finale">Dati del richiedente (se diverso dal paziente)</legend>
         <div class="grid3">
-          <div class="field"><label>Richiesto da *</label><select id="sf-richiestoDa" required><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Altro</option></select></div>
+          <div class="field"><label>Richiesto da *</label><select id="sf-richiestoDa" required><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Comune</option><option>Altro</option></select></div>
           <div class="field"><label>Ente/Sig.</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
-          <div class="field"><label>Telefono richiedente (ulteriore contatto) *</label><input type="text" id="sf-telRichiedente" required></div>
+          <div class="field"><label>Telefono richiedente (ulteriore contatto)</label><input type="text" id="sf-telRichiedente"></div>
           <div class="field"><label id="label-relazione">Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
         </div>
       </fieldset>
@@ -1433,7 +1436,7 @@ function renderCalendar(){
         return `<div class="pill-giorno ${s.stato}" onclick="viewServiceModal('${s.id}')">
           <div class="pg-titolo">${nomeMezzo}</div>
           <div class="pg-orario">${s.alleOre||'—'}</div>
-          <div class="pg-percorso">${s.tipoScheda==='evento' ? escapeHtml(s.luogoEvento||'—') : (escapeHtml(s.partenza||'—') + ' → ' + escapeHtml(s.destinazione||'—'))}</div>
+          <div class="pg-percorso">${isModalitaRichiedente(s.tipoScheda) ? escapeHtml(s.luogoEvento||'—') : (escapeHtml(s.partenza||'—') + ' → ' + escapeHtml(s.destinazione||'—'))}</div>
         </div>`;
       }).join('');
     }
@@ -1515,7 +1518,7 @@ function formatDataIt(dataIso){
   return `${parti[2]}-${parti[1]}-${parti[0]}`;
 }
 function nomeVisualizzatoServizio(s){
-  if(s.tipoScheda === 'evento') return s.enteRichiedenteEvento || 'Evento';
+  if(isModalitaRichiedente(s.tipoScheda)) return s.enteRichiedenteEvento || 'Evento';
   return ((s.cognome||'') + ' ' + (s.nome||'')).trim();
 }
 function formatNumeroServizio(numero, anno){
@@ -2187,8 +2190,8 @@ function selezionaServizioPerFoglio(servizioId){
   document.getElementById('fm-servizioCollegato').innerHTML = testoServizioCollegato({servizioId, servizioNumero: s.numeroProgressivo, servizioAnno: s.numeroAnno});
   document.getElementById('btn-scollega-servizio').style.display = 'inline-block';
   document.getElementById('fm-paziente').value = nomeVisualizzatoServizio(s);
-  document.getElementById('fm-daDove').value = s.tipoScheda==='evento' ? (s.luogoEvento||'') : (s.partenza||'');
-  document.getElementById('fm-aDove').value = s.tipoScheda==='evento' ? (s.luogoEvento||'') : (s.destinazione||'');
+  document.getElementById('fm-daDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : (s.partenza||'');
+  document.getElementById('fm-aDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : (s.destinazione||'');
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
@@ -2696,24 +2699,32 @@ function fillFoglioPersonSelects(){
   ['fm-autista','fm-soccorritore1','fm-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
 }
 
+function isModalitaRichiedente(tipoScheda){
+  // "Eventi/manifestazioni" e "Servizi in convenzione" condividono la stessa
+  // scheda (Dati richiedente, Dettagli manifestazione/evento); si distinguono
+  // solo per la disponibilità della Ripetizione servizio.
+  return tipoScheda === 'evento' || tipoScheda === 'convenzione';
+}
 function toggleTipoScheda(){
-  const evento = document.getElementById('sf-tipoScheda').value === 'evento';
+  const tipo = document.getElementById('sf-tipoScheda').value;
+  const modalitaRichiedente = isModalitaRichiedente(tipo);
+  const mostraRipetizione = (tipo === 'secondario' || tipo === 'convenzione');
 
-  document.getElementById('campi-paziente-secondario').style.display = evento ? 'none' : 'grid';
-  document.getElementById('campi-paziente-evento').style.display = evento ? 'grid' : 'none';
-  document.getElementById('legend-dati-paziente').textContent = evento ? 'Dati richiedente' : 'Dati del paziente';
+  document.getElementById('campi-paziente-secondario').style.display = modalitaRichiedente ? 'none' : 'grid';
+  document.getElementById('campi-paziente-evento').style.display = modalitaRichiedente ? 'grid' : 'none';
+  document.getElementById('legend-dati-paziente').textContent = modalitaRichiedente ? 'Dati richiedente' : 'Dati del paziente';
 
-  document.getElementById('campi-trasporto-secondario').style.display = evento ? 'none' : 'block';
-  document.getElementById('campi-trasporto-evento').style.display = evento ? 'block' : 'none';
-  document.getElementById('legend-trasporto').textContent = evento ? 'Dettagli manifestazione/evento' : 'Trasporto';
+  document.getElementById('campi-trasporto-secondario').style.display = modalitaRichiedente ? 'none' : 'block';
+  document.getElementById('campi-trasporto-evento').style.display = modalitaRichiedente ? 'block' : 'none';
+  document.getElementById('legend-trasporto').textContent = modalitaRichiedente ? 'Dettagli manifestazione/evento' : 'Trasporto';
 
-  document.getElementById('fieldset-ripetizione').style.display = evento ? 'none' : 'block';
-  document.getElementById('fieldset-condizioni').style.display = evento ? 'none' : 'block';
+  document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
+  document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
 
-  document.getElementById('legend-dati-richiedente-finale').textContent = evento ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)';
-  document.getElementById('label-relazione').textContent = evento ? 'Rapporto con ente richiedente' : 'Parente/Relazione col paziente';
+  document.getElementById('legend-dati-richiedente-finale').textContent = modalitaRichiedente ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)';
+  document.getElementById('label-relazione').textContent = modalitaRichiedente ? 'Rapporto con ente richiedente' : 'Parente/Relazione col paziente';
 
-  if(evento) scheduleGeoPreviewEvento();
+  if(modalitaRichiedente) scheduleGeoPreviewEvento();
 }
 function toggleRipetizione(){
   const on = document.getElementById('sf-ripetitivo').checked;
@@ -2788,12 +2799,12 @@ function viewServiceModal(id){
   document.getElementById('view-modal-title').textContent = 'Scheda servizio n° ' + numeroServizio + ' — ' + nomeVisualizzatoServizio(s);
 
   const html = `
-    <h4>${s.tipoScheda==='evento' ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)'}</h4>
+    <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)'}</h4>
     <div class="view-grid">
       ${item('Richiesto da', s.richiestoDa)}
       ${item('Ente/Sig.', s.enteSig)}
       ${item('Telefono richiedente', s.telRichiedente)}
-      ${item(s.tipoScheda==='evento' ? 'Rapporto con ente richiedente' : 'Relazione col paziente', s.relazione)}
+      ${item(isModalitaRichiedente(s.tipoScheda) ? 'Rapporto con ente richiedente' : 'Relazione col paziente', s.relazione)}
     </div>
 
     <h4>Ricezione richiesta</h4>
@@ -2802,9 +2813,9 @@ function viewServiceModal(id){
       ${item('Ora di ricezione', s.oraRicezione)}
     </div>
 
-    <h4>${s.tipoScheda==='evento' ? 'Dati richiedente' : 'Dati del paziente'}</h4>
+    <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Dati richiedente' : 'Dati del paziente'}</h4>
     <div class="view-grid">
-      ${s.tipoScheda==='evento' ? `
+      ${isModalitaRichiedente(s.tipoScheda) ? `
         ${item('Ente richiedente', s.enteRichiedenteEvento)}
         ${item('Telefono riferimento', s.telRiferimentoEvento)}
       ` : `
@@ -2815,12 +2826,12 @@ function viewServiceModal(id){
       `}
     </div>
 
-    <h4>${s.tipoScheda==='evento' ? 'Dettagli manifestazione/evento' : 'Trasporto'}</h4>
+    <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Dettagli manifestazione/evento' : 'Trasporto'}</h4>
     <div class="view-grid">
       ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
       ${item('Alle ore', s.alleOre)}
-      ${s.tipoScheda==='evento' ? `
+      ${isModalitaRichiedente(s.tipoScheda) ? `
         ${item('Su luogo dell\'evento', s.suLuogoEvento)}
         ${item('Luogo evento', s.luogoEvento)}
         ${item('Ulteriori dettagli evento', s.dettagliEvento)}
@@ -2832,7 +2843,7 @@ function viewServiceModal(id){
       `}
     </div>
 
-    ${s.tipoScheda==='evento' ? '' : `
+    ${isModalitaRichiedente(s.tipoScheda) ? '' : `
     <h4>Condizioni del paziente</h4>
     <div class="view-grid">
       ${item('Peso Kg', s.peso)}
@@ -2888,6 +2899,20 @@ function modificaDaVisualizzazione(){
   if(id) openServiceModal(id);
 }
 
+function gestisciPresidioSelezionato(checkbox){
+  if(checkbox.checked){
+    document.getElementById('sf-presidio-nessuna').checked = false;
+  }
+}
+function gestisciPresidioNessuna(checkbox){
+  if(checkbox.checked){
+    document.getElementById('sf-presidio-sedia').checked = false;
+    document.getElementById('sf-presidio-portantina').checked = false;
+    document.getElementById('sf-presidio-spinale').checked = false;
+    document.getElementById('sf-presidio-telo').checked = false;
+    document.getElementById('sf-presidiAltro').value = '';
+  }
+}
 function toggleFlussoOssigeno(){
   const on = document.getElementById('sf-ossigeno').value === 'Si';
   document.getElementById('flusso-ossigeno-box').style.display = on ? 'block' : 'none';
@@ -2934,6 +2959,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-presidio-portantina').checked = !!(data?.presidi||[]).includes('Portantina');
   document.getElementById('sf-presidio-spinale').checked = !!(data?.presidi||[]).includes('Barella spinale');
   document.getElementById('sf-presidio-telo').checked = !!(data?.presidi||[]).includes('Telo');
+  document.getElementById('sf-presidio-nessuna').checked = !!(data?.presidi||[]).includes('Nessuna');
   set('sf-presidiAltro', data?.presidiAltro);
   set('sf-note', data?.note);
   set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2);
@@ -3078,8 +3104,10 @@ async function saveService(ev){
   if(document.getElementById('sf-presidio-portantina').checked) presidi.push('Portantina');
   if(document.getElementById('sf-presidio-spinale').checked) presidi.push('Barella spinale');
   if(document.getElementById('sf-presidio-telo').checked) presidi.push('Telo');
+  if(document.getElementById('sf-presidio-nessuna').checked) presidi.push('Nessuna');
   const presidiAltroVal = g('sf-presidiAltro');
-  if(tipoScheda !== 'evento' && presidi.length === 0 && !presidiAltroVal){
+  if(!isModalitaRichiedente(tipoScheda) && presidi.length === 0 && !presidiAltroVal){
+    document.getElementById('sf-presidiAltro').classList.add('campo-invalido');
     alert('Seleziona almeno un presidio richiesto (o specifica "Altro presidio").');
     return false;
   }
@@ -3227,6 +3255,25 @@ function escapeHtml(str){
 // I dati vengono caricati solo dopo un login riuscito (vedi doLogin),
 // perché il server ora richiede un token di sessione valido per ogni
 // lettura o scrittura.
+
+// Se un campo obbligatorio non è compilato al momento del salvataggio,
+// lo evidenzia in rosso finché non viene corretto — così un campo
+// dimenticato è impossibile da non notare.
+function abilitaEvidenziazioneObbligatori(idForm){
+  const form = document.getElementById(idForm);
+  if(!form) return;
+  form.addEventListener('invalid', function(e){
+    e.target.classList.add('campo-invalido');
+  }, true);
+  form.addEventListener('input', function(e){
+    e.target.classList.remove('campo-invalido');
+  });
+  form.addEventListener('change', function(e){
+    e.target.classList.remove('campo-invalido');
+  });
+}
+abilitaEvidenziazioneObbligatori('service-form');
+abilitaEvidenziazioneObbligatori('foglio-form');
 </script>
 </body>
 </html>
