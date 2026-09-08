@@ -2724,6 +2724,21 @@ function toggleTipoScheda(){
   document.getElementById('legend-dati-richiedente-finale').textContent = modalitaRichiedente ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)';
   document.getElementById('label-relazione').textContent = modalitaRichiedente ? 'Rapporto con ente richiedente' : 'Parente/Relazione col paziente';
 
+  // Non ci affidiamo solo al fatto che un campo nascosto venga escluso dalla
+  // convalida del browser: togliamo proprio l'attributo "required" dai campi
+  // dell'altra modalità, così il salvataggio non può mai restare bloccato
+  // da un campo che l'utente non vede nemmeno.
+  const campiSoloSecondario = ['sf-cognome','sf-nome','sf-aCasa','sf-partenza','sf-destinazione','sf-peso','sf-deambula','sf-ossigeno','sf-scale','sf-ascensore','sf-accompagnatore','sf-affettoDa'];
+  campiSoloSecondario.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.required = !modalitaRichiedente;
+  });
+  const campiSoloEvento = ['sf-enteRichiedenteEvento'];
+  campiSoloEvento.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.required = modalitaRichiedente;
+  });
+
   if(modalitaRichiedente) scheduleGeoPreviewEvento();
 }
 function toggleRipetizione(){
@@ -3097,6 +3112,7 @@ function calcolaModificheServizio(vecchio, nuovo){
 
 async function saveService(ev){
   ev.preventDefault();
+  try{
   const g = id => document.getElementById(id).value.trim();
   const tipoScheda = document.getElementById('sf-tipoScheda').value;
   const presidi = [];
@@ -3237,6 +3253,11 @@ async function saveService(ev){
   closeServiceModal();
   renderCalendar(); renderElenco();
   return false;
+  } catch(errore){
+    console.error('Errore nel salvataggio del servizio:', errore);
+    alert('Si è verificato un errore durante il salvataggio: ' + errore.message + '\n\nIl servizio non è stato salvato. Riprova, e se il problema persiste segnalalo indicando questo messaggio.');
+    return false;
+  }
 }
 async function deleteService(){
   if(!confirm('Spostare questo servizio nel cestino? Potrai ripristinarlo entro 7 giorni, dopodiché verrà eliminato automaticamente.')) return;
