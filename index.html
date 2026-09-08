@@ -260,11 +260,11 @@
       <div id="login-error-box"></div>
       <div class="field">
         <label>Nome utente</label>
-        <input type="text" id="login-username" autocomplete="username">
+        <input type="text" id="login-username" autocomplete="username" onkeydown="if(event.key==='Enter') doLogin();">
       </div>
       <div class="field">
         <label>Password</label>
-        <input type="password" id="login-password" autocomplete="current-password">
+        <input type="password" id="login-password" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin();">
       </div>
       <button class="btn btn-primary" onclick="doLogin()">Accedi</button>
       <div class="login-hint">Primo accesso amministratore:<br><strong>admin</strong> / <strong>admin123</strong><br>Cambia la password appena possibile dalla sezione Utenti.</div>
@@ -285,7 +285,7 @@
         <div class="brand-sub">Registro Servizi</div>
       </div>
       <div style="padding:0 20px 14px;">
-        <label style="font-size:10.5px;color:#9FB1C6;display:block;margin-bottom:4px;">Anno dati (servizi)</label>
+        <label style="font-size:10.5px;color:#9FB1C6;display:block;margin-bottom:4px;">Anno riferimento</label>
         <select id="anno-servizi-select" onchange="cambiaAnnoServizi(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;"></select>
       </div>
       <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">📅 Dashboard</div>
@@ -494,7 +494,7 @@
       <div class="grid2">
         <div class="field"><label>Mezzo</label><select id="fm-mezzoId" onchange="onFoglioMezzoChange()"></select></div>
         <div class="field"><label>Motivazione servizio</label>
-          <select id="fm-motivazioneServizio">
+          <select id="fm-motivazioneServizio" required>
             <option value="">-- seleziona --</option>
             <option>Trasporto secondario</option>
             <option>Trasporto sociale</option>
@@ -508,15 +508,16 @@
       </div>
       <div class="modal-actions" style="justify-content:flex-start;margin-bottom:14px;">
         <button type="button" class="btn btn-ghost" onclick="openCercaServizioModal()">Cerca e collega un servizio</button>
+        <button type="button" class="action-btn danger" id="btn-scollega-servizio" style="display:none;margin-left:8px;" onclick="scollegaServizioFoglio()">✕ Scollega</button>
         <span id="fm-servizioCollegato" style="font-size:12.5px;color:var(--ink-soft);margin-left:10px;"></span>
       </div>
       <input type="hidden" id="fm-servizioId">
       <input type="hidden" id="fm-servizioNumero">
       <input type="hidden" id="fm-servizioAnno">
-      <div class="field"><label>Cognome e nome paziente</label><input type="text" id="fm-paziente"></div>
+      <div class="field"><label>Cognome e nome paziente</label><input type="text" id="fm-paziente" required></div>
       <div class="grid2">
-        <div class="field"><label>Da dove</label><input type="text" id="fm-daDove"></div>
-        <div class="field"><label>A dove</label><input type="text" id="fm-aDove"></div>
+        <div class="field"><label>Da dove</label><input type="text" id="fm-daDove" required></div>
+        <div class="field"><label>A dove</label><input type="text" id="fm-aDove" required></div>
       </div>
       <div class="checkrow"><input type="checkbox" id="fm-viceversa"> <label for="fm-viceversa" style="margin:0;">e viceversa</label></div>
       <div class="grid2">
@@ -524,23 +525,23 @@
         <div class="field"><label>Data Scheda 118</label><input type="date" id="fm-dataScheda118"></div>
       </div>
       <div class="grid3">
-        <div class="field"><label>Autista</label><select id="fm-autista"></select></div>
+        <div class="field"><label>Autista</label><select id="fm-autista" required></select></div>
         <div class="field"><label>1° Soccorritore</label><select id="fm-soccorritore1"></select></div>
         <div class="field"><label>2° Soccorritore</label><select id="fm-soccorritore2"></select></div>
       </div>
       <div class="grid2">
-        <div class="field"><label>Data partenza</label><input type="date" id="fm-dataPartenza"></div>
-        <div class="field"><label>Orario partenza</label><input type="time" id="fm-orarioPartenza"></div>
+        <div class="field"><label>Data partenza</label><input type="date" id="fm-dataPartenza" required></div>
+        <div class="field"><label>Orario partenza</label><input type="time" id="fm-orarioPartenza" required></div>
       </div>
       <div class="grid2">
-        <div class="field"><label>Data rientro</label><input type="date" id="fm-dataArrivo"></div>
-        <div class="field"><label>Orario rientro</label><input type="time" id="fm-orarioRientro"></div>
+        <div class="field"><label>Data rientro</label><input type="date" id="fm-dataArrivo" required></div>
+        <div class="field"><label>Orario rientro</label><input type="time" id="fm-orarioRientro" required></div>
       </div>
       <p class="map-hint" style="margin-top:-6px;margin-bottom:12px;">Se il servizio inizia prima e finisce dopo la mezzanotte, correggi manualmente la data di rientro.</p>
       <div class="grid3">
-        <div class="field"><label>Km iniziali</label><input type="number" id="fm-kmIniziali" oninput="calcolaKmTotale()"></div>
-        <div class="field"><label>Km finali</label><input type="number" id="fm-kmFinali" oninput="calcolaKmTotale()"></div>
-        <div class="field"><label>Totale Km</label><input type="number" id="fm-kmTotale" readonly></div>
+        <div class="field"><label>Km iniziali</label><input type="number" id="fm-kmIniziali" oninput="calcolaKmTotale()" required></div>
+        <div class="field"><label>Km finali</label><input type="number" id="fm-kmFinali" oninput="calcolaKmTotale()" required></div>
+        <div class="field"><label>Totale Km</label><input type="number" id="fm-kmTotale" readonly required></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Ricevuta n.</label><input type="text" id="fm-ricevutaNumero"></div>
@@ -620,48 +621,41 @@
     <div id="locked-note-box"></div>
     <form id="service-form" onsubmit="return saveService(event)">
 
-      <fieldset>
-        <legend>Dati del richiedente (se diverso dal paziente)</legend>
-        <div class="grid3">
-          <div class="field"><label>Ente/Sig.</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
-          <div class="field"><label>Telefono richiedente</label><input type="text" id="sf-telRichiedente"></div>
-          <div class="field"><label>Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
+      <fieldset style="background:var(--bg);">
+        <legend>Ricezione richiesta</legend>
+        <div class="grid2">
+          <div class="field"><label>Data di ricezione</label><input type="date" id="sf-dataRicezione" required></div>
+          <div class="field"><label>Ora di ricezione richiesta</label><input type="time" id="sf-oraRicezione" required></div>
         </div>
       </fieldset>
 
       <fieldset>
         <legend>Dati del paziente</legend>
         <div class="grid3">
-          <div class="field"><label>Cognome</label><input type="text" id="sf-cognome"></div>
-          <div class="field"><label>Nome</label><input type="text" id="sf-nome"></div>
-          <div class="field"><label>Via</label><input type="text" id="sf-via"></div>
-          <div class="field"><label>N°</label><input type="text" id="sf-civico"></div>
-          <div class="field"><label>Città</label><input type="text" id="sf-citta"></div>
-          <div class="field"><label>Telefono</label><input type="text" id="sf-telPaziente"></div>
+          <div class="field"><label>Cognome</label><input type="text" id="sf-cognome" required></div>
+          <div class="field"><label>Nome</label><input type="text" id="sf-nome" required></div>
           <div class="field"><label>Nato a</label><input type="text" id="sf-natoA"></div>
           <div class="field"><label>Nato il</label><input type="date" id="sf-natoIl"></div>
-          <div class="field"><label>Residente a</label><input type="text" id="sf-residenteA"></div>
         </div>
-        <div class="field"><label>Ora di ricezione richiesta</label><input type="time" id="sf-oraRicezione"></div>
       </fieldset>
 
       <fieldset>
         <legend>Trasporto</legend>
         <div class="grid3">
           <div class="field"><label>Mezzo richiesto</label>
-            <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()"><option value="">-- seleziona --</option></select>
+            <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
-          <div class="field"><label>Per il giorno</label><input type="date" id="sf-perGiorno"></div>
-          <div class="field"><label>Alle ore</label><input type="time" id="sf-alleOre"></div>
+          <div class="field"><label>Per il giorno</label><input type="date" id="sf-perGiorno" required></div>
+          <div class="field"><label>Alle ore</label><input type="time" id="sf-alleOre" required></div>
         </div>
         <div class="grid3">
           <div class="field"><label>A casa del paziente</label>
-            <select id="sf-aCasa"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
+            <select id="sf-aCasa" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
           </div>
-          <div class="field"><label>Trasportare da (partenza)</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();"></div>
-          <div class="field"><label>A (destinazione)</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();"></div>
+          <div class="field"><label>Trasportare da (partenza)</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
+          <div class="field"><label>A (destinazione)</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
         </div>
-        <div class="field"><label>Reparto / Padiglione / Ambulatorio (destinazione)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
+        <div class="field"><label>Ulteriori dettagli destinazione (Reparto / Padiglione / Ambulatorio/ecc)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
         <div class="grid2">
           <div class="field"><label>Mappa partenza</label><div id="geo-preview-partenza"></div></div>
           <div class="field"><label>Mappa destinazione</label><div id="geo-preview-destinazione"></div></div>
@@ -701,9 +695,9 @@
       <fieldset>
         <legend>Condizioni del paziente</legend>
         <div class="grid3">
-          <div class="field"><label>Peso Kg</label><input type="number" id="sf-peso"></div>
-          <div class="field"><label>Deambula</label><select id="sf-deambula"><option value="">-- non specificato --</option><option>Si</option><option>No</option><option>Con aiuto</option></select></div>
-          <div class="field"><label>Necessita ossigeno</label><select id="sf-ossigeno" onchange="toggleFlussoOssigeno();scheduleRimborsoCalc();"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Peso Kg</label><input type="number" id="sf-peso" required></div>
+          <div class="field"><label>Deambula</label><select id="sf-deambula" required><option value="">-- non specificato --</option><option>Si</option><option>No</option><option>Con aiuto</option></select></div>
+          <div class="field"><label>Necessita ossigeno</label><select id="sf-ossigeno" onchange="toggleFlussoOssigeno();scheduleRimborsoCalc();" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field" id="flusso-ossigeno-box" style="display:none;"><label>Flusso ossigeno (L/min)</label>
             <select id="sf-flussoOssigeno" onchange="scheduleRimborsoCalc()">
               <option value="">-- seleziona --</option>
@@ -711,13 +705,12 @@
               <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
             </select>
           </div>
-          <div class="field"><label>Presenza di scale</label><select id="sf-scale"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
-          <div class="field"><label>Ascensore</label><select id="sf-ascensore"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
-          <div class="field"><label>Accompagnatore</label><select id="sf-accompagnatore"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
-          <div class="field"><label>Richiesto da</label><select id="sf-richiestoDa"><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Altro</option></select></div>
-          <div class="field"><label>Tipo di richiesta</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione"></div>
+          <div class="field"><label>Presenza di scale</label><select id="sf-scale" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Ascensore</label><select id="sf-ascensore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Presenza accompagnatore</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Ulteriori dettagli</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione" required></div>
         </div>
-        <div class="field"><label>Affetto da</label><input type="text" id="sf-affettoDa"></div>
+        <div class="field"><label>Affetto da</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
           <label>Presidi richiesti</label>
           <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
@@ -745,6 +738,16 @@
       <fieldset>
         <legend>Rimborso spesa</legend>
         <div class="field"><label>Rimborso spesa (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Dati del richiedente (se diverso dal paziente)</legend>
+        <div class="grid3">
+          <div class="field"><label>Richiesto da</label><select id="sf-richiestoDa" required><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Altro</option></select></div>
+          <div class="field"><label>Ente/Sig.</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
+          <div class="field"><label>Telefono richiedente (ulteriore contatto)</label><input type="text" id="sf-telRichiedente" required></div>
+          <div class="field"><label>Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
+        </div>
       </fieldset>
 
       <fieldset id="fieldset-stato">
@@ -1358,7 +1361,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}</div>`).join('')}
+        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('')}
         ${dayServices.length>4?`<div style="font-size:10.5px;color:var(--ink-soft);">+${dayServices.length-4} altri</div>`:''}
       </div>`;
     }
@@ -1380,7 +1383,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
-        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}</div>`).join('')}
+        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(s.cognome||'')}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('')}
       </div>`;
     }
     html += '</div></div>';
@@ -2053,6 +2056,7 @@ async function openFoglioModal(id){
   document.getElementById('fm-servizioNumero').value = f?.servizioNumero || '';
   document.getElementById('fm-servizioAnno').value = f?.servizioAnno || '';
   document.getElementById('fm-servizioCollegato').innerHTML = testoServizioCollegato(f);
+  document.getElementById('btn-scollega-servizio').style.display = (f && f.servizioId) ? 'inline-block' : 'none';
 
   document.getElementById('fm-paziente').value = f?.paziente || '';
   document.getElementById('fm-viceversa').checked = !!f?.viceversa;
@@ -2104,6 +2108,14 @@ function openCercaServizioModal(){
 function closeCercaServizioModal(){
   document.getElementById('cerca-servizio-modal-backdrop').classList.remove('active');
 }
+function scollegaServizioFoglio(){
+  servizioCollegatoFoglio = null;
+  document.getElementById('fm-servizioId').value = '';
+  document.getElementById('fm-servizioNumero').value = '';
+  document.getElementById('fm-servizioAnno').value = '';
+  document.getElementById('fm-servizioCollegato').innerHTML = '';
+  document.getElementById('btn-scollega-servizio').style.display = 'none';
+}
 function cercaServizioPerFoglio(){
   const mezzoId = document.getElementById('fm-mezzoId').value;
   if(!mezzoId){ alert('Seleziona prima il mezzo in questa scheda.'); return; }
@@ -2139,6 +2151,7 @@ function selezionaServizioPerFoglio(servizioId){
   document.getElementById('fm-servizioNumero').value = s.numeroProgressivo || '';
   document.getElementById('fm-servizioAnno').value = s.numeroAnno || '';
   document.getElementById('fm-servizioCollegato').innerHTML = testoServizioCollegato({servizioId, servizioNumero: s.numeroProgressivo, servizioAnno: s.numeroAnno});
+  document.getElementById('btn-scollega-servizio').style.display = 'inline-block';
   document.getElementById('fm-paziente').value = (s.cognome||'') + ' ' + (s.nome||'');
   document.getElementById('fm-daDove').value = s.partenza || '';
   document.getElementById('fm-aDove').value = s.destinazione || '';
@@ -2724,23 +2737,24 @@ function viewServiceModal(id){
   const html = `
     <h4>Dati del richiedente</h4>
     <div class="view-grid">
+      ${item('Richiesto da', s.richiestoDa)}
       ${item('Ente/Sig.', s.enteSig)}
       ${item('Telefono richiedente', s.telRichiedente)}
       ${item('Relazione col paziente', s.relazione)}
+    </div>
+
+    <h4>Ricezione richiesta</h4>
+    <div class="view-grid">
+      ${item('Data di ricezione', s.dataRicezione ? formatDataIt(s.dataRicezione) : '')}
+      ${item('Ora di ricezione', s.oraRicezione)}
     </div>
 
     <h4>Dati del paziente</h4>
     <div class="view-grid">
       ${item('Cognome', s.cognome)}
       ${item('Nome', s.nome)}
-      ${item('Via', s.via)}
-      ${item('N°', s.civico)}
-      ${item('Città', s.citta)}
-      ${item('Telefono', s.telPaziente)}
       ${item('Nato a', s.natoA)}
       ${item('Nato il', s.natoIl ? formatDataIt(s.natoIl) : '')}
-      ${item('Residente a', s.residenteA)}
-      ${item('Ora di ricezione', s.oraRicezione)}
     </div>
 
     <h4>Trasporto</h4>
@@ -2763,7 +2777,6 @@ function viewServiceModal(id){
       ${item('Presenza di scale', s.scale)}
       ${item('Ascensore', s.ascensore)}
       ${item('Accompagnatore', s.accompagnatore)}
-      ${item('Richiesto da', s.richiestoDa)}
       ${item('Tipo di richiesta', s.tipoRichiesta)}
       ${item('Affetto da', s.affettoDa)}
     </div>
@@ -2832,15 +2845,11 @@ function fillServiceForm(sv, prefillDate, cloneData){
   const data = cloneData || sv;
   const set = (elId, val) => { document.getElementById(elId).value = val || ''; };
   set('sf-enteSig', data?.enteSig); set('sf-telRichiedente', data?.telRichiedente); set('sf-relazione', data?.relazione);
-  set('sf-cognome', data?.cognome); set('sf-nome', data?.nome); set('sf-via', data?.via); set('sf-civico', data?.civico);
-  set('sf-citta', data?.citta); set('sf-telPaziente', data?.telPaziente); set('sf-natoA', data?.natoA); set('sf-natoIl', data?.natoIl);
-  set('sf-residenteA', data?.residenteA);
-  if(data?.oraRicezione){
-    document.getElementById('sf-oraRicezione').value = data.oraRicezione;
-  } else {
-    const now = new Date();
-    document.getElementById('sf-oraRicezione').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  }
+  set('sf-cognome', data?.cognome); set('sf-nome', data?.nome); set('sf-natoA', data?.natoA); set('sf-natoIl', data?.natoIl);
+  const oggiIso = new Date().toISOString().slice(0,10);
+  const oraAdesso = (() => { const n = new Date(); return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); })();
+  document.getElementById('sf-dataRicezione').value = data?.dataRicezione || oggiIso;
+  document.getElementById('sf-oraRicezione').value = data?.oraRicezione || oraAdesso;
   set('sf-mezzo', data?.mezzoId); set('sf-perGiorno', data?.perGiorno || prefillDate); set('sf-alleOre', data?.alleOre);
   document.getElementById('sf-tipoMezzoRichiesto').innerHTML = '<option value="">-- seleziona --</option>' + tipiMezzo.map(t=>`<option>${escapeHtml(t)}</option>`).join('');
   document.getElementById('sf-tipoMezzoRichiesto').value = data?.tipoMezzoRichiesto || '';
@@ -2955,13 +2964,13 @@ function computeRimborsoSuggerito(){
 
 const CAMPI_LABEL_SERVIZIO = {
   enteSig:'Ente/Sig.', telRichiedente:'Telefono richiedente', relazione:'Relazione col paziente',
-  cognome:'Cognome', nome:'Nome', via:'Via', civico:'N°', citta:'Città', telPaziente:'Telefono paziente',
-  natoA:'Nato a', natoIl:'Nato il', residenteA:'Residente a', oraRicezione:'Ora di ricezione',
+  cognome:'Cognome', nome:'Nome', natoA:'Nato a', natoIl:'Nato il',
+  dataRicezione:'Data di ricezione', oraRicezione:'Ora di ricezione',
   mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Ora servizio', aCasa:'A casa del paziente',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
-  scale:'Presenza di scale', ascensore:'Ascensore', accompagnatore:'Accompagnatore', richiestoDa:'Richiesto da',
-  tipoRichiesta:'Tipo di richiesta', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Note',
+  scale:'Presenza di scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
+  tipoRichiesta:'Ulteriori dettagli', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Note',
   rimborsoSuggerito:'Rimborso spesa', stato:'Stato',
   autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore', autorizzatoDa:'Autorizzato da'
 };
@@ -2986,12 +2995,16 @@ async function saveService(ev){
   if(document.getElementById('sf-presidio-portantina').checked) presidi.push('Portantina');
   if(document.getElementById('sf-presidio-spinale').checked) presidi.push('Barella spinale');
   if(document.getElementById('sf-presidio-telo').checked) presidi.push('Telo');
+  const presidiAltroVal = g('sf-presidiAltro');
+  if(presidi.length === 0 && !presidiAltroVal){
+    alert('Seleziona almeno un presidio richiesto (o specifica "Altro presidio").');
+    return false;
+  }
   const data = {
     id: editingServiceId || ('s-' + Date.now()),
     enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), relazione: g('sf-relazione'),
-    cognome: g('sf-cognome'), nome: g('sf-nome'), via: g('sf-via'), civico: g('sf-civico'),
-    citta: g('sf-citta'), telPaziente: g('sf-telPaziente'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
-    residenteA: g('sf-residenteA'), oraRicezione: g('sf-oraRicezione'),
+    cognome: g('sf-cognome'), nome: g('sf-nome'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
+    dataRicezione: g('sf-dataRicezione'), oraRicezione: g('sf-oraRicezione'),
     mezzoId: g('sf-mezzo'), tipoMezzoRichiesto: document.getElementById('sf-tipoMezzoRichiesto').value, perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
     aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
     repartoDestinazione: g('sf-repartoDestinazione'),
