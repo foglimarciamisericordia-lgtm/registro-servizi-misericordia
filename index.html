@@ -515,7 +515,7 @@
       <input type="hidden" id="fm-servizioId">
       <input type="hidden" id="fm-servizioNumero">
       <input type="hidden" id="fm-servizioAnno">
-      <div class="field"><label>Cognome e nome paziente *</label><input type="text" id="fm-paziente" required></div>
+      <div class="field"><label>Cognome e nome paziente/Ente *</label><input type="text" id="fm-paziente" required></div>
       <div class="grid2">
         <div class="field"><label>Da dove *</label><input type="text" id="fm-daDove" required></div>
         <div class="field"><label>A dove *</label><input type="text" id="fm-aDove" required></div>
@@ -2029,7 +2029,7 @@ function renderFogliMarcia(){
     container.innerHTML = '<div class="empty-state">Nessuna riga registrata per questo mezzo nel periodo selezionato.</div>';
     return;
   }
-  let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Registrato il</th><th>Motivazione</th><th>Servizio</th><th>Paziente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km tot.</th><th>Importo</th><th>Carburante</th><th>Compilatore</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Registrato il</th><th>Motivazione</th><th>Servizio</th><th>Paziente/Ente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km tot.</th><th>Importo</th><th>Carburante</th><th>Compilatore</th><th></th></tr></thead><tbody>';
   righe.forEach(f=>{
     const servCollegato = f.servizioId ? servizi.find(s=>s.id===f.servizioId) : null;
     const numeroServ = servCollegato ? formatNumeroServizio(servCollegato.numeroProgressivo, servCollegato.numeroAnno) : 'libero';
@@ -2233,7 +2233,7 @@ function viewFoglioModal(id){
 
     <h4>Percorso</h4>
     <div class="view-grid">
-      ${item('Paziente', f.paziente)}
+      ${item('Paziente/Ente', f.paziente)}
       ${item('Da dove', f.daDove)}
       ${item('A dove', f.aDove)}
       ${item('Viceversa', f.viceversa ? 'Si' : 'No')}
@@ -2520,7 +2520,7 @@ function exportFogliExcel(){
       'Motivazione servizio': f.motivazioneServizio || '',
       'N. Scheda 118': f.numeroScheda118 || '',
       'Data Scheda 118': f.dataScheda118 ? formatDataIt(f.dataScheda118) : '',
-      'Paziente': f.paziente || '',
+      'Paziente/Ente': f.paziente || '',
       'Da dove': f.daDove || '',
       'A dove': f.aDove || '',
       'E viceversa': f.viceversa ? 'Si' : 'No',
@@ -2541,7 +2541,7 @@ function exportFogliExcel(){
       'Compilatore': f.compilatore || ''
     };
   });
-  rows.push({ 'N°': '', 'Registrato il': '', 'Servizio': '', 'Motivazione servizio': '', 'N. Scheda 118': '', 'Data Scheda 118': '', 'Paziente': '', 'Da dove': '', 'A dove': '', 'E viceversa': '', 'Autista': '', '1° Soccorritore': '', '2° Soccorritore': '', 'Data partenza': '', 'Orario partenza': '', 'Data rientro': '', 'Orario rientro': '', 'Km iniziali': '', 'Km finali': 'TOTALE KM PERIODO:', 'Totale Km': kmTotaleRange, 'Ricevuta n.': '', 'Importo €': '', 'Carburante': '', 'Litri': '', 'Totale carburante €': '', 'Annotazioni': '', 'Compilatore': '' });
+  rows.push({ 'N°': '', 'Registrato il': '', 'Servizio': '', 'Motivazione servizio': '', 'N. Scheda 118': '', 'Data Scheda 118': '', 'Paziente/Ente': '', 'Da dove': '', 'A dove': '', 'E viceversa': '', 'Autista': '', '1° Soccorritore': '', '2° Soccorritore': '', 'Data partenza': '', 'Orario partenza': '', 'Data rientro': '', 'Orario rientro': '', 'Km iniziali': '', 'Km finali': 'TOTALE KM PERIODO:', 'Totale Km': kmTotaleRange, 'Ricevuta n.': '', 'Importo €': '', 'Carburante': '', 'Litri': '', 'Totale carburante €': '', 'Annotazioni': '', 'Compilatore': '' });
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
@@ -2560,7 +2560,7 @@ function printFogliMarcia(){
   const dataA = document.getElementById('fm-filtroDataA').value;
   const periodoTesto = (dataDa || dataA) ? ` — periodo: ${dataDa?formatDataIt(dataDa):'…'} → ${dataA?formatDataIt(dataA):'…'}` : '';
   document.getElementById('print-fogli-title').textContent = 'Foglio di marcia — ' + (mezzo ? (mezzo.tipo+' — '+mezzo.targa) : '') + periodoTesto;
-  const intestazioni = ['N°','Data e ora registrazione','Rif. servizio','Da dove','A dove','Viceversa','Data/Ora partenza','Data/Ora rientro','Motivazione','Km iniziali','Km finali','Km totali','Autista','1° Soccorritore','2° Soccorritore','N. Scheda 118','Data Scheda 118','Paziente','Ricevuta n.','Importo','Carburante','Litri','Tot. carburante €','Annotazioni'];
+  const intestazioni = ['N°','Data e ora registrazione','Rif. servizio','Da dove','A dove','Viceversa','Data/Ora partenza','Data/Ora rientro','Motivazione','Km iniziali','Km finali','Km totali','Autista','1° Soccorritore','2° Soccorritore','N. Scheda 118','Data Scheda 118','Paziente/Ente','Ricevuta n.','Importo','Carburante','Litri','Tot. carburante €','Annotazioni'];
   let html = '<table class="mini-table"><thead><tr>' + intestazioni.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
   righe.forEach(f=>{
     const s = f.servizioId ? servizi.find(x=>x.id===f.servizioId) : null;
