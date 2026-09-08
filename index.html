@@ -105,6 +105,16 @@
   .pill-giorno .pg-orario{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin:3px 0;}
   .pill-giorno .pg-percorso{font-size:12.5px;color:var(--ink-soft);}
 
+  .link-piu-altri{font-size:10.5px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:2px;}
+  .link-piu-altri:hover{color:var(--teal);}
+  .popover-giorno{
+    position:fixed;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(10,20,40,.28);
+    border:1px solid var(--line);padding:10px;z-index:200;min-width:220px;max-width:300px;
+    max-height:320px;overflow-y:auto;
+  }
+  .popover-giorno .pg-titolo{font-size:11.5px;font-weight:700;color:var(--navy);margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line-soft);}
+  .popover-giorno .pill{margin-bottom:4px;}
+
   /* ---------- TABLE (elenco servizi) ---------- */
   .filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
   .filters select, .filters input{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;font-family:inherit;background:#fff;}
@@ -1416,6 +1426,48 @@ function serviziAttivi(){
   // Annullati: rimossi dal calendario, restano solo in elenco. Cestinati: mai visibili.
   return servizi.filter(s => s.stato !== 'rosso' && s.perGiorno && !s.cestinato);
 }
+let chiudiPopoverGiornoHandler = null;
+function chiudiPopoverGiorno(){
+  const esistente = document.getElementById('popover-giorno');
+  if(esistente) esistente.remove();
+  if(chiudiPopoverGiornoHandler){
+    document.removeEventListener('click', chiudiPopoverGiornoHandler);
+    chiudiPopoverGiornoHandler = null;
+  }
+}
+function mostraTuttiServiziGiorno(k, event){
+  chiudiPopoverGiorno();
+  const dayServices = serviziAttivi().filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+  const d = new Date(k + 'T00:00:00');
+  const titolo = d.getDate() + ' ' + MESI[d.getMonth()];
+
+  const pop = document.createElement('div');
+  pop.className = 'popover-giorno';
+  pop.id = 'popover-giorno';
+  pop.innerHTML = '<div class="pg-titolo">' + titolo + ' — ' + dayServices.length + ' servizi</div>' +
+    dayServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();chiudiPopoverGiorno();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('');
+
+  document.body.appendChild(pop);
+
+  // Posiziona il riquadro accanto al link cliccato, restando dentro lo schermo.
+  const rect = event.target.getBoundingClientRect();
+  const larghezzaPop = 300;
+  let left = rect.left;
+  if(left + larghezzaPop > window.innerWidth - 10) left = window.innerWidth - larghezzaPop - 10;
+  let top = rect.bottom + 4;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+  if(top + 320 > window.innerHeight){
+    pop.style.top = 'auto';
+    pop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+  }
+
+  event.stopPropagation();
+  chiudiPopoverGiornoHandler = function(ev){
+    if(!pop.contains(ev.target)) chiudiPopoverGiorno();
+  };
+  setTimeout(()=>{ document.addEventListener('click', chiudiPopoverGiornoHandler); }, 0);
+}
 
 function renderCalendar(){
   document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === calMode));
@@ -1440,7 +1492,7 @@ function renderCalendar(){
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
         ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('')}
-        ${dayServices.length>4?`<div style="font-size:10.5px;color:var(--ink-soft);">+${dayServices.length-4} altri</div>`:''}
+        ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
     }
     html += '</div></div>';
