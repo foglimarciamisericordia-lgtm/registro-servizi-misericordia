@@ -158,6 +158,9 @@
   .map-preview iframe{width:100%;height:100%;border:0;}
   .map-hint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
   .locked-note{font-size:12px;color:var(--amber);background:var(--amber-bg);padding:8px 11px;border-radius:7px;margin-bottom:14px;}
+  .rimborso-dettaglio{background:var(--bg);border-radius:7px;padding:10px 14px;margin-top:8px;}
+  .rimborso-dettaglio .rd-riga{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);padding:3px 0;}
+  .rimborso-dettaglio .rd-totale{border-top:1px solid var(--line);margin-top:4px;padding-top:7px;font-size:16px;font-weight:700;color:var(--navy);}
   .campo-invalido{border-color:var(--red) !important;background:var(--red-bg) !important;}
   .close-x{position:sticky;top:0;float:right;background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
   .badge-apertura{display:inline-block;font-weight:600;font-size:13px;padding:7px 14px;border-radius:7px;background:var(--line-soft);color:var(--ink-soft);}
@@ -806,7 +809,12 @@
 
       <fieldset>
         <legend>Rimborso spesa</legend>
-        <div class="field"><label>Rimborso spesa (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true"></div>
+        <div class="field"><label>Rimborso spesa (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true; document.getElementById('rd-totale').textContent = '€ ' + (parseFloat(this.value)||0).toFixed(2).replace('.', ',');"></div>
+        <div id="rimborso-dettaglio" class="rimborso-dettaglio">
+          <div class="rd-riga"><span>Rimborso tratta</span><span id="rd-tratta">€ 0,00</span></div>
+          <div class="rd-riga"><span>Maggiorazione ossigeno</span><span id="rd-ossigeno">€ 0,00</span></div>
+          <div class="rd-riga rd-totale"><span>Totale</span><span id="rd-totale">€ 0,00</span></div>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -3009,8 +3017,10 @@ function viewServiceModal(id){
 
     <div class="print-section">
     <h4>Rimborso spesa</h4>
-    <div class="view-grid">
-      ${item('Rimborso spesa', s.rimborsoSuggerito ? '€ '+parseFloat(s.rimborsoSuggerito).toFixed(2) : '')}
+    <div class="rimborso-dettaglio">
+      <div class="rd-riga"><span>Rimborso tratta</span><span>€ ${(parseFloat(s.rimborsoBase)||0).toFixed(2).replace('.', ',')}</span></div>
+      <div class="rd-riga"><span>Maggiorazione ossigeno</span><span>€ ${(parseFloat(s.rimborsoMaggiorazione)||0).toFixed(2).replace('.', ',')}</span></div>
+      <div class="rd-riga rd-totale"><span>Totale</span><span>€ ${(parseFloat(s.rimborsoSuggerito)||0).toFixed(2).replace('.', ',')}</span></div>
     </div>
     </div>
 
@@ -3219,6 +3229,10 @@ function computeRimborsoSuggerito(){
   if(!rimborsoManuallyEdited){
     document.getElementById('sf-rimborsoSuggerito').value = totale > 0 ? totale.toFixed(2) : '';
   }
+  const fmt = n => '€ ' + n.toFixed(2).replace('.', ',');
+  document.getElementById('rd-tratta').textContent = fmt(base);
+  document.getElementById('rd-ossigeno').textContent = fmt(maggiorazione);
+  document.getElementById('rd-totale').textContent = fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
 }
 
 const CAMPI_LABEL_SERVIZIO = {
@@ -3281,6 +3295,8 @@ async function saveService(ev){
     presidi, presidiAltro: g('sf-presidiAltro'),
     note: g('sf-note'),
     rimborsoSuggerito: g('sf-rimborsoSuggerito'),
+    rimborsoBase: (document.getElementById('rd-tratta').textContent||'').replace('€','').replace(',','.').trim(),
+    rimborsoMaggiorazione: (document.getElementById('rd-ossigeno').textContent||'').replace('€','').replace(',','.').trim(),
     stato: document.getElementById('sf-stato').value,
   };
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
