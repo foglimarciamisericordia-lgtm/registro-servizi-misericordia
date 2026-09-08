@@ -663,6 +663,15 @@
   </div>
 </div>
 
+<!-- MODAL AVVISO DISCONNESSIONE PER INATTIVITÀ -->
+<div class="modal-backdrop" id="avviso-inattivita-backdrop">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <h3>Sei ancora lì?</h3>
+    <p class="modal-sub">Per sicurezza verrai disconnesso automaticamente tra <strong id="avviso-inattivita-secondi">60</strong> secondi per inattività. Muovi il mouse, premi un tasto o clicca per restare collegato.</p>
+    <button type="button" class="btn btn-primary" onclick="resettaTimerInattivita()">Resta connesso</button>
+  </div>
+</div>
+
 <!-- MODAL SERVIZIO -->
 <div class="modal-backdrop" id="service-modal-backdrop">
   <div class="modal">
@@ -1039,7 +1048,73 @@ async function kvSet(key, value){
     alert('Attenzione: il salvataggio non è riuscito. Controlla la connessione e riprova.');
   }
 }
+/* ============ DISCONNESSIONE AUTOMATICA PER INATTIVITÀ ============ */
+const INATTIVITA_LIMITE_MS = 5 * 60 * 1000; // 5 minuti senza alcuna attività
+const AVVISO_DURATA_SECONDI = 60; // 60 secondi di avviso prima della disconnessione
+let inattivitaTimer = null;
+let avvisoCountdownInterval = null;
+let avvisoSecondiRimanenti = AVVISO_DURATA_SECONDI;
+let ultimoResetInattivita = 0;
+
+function resettaTimerInattivita(){
+  clearTimeout(inattivitaTimer);
+  chiudiAvvisoInattivita();
+  if(!currentUser) return; // non collegati: nessun monitoraggio necessario
+  inattivitaTimer = setTimeout(mostraAvvisoInattivita, INATTIVITA_LIMITE_MS);
+}
+function segnalaAttivita(){
+  const ora = Date.now();
+  if(ora - ultimoResetInattivita < 1000) return; // al massimo un reset al secondo
+  ultimoResetInattivita = ora;
+  resettaTimerInattivita();
+}
+document.addEventListener('click', segnalaAttivita);
+document.addEventListener('keydown', segnalaAttivita);
+
+function mostraAvvisoInattivita(){
+  if(!currentUser) return;
+  avvisoSecondiRimanenti = AVVISO_DURATA_SECONDI;
+  const backdrop = document.getElementById('avviso-inattivita-backdrop');
+  if(backdrop) backdrop.classList.add('active');
+  aggiornaTestoAvvisoInattivita();
+  avvisoCountdownInterval = setInterval(()=>{
+    avvisoSecondiRimanenti--;
+    aggiornaTestoAvvisoInattivita();
+    if(avvisoSecondiRimanenti <= 0){
+      disconnettiPerInattivita();
+    }
+  }, 1000);
+}
+function aggiornaTestoAvvisoInattivita(){
+  const el = document.getElementById('avviso-inattivita-secondi');
+  if(el) el.textContent = avvisoSecondiRimanenti;
+}
+function chiudiAvvisoInattivita(){
+  const backdrop = document.getElementById('avviso-inattivita-backdrop');
+  if(backdrop) backdrop.classList.remove('active');
+  if(avvisoCountdownInterval){ clearInterval(avvisoCountdownInterval); avvisoCountdownInterval = null; }
+}
+function fermaMonitoraggioInattivita(){
+  clearTimeout(inattivitaTimer);
+  chiudiAvvisoInattivita();
+}
+async function disconnettiPerInattivita(){
+  fermaMonitoraggioInattivita();
+  try{
+    await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+  }catch(e){}
+  authToken = null;
+  sessionStorage.removeItem('authToken');
+  currentUser = null;
+  document.getElementById('shell').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error-box').innerHTML = '<div class="login-error">Sei stato disconnesso automaticamente per inattività.</div>';
+}
+
 function sessioneScaduta(){
+  fermaMonitoraggioInattivita();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -1358,11 +1433,13 @@ async function doLogin(){
   if(currentUser.mustChangePassword){
     openAccountModal(true);
   }
+  resettaTimerInattivita();
 }
 async function doLogout(){
   try{
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
+  fermaMonitoraggioInattivita();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
