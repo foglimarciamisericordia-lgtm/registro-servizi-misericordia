@@ -1149,6 +1149,13 @@ async function loadData(){
     await kvSet('tipiMezzo', tipiMezzo);
   }
 
+  // Compatibilità con i mezzi creati prima dell'ordinamento manuale: assegna
+  // un ordine iniziale basato sulla posizione attuale, una volta sola.
+  if(mezzi.some(m => m.ordine === undefined)){
+    mezzi.forEach((m, i) => { if(m.ordine === undefined) m.ordine = i; });
+    await saveMezzi();
+  }
+
   anniDisponibiliServizi = indiceServizi || [annoOggi];
   if(!anniDisponibiliServizi.includes(annoOggi)) anniDisponibiliServizi.push(annoOggi);
   anniDisponibiliServizi.sort((a,b)=>a-b);
@@ -1662,7 +1669,7 @@ async function renderElenco(){
       <td>${escapeHtml(nomeVisualizzatoServizio(s))}</td>
       <td>${escapeHtml(s.tipoMezzoRichiesto||'—')}</td>
       <td>${escapeHtml(s.destinazione||'—')}</td>
-      <td>${escapeHtml(s.mezzo||'—')}</td>
+      <td>${escapeHtml(nomeMezzoAssegnato(s))}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
       <td><div class="row-actions">
         <button class="action-btn primary" onclick="modificaServizioAnno('${s.id}',${s.numeroAnno})">✎ Modifica</button>
@@ -1691,6 +1698,16 @@ function formatDataIt(dataIso){
   const parti = dataIso.split('-');
   if(parti.length !== 3) return dataIso;
   return `${parti[2]}-${parti[1]}-${parti[0]}`;
+}
+function nomeMezzoAssegnato(s){
+  // Va sempre a leggere il mezzo attuale (per id), non il testo salvato al
+  // momento della registrazione: così un cambio di nome/targa/sigla si
+  // riflette subito anche sui servizi già registrati in passato.
+  if(s.mezzoId){
+    const m = mezzi.find(x=>x.id===s.mezzoId);
+    if(m) return m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa;
+  }
+  return s.mezzo || '—'; // solo se il mezzo non esiste più in nessuna lista
 }
 function nomeVisualizzatoServizio(s){
   if(isModalitaRichiedente(s.tipoScheda)) return s.enteRichiedenteEvento || 'Evento';
@@ -1899,18 +1916,23 @@ async function saveOwnAccount(ev){
 }
 
 /* ============ MEZZI ============ */
+function mezziOrdinati(lista){
+  return [...lista].sort((a,b) => (a.ordine ?? 0) - (b.ordine ?? 0));
+}
 function renderMezzi(){
   if(currentUser.ruolo !== 'amministratore') return;
   const container = document.getElementById('mezzi-container');
-  const attivi = mezzi.filter(m=>!m.archiviato && !m.cestinato);
-  const archiviati = mezzi.filter(m=>m.archiviato && !m.cestinato);
-  const cardMezzo = m => `
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
+  const archiviati = mezziOrdinati(mezzi.filter(m=>m.archiviato && !m.cestinato));
+  const cardMezzo = (m, idx, lista) => `
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
       <div class="un mono">${escapeHtml(m.targa)}</div>
       ${m.archiviato ? `<span class="tag-chiuso">Archiviato il ${m.dataArchiviazione||''}</span>` : ''}
       <div class="row-actions" style="margin-top:10px;">
         ${m.archiviato ? `<button class="action-btn primary" onclick="riattivaMezzo('${m.id}')">↺ Riattiva</button>` : `
+          ${idx>0 ? `<button class="action-btn" onclick="spostaSuMezzo('${m.id}')">↑</button>` : ''}
+          ${idx<lista.length-1 ? `<button class="action-btn" onclick="spostaGiuMezzo('${m.id}')">↓</button>` : ''}
           <button class="action-btn primary" onclick="openMezzoModal('${m.id}')">✎ Modifica</button>
           <button class="action-btn" onclick="archiviaMezzo('${m.id}')">🗄 Archivia</button>
           <button class="action-btn danger" onclick="deleteMezzo('${m.id}')">🗑 Elimina</button>
@@ -1921,13 +1943,33 @@ function renderMezzi(){
   if(attivi.length === 0 && archiviati.length === 0){
     html = '<div class="empty-state">Nessun mezzo registrato.</div>';
   } else {
-    html = '<div class="section-title">Mezzi attivi</div><div class="users-grid">' + (attivi.length ? attivi.map(cardMezzo).join('') : '<div class="empty-state">Nessun mezzo attivo.</div>') + '</div>';
+    html = '<div class="section-title">Mezzi attivi (usa ↑↓ per riordinarli — l\'ordine si riflette nei menu a tendina)</div><div class="users-grid">' + (attivi.length ? attivi.map((m,i)=>cardMezzo(m,i,attivi)).join('') : '<div class="empty-state">Nessun mezzo attivo.</div>') + '</div>';
     if(archiviati.length){
-      html += '<div class="section-title">Mezzi archiviati</div><div class="users-grid">' + archiviati.map(cardMezzo).join('') + '</div>';
+      html += '<div class="section-title">Mezzi archiviati</div><div class="users-grid">' + archiviati.map((m,i)=>cardMezzo(m,i,archiviati)).join('') + '</div>';
     }
   }
   container.innerHTML = html;
   renderTipiMezzo();
+}
+async function spostaSuMezzo(id){
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
+  const idx = attivi.findIndex(m=>m.id===id);
+  if(idx <= 0) return;
+  const tmp = attivi[idx-1].ordine;
+  attivi[idx-1].ordine = attivi[idx].ordine;
+  attivi[idx].ordine = tmp;
+  await saveMezzi();
+  renderMezzi();
+}
+async function spostaGiuMezzo(id){
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
+  const idx = attivi.findIndex(m=>m.id===id);
+  if(idx === -1 || idx >= attivi.length-1) return;
+  const tmp = attivi[idx+1].ordine;
+  attivi[idx+1].ordine = attivi[idx].ordine;
+  attivi[idx].ordine = tmp;
+  await saveMezzi();
+  renderMezzi();
 }
 async function archiviaMezzo(id){
   const m = mezzi.find(x=>x.id===id);
@@ -1950,8 +1992,24 @@ function renderTipiMezzo(){
   const container = document.getElementById('tipi-mezzo-container');
   if(!container) return;
   container.innerHTML = '<table class="mini-table"><thead><tr><th>Tipo</th><th></th></tr></thead><tbody>' +
-    tipiMezzo.map(t=>`<tr><td>${escapeHtml(t)}</td><td><button class="action-btn danger" onclick="eliminaTipoMezzo('${escapeHtml(t)}')">🗑 Elimina</button></td></tr>`).join('') +
+    tipiMezzo.map((t,i)=>`<tr><td>${escapeHtml(t)}</td><td><div class="row-actions">
+      ${i>0 ? `<button class="action-btn" onclick="spostaSuTipoMezzo(${i})">↑</button>` : ''}
+      ${i<tipiMezzo.length-1 ? `<button class="action-btn" onclick="spostaGiuTipoMezzo(${i})">↓</button>` : ''}
+      <button class="action-btn danger" onclick="eliminaTipoMezzo('${escapeHtml(t)}')">🗑 Elimina</button>
+    </div></td></tr>`).join('') +
     '</tbody></table>';
+}
+async function spostaSuTipoMezzo(i){
+  if(i<=0) return;
+  [tipiMezzo[i-1], tipiMezzo[i]] = [tipiMezzo[i], tipiMezzo[i-1]];
+  await kvSet('tipiMezzo', tipiMezzo);
+  renderTipiMezzo();
+}
+async function spostaGiuTipoMezzo(i){
+  if(i>=tipiMezzo.length-1) return;
+  [tipiMezzo[i+1], tipiMezzo[i]] = [tipiMezzo[i], tipiMezzo[i+1]];
+  await kvSet('tipiMezzo', tipiMezzo);
+  renderTipiMezzo();
 }
 async function aggiungiTipoMezzo(){
   const nuovo = document.getElementById('tm-nuovoTipo').value.trim();
@@ -1994,7 +2052,8 @@ async function saveMezzo(ev){
     const idx = mezzi.findIndex(m=>m.id===editingMezzoId);
     mezzi[idx] = { ...mezzi[idx], tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa };
   } else {
-    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false });
+    const ordineMax = mezzi.reduce((max,m)=> Math.max(max, m.ordine ?? 0), -1);
+    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false, ordine: ordineMax + 1 });
   }
   await saveMezzi();
   renderMezzi();
@@ -2017,7 +2076,26 @@ async function ripristinaMezzoCestino(id){
   await saveMezzi();
   renderMezzi(); renderCestino();
 }
+async function mezzoHaDatiCollegati(mezzoId){
+  // Controlla in TUTTI gli anni (non solo quello attualmente caricato) se
+  // questo mezzo è referenziato da un servizio o da una riga di foglio di
+  // marcia, per non perdere mai il riferimento in uno storico esistente.
+  for(const anno of anniDisponibiliServizi){
+    const lista = await fetchServiziAnno(anno);
+    if(lista.some(s => s.mezzoId === mezzoId)) return true;
+  }
+  for(const anno of anniDisponibiliFogli){
+    const lista = await fetchFogliAnno(anno);
+    if(lista.some(f => f.mezzoId === mezzoId)) return true;
+  }
+  return false;
+}
 async function eliminaMezzoDefinitivo(id){
+  const collegato = await mezzoHaDatiCollegati(id);
+  if(collegato){
+    alert('Non puoi eliminare definitivamente questo mezzo: è collegato a servizi o fogli di marcia esistenti. Per non perdere lo storico, puoi solo tenerlo archiviato (torna alla scheda Mezzi e usa "Archivia" invece di eliminarlo dal cestino).');
+    return;
+  }
   if(!confirm('Eliminare definitivamente questo mezzo? L\'azione non è reversibile.')) return;
   mezzi = mezzi.filter(m=>m.id!==id);
   await saveMezzi();
@@ -2025,7 +2103,7 @@ async function eliminaMezzoDefinitivo(id){
 }
 function fillMezzoSelect(valoreCorrente){
   const sel = document.getElementById('sf-mezzo');
-  const attivi = mezzi.filter(m=>!m.archiviato);
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato));
   if(mezzi.length === 0){
     sel.innerHTML = '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
     return;
@@ -2201,7 +2279,7 @@ function getFogliFiltrati(mezzoId){
 function renderFogliMarcia(){
   const sel = document.getElementById('fm-selettoreMezzo');
   const mezzoAttuale = sel.value;
-  sel.innerHTML = '<option value="">-- seleziona un mezzo --</option>' + mezzi.map(m=>`<option value="${m.id}" ${m.id===mezzoAttuale?'selected':''}>${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  sel.innerHTML = '<option value="">-- seleziona un mezzo --</option>' + mezziOrdinati(mezzi).map(m=>`<option value="${m.id}" ${m.id===mezzoAttuale?'selected':''}>${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
 
   const isAdmin = currentUser.ruolo === 'amministratore';
   document.getElementById('btn-esporta-excel').style.display = isAdmin ? 'inline-flex' : 'none';
@@ -2268,7 +2346,7 @@ async function openFoglioModal(id){
   const mezzoEsterno = document.getElementById('fm-selettoreMezzo').value;
 
   const selMezzo = document.getElementById('fm-mezzoId');
-  const attiviMezzi = mezzi.filter(m=>!m.archiviato);
+  const attiviMezzi = mezziOrdinati(mezzi.filter(m=>!m.archiviato));
   let elencoMezzi = attiviMezzi;
   if(f && f.mezzoId && !attiviMezzi.some(m=>m.id===f.mezzoId)){
     const storico = mezzi.find(m=>m.id===f.mezzoId);
@@ -2571,8 +2649,19 @@ async function purgaCestinoScaduti(){
     await saveFogliMarciaData();
   }
   if(mezzi.some(m=>m.cestinato && scaduto(m.cestinatoIl))){
-    mezzi = mezzi.filter(m => !(m.cestinato && scaduto(m.cestinatoIl)));
-    await saveMezzi();
+    // Un mezzo scaduto nel cestino viene eliminato definitivamente solo se
+    // non è collegato a nessuno storico esistente: altrimenti resta nel
+    // cestino, protetto, finché non viene ripristinato manualmente.
+    const mezziScaduti = mezzi.filter(m=>m.cestinato && scaduto(m.cestinatoIl));
+    const idsDaRimuovere = [];
+    for(const m of mezziScaduti){
+      const collegato = await mezzoHaDatiCollegati(m.id);
+      if(!collegato) idsDaRimuovere.push(m.id);
+    }
+    if(idsDaRimuovere.length){
+      mezzi = mezzi.filter(m => !idsDaRimuovere.includes(m.id));
+      await saveMezzi();
+    }
   }
   if(utenti.some(u=>u.cestinato && scaduto(u.cestinatoIl))){
     utenti = utenti.filter(u => !(u.cestinato && scaduto(u.cestinatoIl)));
@@ -3137,7 +3226,7 @@ function viewServiceModal(id){
     <div class="print-section">
     <h4>Equipaggio e mezzo assegnato</h4>
     <div class="view-grid">
-      ${item('Mezzo assegnato', s.mezzo)}
+      ${item('Mezzo assegnato', nomeMezzoAssegnato(s))}
       ${item('Autista', s.autista)}
       ${item('1° Soccorritore', s.soccorritore1)}
       ${item('2° Soccorritore', s.soccorritore2)}
