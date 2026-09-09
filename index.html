@@ -112,7 +112,7 @@
   }
   #filigrana-utente .fu-riquadro{
     position:absolute;top:-40%;left:-20%;width:160%;height:220%;
-    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:65px 95px;align-content:flex-start;
+    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:130px 160px;align-content:flex-start;
   }
   #filigrana-utente .fu-riga{
     font-size:13px;font-weight:700;color:rgba(70,70,60,0.24);white-space:nowrap;
@@ -3141,11 +3141,14 @@ function toggleTipoScheda(){
   });
 
   if(modalitaRichiedente) scheduleGeoPreviewEvento();
+
+  aggiornaFiligranaSeAttiva(); // la scheda ha appena cambiato altezza
 }
 function toggleRipetizione(){
   const on = document.getElementById('sf-ripetitivo').checked;
   document.getElementById('ripetizione-dettagli').style.display = on ? 'block' : 'none';
   if(on) toggleFrequenzaGiorni();
+  aggiornaFiligranaSeAttiva();
 }
 function toggleFrequenzaGiorni(){
   const freq = document.getElementById('sf-frequenza').value;
@@ -3168,7 +3171,6 @@ function generaDateRipetizione(startStr, endStr, freq, giorniSel){
 }
 
 function openServiceModal(id, prefillDate){
-  avviaFiligrana('#service-modal-backdrop .modal');
   editingServiceId = id || null;
   fillPersonSelects();
   const sv = id ? servizi.find(s=>s.id===id) : null;
@@ -3186,6 +3188,7 @@ function openServiceModal(id, prefillDate){
   document.getElementById('fieldset-ripetizione').style.display = ripetizioneAllowed ? 'block' : 'none';
 
   document.getElementById('service-modal-backdrop').classList.add('active');
+  avviaFiligrana('#service-modal-backdrop .modal'); // dopo che la scheda è visibile: l'altezza reale va misurata a scheda già renderizzata
 }
 
 function duplicateService(id){
@@ -3201,13 +3204,13 @@ function duplicateService(id){
   document.getElementById('modal-delete-slot').innerHTML = '';
   document.getElementById('fieldset-ripetizione').style.display = 'block';
   document.getElementById('service-modal-backdrop').classList.add('active');
+  avviaFiligrana('#service-modal-backdrop .modal');
 }
 
 /* ============ VISUALIZZA SERVIZIO (scheda di sola lettura) ============ */
 function viewServiceModal(id){
   const s = servizi.find(x=>x.id===id);
   if(!s) return;
-  avviaFiligrana('#view-modal-backdrop .modal');
   currentViewServiceId = id;
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
@@ -3328,6 +3331,7 @@ function viewServiceModal(id){
   document.getElementById('view-sheet-content').innerHTML = html;
   document.getElementById('btn-stampa-scheda-servizio').style.display = (currentUser.ruolo === 'operatore') ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
+  avviaFiligrana('#view-modal-backdrop .modal'); // dopo che la scheda è visibile: l'altezza reale va misurata a scheda già renderizzata
 }
 function closeViewModal(){
   document.getElementById('view-modal-backdrop').classList.remove('active');
@@ -3732,22 +3736,41 @@ function testoFiligrana(){
   const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
   return currentUser.nome + ' ' + currentUser.cognome + ' — ' + `${dd}-${mm}-${yy} ${hh}:${mi}`;
 }
+function aggiornaFiligranaSeAttiva(){
+  const filigrana = document.getElementById('filigrana-utente');
+  if(filigrana && filigrana.style.display === 'block') aggiornaFiligrana();
+}
 function aggiornaFiligrana(){
   if(!currentUser) return;
-  const riquadro = document.querySelector('#filigrana-utente .fu-riquadro');
+  const filigrana = document.getElementById('filigrana-utente');
+  const riquadro = filigrana.querySelector('.fu-riquadro');
   if(!riquadro) return;
   const testo = testoFiligrana();
-  const esistenti = riquadro.querySelectorAll('.fu-riga');
-  if(esistenti.length === 0){
-    for(let i=0;i<70;i++){
+
+  // Il numero di ripetizioni si adatta all'altezza reale della scheda aperta
+  // (che cresce o si accorcia in base ai campi mostrati): così la filigrana
+  // copre sempre tutta la scheda, anche scorrendo fino in fondo a un modulo
+  // molto lungo, invece di fermarsi dopo la parte inizialmente visibile.
+  const contenitore = filigrana.parentElement;
+  const altezzaContenuto = contenitore ? contenitore.scrollHeight : 800;
+  const righeStimate = Math.max(10, Math.ceil((altezzaContenuto * 2.2) / 170));
+  const numeroTile = righeStimate * 4;
+
+  let tiles = Array.from(riquadro.querySelectorAll('.fu-riga'));
+  if(tiles.length < numeroTile){
+    for(let i=tiles.length; i<numeroTile; i++){
       const el = document.createElement('span');
       el.className = 'fu-riga';
-      el.textContent = testo;
       riquadro.appendChild(el);
+      tiles.push(el);
     }
-  } else {
-    esistenti.forEach(el => { el.textContent = testo; });
+  } else if(tiles.length > numeroTile){
+    for(let i=tiles.length-1; i>=numeroTile; i--){
+      tiles[i].remove();
+      tiles.pop();
+    }
   }
+  tiles.forEach(el => { el.textContent = testo; });
 }
 function avviaFiligrana(contenitoreSelector){
   const filigrana = document.getElementById('filigrana-utente');
