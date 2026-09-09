@@ -108,14 +108,14 @@
   .link-piu-altri{font-size:10.5px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:2px;}
   .link-piu-altri:hover{color:var(--teal);}
   #filigrana-utente{
-    position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden;display:none;
+    position:absolute;inset:0;pointer-events:none;z-index:-1;overflow:hidden;display:none;
   }
   #filigrana-utente .fu-riquadro{
     position:absolute;top:-40%;left:-20%;width:160%;height:220%;
-    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:130px 160px;align-content:flex-start;
+    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:70px 90px;align-content:flex-start;
   }
   #filigrana-utente .fu-riga{
-    font-size:13px;font-weight:400;color:rgba(70,70,60,0.24);white-space:nowrap;
+    font-size:13px;font-weight:400;color:rgba(70,70,60,0.28);white-space:nowrap;
   }
 
   .popover-giorno{
@@ -3729,7 +3729,7 @@ function escapeHtml(str){
 // lo evidenzia in rosso finché non viene corretto — così un campo
 // dimenticato è impossibile da non notare.
 /* ============ FILIGRANA UTENTE ============ */
-let filigranaInterval = null;
+let filigranaTestoCorrente = '';
 function testoFiligrana(){
   const d = new Date();
   const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
@@ -3745,7 +3745,10 @@ function aggiornaFiligrana(){
   const filigrana = document.getElementById('filigrana-utente');
   const riquadro = filigrana.querySelector('.fu-riquadro');
   if(!riquadro) return;
-  const testo = testoFiligrana();
+  // L'orario resta quello di apertura della scheda (non si aggiorna da solo):
+  // questa funzione viene richiamata anche solo per ricalcolare quante
+  // ripetizioni servono se la scheda cambia altezza, senza toccare l'ora.
+  const testo = filigranaTestoCorrente || testoFiligrana();
 
   // Il numero di ripetizioni si adatta all'altezza reale della scheda aperta
   // (che cresce o si accorcia in base ai campi mostrati): così la filigrana
@@ -3778,13 +3781,10 @@ function avviaFiligrana(contenitoreSelector){
   if(!contenitore) return;
   contenitore.appendChild(filigrana); // confina la filigrana dentro la scheda aperta, non su tutto lo schermo
   filigrana.style.display = 'block';
+  filigranaTestoCorrente = testoFiligrana(); // fissato adesso: non cambia finché la scheda resta aperta
   aggiornaFiligrana();
-  clearInterval(filigranaInterval);
-  filigranaInterval = setInterval(aggiornaFiligrana, 60000); // tiene l'orario aggiornato
 }
 function fermaFiligrana(){
-  clearInterval(filigranaInterval);
-  filigranaInterval = null;
   const filigrana = document.getElementById('filigrana-utente');
   filigrana.style.display = 'none';
   const riquadro = filigrana.querySelector('.fu-riquadro');
