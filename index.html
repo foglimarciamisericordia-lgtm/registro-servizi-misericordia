@@ -109,13 +109,7 @@
   .link-piu-altri:hover{color:var(--teal);}
   #filigrana-utente{
     position:absolute;inset:0;pointer-events:none;z-index:-1;overflow:hidden;display:none;
-  }
-  #filigrana-utente .fu-riquadro{
-    position:absolute;top:-40%;left:-20%;width:160%;height:220%;
-    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:70px 90px;align-content:flex-start;
-  }
-  #filigrana-utente .fu-riga{
-    font-size:13px;font-weight:400;color:rgba(70,70,60,0.28);white-space:nowrap;
+    background-repeat:repeat;
   }
 
   .popover-giorno{
@@ -310,7 +304,7 @@
   </div>
 
   <!-- SHELL -->
-  <div id="filigrana-utente"><div class="fu-riquadro"></div></div>
+  <div id="filigrana-utente"></div>
 
   <div id="shell">
     <div class="mobile-topbar">
@@ -3846,6 +3840,9 @@ function testoFiligrana(){
   const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
   return currentUser.nome + ' ' + currentUser.cognome + ' — ' + `${dd}-${mm}-${yy} ${hh}:${mi}`;
 }
+function escapeXmlFiligrana(str){
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function aggiornaFiligranaSeAttiva(){
   const filigrana = document.getElementById('filigrana-utente');
   if(filigrana && filigrana.style.display === 'block') aggiornaFiligrana();
@@ -3853,37 +3850,19 @@ function aggiornaFiligranaSeAttiva(){
 function aggiornaFiligrana(){
   if(!currentUser) return;
   const filigrana = document.getElementById('filigrana-utente');
-  const riquadro = filigrana.querySelector('.fu-riquadro');
-  if(!riquadro) return;
-  // L'orario resta quello di apertura della scheda (non si aggiorna da solo):
-  // questa funzione viene richiamata anche solo per ricalcolare quante
-  // ripetizioni servono se la scheda cambia altezza, senza toccare l'ora.
+  if(!filigrana) return;
+  // L'orario resta quello di apertura della scheda (non si aggiorna da solo).
   const testo = filigranaTestoCorrente || testoFiligrana();
 
-  // Il numero di ripetizioni si adatta all'altezza reale della scheda aperta
-  // (che cresce o si accorcia in base ai campi mostrati): così la filigrana
-  // copre sempre tutta la scheda, anche scorrendo fino in fondo a un modulo
-  // molto lungo, invece di fermarsi dopo la parte inizialmente visibile.
-  const contenitore = filigrana.parentElement;
-  const altezzaContenuto = contenitore ? contenitore.scrollHeight : 800;
-  const righeStimate = Math.max(10, Math.ceil((altezzaContenuto * 2.2) / 170));
-  const numeroTile = righeStimate * 4;
-
-  let tiles = Array.from(riquadro.querySelectorAll('.fu-riga'));
-  if(tiles.length < numeroTile){
-    for(let i=tiles.length; i<numeroTile; i++){
-      const el = document.createElement('span');
-      el.className = 'fu-riga';
-      riquadro.appendChild(el);
-      tiles.push(el);
-    }
-  } else if(tiles.length > numeroTile){
-    for(let i=tiles.length-1; i>=numeroTile; i--){
-      tiles[i].remove();
-      tiles.pop();
-    }
-  }
-  tiles.forEach(el => { el.textContent = testo; });
+  // Sfondo ripetuto via CSS (piccola immagine SVG con il testo ruotato):
+  // a differenza di generare tanti elementi a mano, il ripetersi dello
+  // sfondo è gestito dal browser stesso, quindi copre sempre in modo
+  // uniforme tutta la scheda, qualunque sia la sua altezza o forma
+  // (schede molto lunghe o molto strette comprese), senza calcoli nostri.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140">
+    <text x="10" y="95" transform="rotate(-28 130 70)" font-family="sans-serif" font-size="13" fill="rgba(70,70,60,0.28)">${escapeXmlFiligrana(testo)}</text>
+  </svg>`;
+  filigrana.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
 }
 function avviaFiligrana(contenitoreSelector){
   const filigrana = document.getElementById('filigrana-utente');
@@ -3897,8 +3876,7 @@ function avviaFiligrana(contenitoreSelector){
 function fermaFiligrana(){
   const filigrana = document.getElementById('filigrana-utente');
   filigrana.style.display = 'none';
-  const riquadro = filigrana.querySelector('.fu-riquadro');
-  if(riquadro) riquadro.innerHTML = '';
+  filigrana.style.backgroundImage = 'none';
 }
 
 function abilitaEvidenziazioneObbligatori(idForm){
