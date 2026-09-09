@@ -107,6 +107,17 @@
 
   .link-piu-altri{font-size:10.5px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:2px;}
   .link-piu-altri:hover{color:var(--teal);}
+  #filigrana-utente{
+    position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;display:none;
+  }
+  #filigrana-utente .fu-riquadro{
+    position:absolute;top:-40%;left:-20%;width:160%;height:220%;
+    transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:65px 95px;align-content:flex-start;
+  }
+  #filigrana-utente .fu-riga{
+    font-size:12px;font-weight:600;color:rgba(90,90,80,0.11);white-space:nowrap;
+  }
+
   .popover-giorno{
     position:fixed;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(10,20,40,.28);
     border:1px solid var(--line);padding:10px;z-index:200;min-width:220px;max-width:300px;
@@ -203,6 +214,7 @@
   .print-cronologia{margin-top:18px;}
   .print-cronologia li{font-size:12px;margin-bottom:3px;}
   @media print{
+    #filigrana-utente{display:none !important;}
     @page{ margin:12mm; }
     body *{visibility:hidden;}
     .printable-area, .printable-area *{visibility:visible;}
@@ -297,6 +309,8 @@
   </div>
 
   <!-- SHELL -->
+  <div id="filigrana-utente"><div class="fu-riquadro"></div></div>
+
   <div id="shell">
     <div class="mobile-topbar">
       <button onclick="toggleSidebar()" aria-label="Menu">☰</button>
@@ -1103,6 +1117,7 @@ function fermaMonitoraggioInattivita(){
 }
 async function disconnettiPerInattivita(){
   fermaMonitoraggioInattivita();
+  fermaFiligrana();
   try{
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
@@ -1118,6 +1133,7 @@ async function disconnettiPerInattivita(){
 
 function sessioneScaduta(){
   fermaMonitoraggioInattivita();
+  fermaFiligrana();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -1450,6 +1466,7 @@ async function doLogout(){
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
   fermaMonitoraggioInattivita();
+  fermaFiligrana();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -3151,6 +3168,7 @@ function generaDateRipetizione(startStr, endStr, freq, giorniSel){
 }
 
 function openServiceModal(id, prefillDate){
+  avviaFiligrana();
   editingServiceId = id || null;
   fillPersonSelects();
   const sv = id ? servizi.find(s=>s.id===id) : null;
@@ -3189,6 +3207,7 @@ function duplicateService(id){
 function viewServiceModal(id){
   const s = servizi.find(x=>x.id===id);
   if(!s) return;
+  avviaFiligrana();
   currentViewServiceId = id;
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
@@ -3311,6 +3330,7 @@ function viewServiceModal(id){
 }
 function closeViewModal(){
   document.getElementById('view-modal-backdrop').classList.remove('active');
+  fermaFiligrana();
 }
 function modificaDaVisualizzazione(){
   const id = currentViewServiceId;
@@ -3427,6 +3447,7 @@ function closeServiceModal(){
   document.getElementById('service-modal-backdrop').classList.remove('active');
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);
   editingServiceId = null;
+  fermaFiligrana();
 }
 function scheduleGeoPreview(){
   clearTimeout(geoTimer);
@@ -3702,6 +3723,45 @@ function escapeHtml(str){
 // Se un campo obbligatorio non è compilato al momento del salvataggio,
 // lo evidenzia in rosso finché non viene corretto — così un campo
 // dimenticato è impossibile da non notare.
+/* ============ FILIGRANA UTENTE ============ */
+let filigranaInterval = null;
+function testoFiligrana(){
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+  return currentUser.nome + ' ' + currentUser.cognome + ' — ' + `${dd}-${mm}-${yy} ${hh}:${mi}`;
+}
+function aggiornaFiligrana(){
+  if(!currentUser) return;
+  const riquadro = document.querySelector('#filigrana-utente .fu-riquadro');
+  if(!riquadro) return;
+  const testo = testoFiligrana();
+  const esistenti = riquadro.querySelectorAll('.fu-riga');
+  if(esistenti.length === 0){
+    for(let i=0;i<70;i++){
+      const el = document.createElement('span');
+      el.className = 'fu-riga';
+      el.textContent = testo;
+      riquadro.appendChild(el);
+    }
+  } else {
+    esistenti.forEach(el => { el.textContent = testo; });
+  }
+}
+function avviaFiligrana(){
+  document.getElementById('filigrana-utente').style.display = 'block';
+  aggiornaFiligrana();
+  clearInterval(filigranaInterval);
+  filigranaInterval = setInterval(aggiornaFiligrana, 60000); // tiene l'orario aggiornato
+}
+function fermaFiligrana(){
+  clearInterval(filigranaInterval);
+  filigranaInterval = null;
+  document.getElementById('filigrana-utente').style.display = 'none';
+  const riquadro = document.querySelector('#filigrana-utente .fu-riquadro');
+  if(riquadro) riquadro.innerHTML = '';
+}
+
 function abilitaEvidenziazioneObbligatori(idForm){
   const form = document.getElementById(idForm);
   if(!form) return;
