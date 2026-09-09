@@ -164,7 +164,7 @@
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
   .modal-backdrop.active{display:flex;}
-  .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;}
+  .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;z-index:0;}
   .modal h3{margin:0 0 2px;font-size:18px;}
   .modal .modal-sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 18px;}
   fieldset{border:1px solid var(--line-soft);border-radius:8px;margin:0 0 16px;padding:14px 16px 6px;}
@@ -219,6 +219,7 @@
     body *{visibility:hidden;}
     .printable-area, .printable-area *{visibility:visible;}
     .printable-area{position:absolute;left:0;top:0;width:100%;padding:0;}
+    .modal, .modal-backdrop{overflow:visible !important;position:static !important;}
     .modal-actions, .close-x, #foglio-modal-sub, .modal-sub{display:none !important;}
     .print-letterhead{
       display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:10px 0 14px;
@@ -386,7 +387,9 @@
             <option value="giallo">Da confermare</option>
             <option value="rosso">Annullato</option>
           </select>
-          <input type="text" id="f-cerca" placeholder="Cerca per cognome paziente (su tutti gli anni)..." oninput="scheduleRenderElenco()">
+          <input type="text" id="f-cerca" placeholder="Cerca per cognome o nome paziente (su tutti gli anni)..." oninput="scheduleRenderElenco()">
+          <select id="f-mezzoRichiesto" onchange="renderElenco()"><option value="">Tutti i mezzi richiesti</option></select>
+          <select id="f-mezzoAssegnato" onchange="renderElenco()"><option value="">Tutti i mezzi assegnati</option></select>
           <input type="date" id="f-dataServizio" onchange="renderElenco()" title="Filtra per data di svolgimento del servizio">
           <button class="link-btn" type="button" onclick="document.getElementById('f-dataServizio').value='';renderElenco();">Azzera data</button>
         </div>
@@ -478,9 +481,10 @@
           </div>
         </div>
         <div class="filters">
+          <input type="text" id="fm-filtroPaziente" placeholder="Cerca per paziente/ente..." oninput="renderFogliMarcia()">
           <input type="date" id="fm-filtroDataDa" onchange="renderFogliMarcia()" title="Data da">
           <input type="date" id="fm-filtroDataA" onchange="renderFogliMarcia()" title="Data a">
-          <button class="link-btn" type="button" onclick="document.getElementById('fm-filtroDataDa').value='';document.getElementById('fm-filtroDataA').value='';renderFogliMarcia();">Azzera date</button>
+          <button class="link-btn" type="button" onclick="document.getElementById('fm-filtroDataDa').value='';document.getElementById('fm-filtroDataA').value='';document.getElementById('fm-filtroPaziente').value='';renderFogliMarcia();">Azzera filtri</button>
         </div>
         <div id="fogli-km-totale" style="margin-bottom:12px;"></div>
         <div id="fogli-container"></div>
@@ -607,6 +611,11 @@
         <div class="field"><label>Totale €</label><input type="number" step="0.01" id="fm-carburanteTotale"></div>
       </div>
       <div class="field"><label>Annotazioni</label><textarea id="fm-annotazioni" rows="2"></textarea></div>
+      <div class="grid2">
+        <div class="field"><label>Data registrazione</label><input type="date" id="fm-dataRegistrazione"></div>
+        <div class="field"><label>Ora registrazione</label><input type="time" id="fm-oraRegistrazione"></div>
+      </div>
+      <p class="map-hint" id="fm-registrazione-hint" style="margin-top:-6px;">Modificabile solo dall'amministratore. Cambiando questa data, la numerazione dei fogli di questo mezzo viene riordinata di conseguenza.</p>
       <div class="field"><label>Compilatore</label><input type="text" id="fm-compilatore" readonly></div>
       <div class="modal-actions">
         <div id="foglio-delete-slot"></div>
@@ -647,7 +656,7 @@
         </div>
       </div>
       <h3 id="view-foglio-title">Foglio di marcia</h3>
-      <p class="modal-sub">Riepilogo di sola lettura</p>
+      <p class="modal-sub">Riepilogo</p>
       <div class="view-sheet" id="view-foglio-content"></div>
     </div>
     <div class="modal-actions">
@@ -683,7 +692,7 @@
 <div class="modal-backdrop" id="avviso-inattivita-backdrop">
   <div class="modal" style="max-width:380px;text-align:center;">
     <h3>Sei ancora lì?</h3>
-    <p class="modal-sub">Per sicurezza verrai disconnesso automaticamente tra <strong id="avviso-inattivita-secondi">60</strong> secondi per inattività. Muovi il mouse, premi un tasto o clicca per restare collegato.</p>
+    <p class="modal-sub">Per sicurezza verrai disconnesso automaticamente tra <strong id="avviso-inattivita-secondi">60</strong> secondi per inattività. Premi un tasto o clicca per restare collegato.</p>
     <button type="button" class="btn btn-primary" onclick="resettaTimerInattivita()">Resta connesso</button>
   </div>
 </div>
@@ -823,6 +832,7 @@
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
+            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-saliscale" onchange="gestisciPresidioSelezionato(this)">Saliscale elettrico</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-telo" onchange="gestisciPresidioSelezionato(this)">Telo</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-nessuna" onchange="gestisciPresidioNessuna(this)">Nessuno</label>
           </div>
@@ -1481,7 +1491,7 @@ function switchView(v){
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === v));
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
-  if(v === 'elenco') renderElenco();
+  if(v === 'elenco'){ popolaFiltriMezzoElenco(); renderElenco(); }
   if(v === 'utenti') renderUsers();
   if(v === 'mezzi') renderMezzi();
   if(v === 'rimborsi') renderRimborsi();
@@ -1652,10 +1662,22 @@ function scheduleRenderElenco(){
   clearTimeout(elencoCercaTimer);
   elencoCercaTimer = setTimeout(renderElenco, 400);
 }
+function popolaFiltriMezzoElenco(){
+  const selRichiesto = document.getElementById('f-mezzoRichiesto');
+  const selAssegnato = document.getElementById('f-mezzoAssegnato');
+  if(!selRichiesto || !selAssegnato) return;
+  const valRichiesto = selRichiesto.value, valAssegnato = selAssegnato.value;
+  selRichiesto.innerHTML = '<option value="">Tutti i mezzi richiesti</option>' + tipiMezzo.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  selAssegnato.innerHTML = '<option value="">Tutti i mezzi assegnati</option>' + mezziOrdinati(mezzi).map(m=>`<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  selRichiesto.value = valRichiesto;
+  selAssegnato.value = valAssegnato;
+}
 async function renderElenco(){
   const stato = document.getElementById('f-stato') ? document.getElementById('f-stato').value : '';
   const cerca = document.getElementById('f-cerca') ? document.getElementById('f-cerca').value.trim().toLowerCase() : '';
   const dataServizio = document.getElementById('f-dataServizio') ? document.getElementById('f-dataServizio').value : '';
+  const mezzoRichiestoFiltro = document.getElementById('f-mezzoRichiesto') ? document.getElementById('f-mezzoRichiesto').value : '';
+  const mezzoAssegnatoFiltro = document.getElementById('f-mezzoAssegnato') ? document.getElementById('f-mezzoAssegnato').value : '';
   const container = document.getElementById('elenco-container');
   const avvisoRicerca = document.getElementById('elenco-ricerca-avviso');
 
@@ -1674,8 +1696,10 @@ async function renderElenco(){
   list = list.filter(s => !s.cestinato);
   list.sort((a,b)=> (b.perGiorno||'').localeCompare(a.perGiorno||'') || (b.alleOre||'').localeCompare(a.alleOre||''));
   if(stato) list = list.filter(s=>s.stato===stato);
-  if(cerca) list = list.filter(s=>(s.cognome||'').toLowerCase().includes(cerca));
+  if(cerca) list = list.filter(s=>(s.cognome||'').toLowerCase().includes(cerca) || (s.nome||'').toLowerCase().includes(cerca));
   if(dataServizio) list = list.filter(s=>s.perGiorno === dataServizio);
+  if(mezzoRichiestoFiltro) list = list.filter(s=>s.tipoMezzoRichiesto === mezzoRichiestoFiltro);
+  if(mezzoAssegnatoFiltro) list = list.filter(s=>s.mezzoId === mezzoAssegnatoFiltro);
   if(list.length===0){ container.innerHTML = '<div class="empty-state">Nessun servizio registrato con questi filtri.</div>'; return; }
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   let html = '<table class="servizi"><thead><tr><th>N°</th><th>Stato</th><th>Data / Ora</th><th>Paziente</th><th>Mezzo richiesto</th><th>Destinazione</th><th>Mezzo assegnato</th><th>Ultimo operatore</th><th></th></tr></thead><tbody>';
@@ -2327,17 +2351,20 @@ async function eliminaMaggiorazioneDefinitivo(id){
 
 /* ============ FOGLI DI MARCIA ============ */
 function getFogliFiltrati(mezzoId){
-  let righe = fogliMarcia.filter(f=>f.mezzoId===mezzoId && !f.cestinato);
+  let righe = mezzoId === '__tutti__' ? fogliMarcia.filter(f=>!f.cestinato) : fogliMarcia.filter(f=>f.mezzoId===mezzoId && !f.cestinato);
   const dataDa = document.getElementById('fm-filtroDataDa').value;
   const dataA = document.getElementById('fm-filtroDataA').value;
+  const cercaPaziente = document.getElementById('fm-filtroPaziente') ? document.getElementById('fm-filtroPaziente').value.trim().toLowerCase() : '';
   if(dataDa) righe = righe.filter(f => (f.dataPartenza||'') >= dataDa);
   if(dataA) righe = righe.filter(f => (f.dataPartenza||'') <= dataA);
+  if(cercaPaziente) righe = righe.filter(f => (f.paziente||'').toLowerCase().includes(cercaPaziente));
   return righe.sort((a,b)=> (a.numeroProgressivo||0) - (b.numeroProgressivo||0));
 }
 function renderFogliMarcia(){
   const sel = document.getElementById('fm-selettoreMezzo');
   const mezzoAttuale = sel.value;
-  sel.innerHTML = '<option value="">-- seleziona un mezzo --</option>' + mezziOrdinati(mezzi).map(m=>`<option value="${m.id}" ${m.id===mezzoAttuale?'selected':''}>${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  sel.innerHTML = '<option value="">-- seleziona un mezzo --</option><option value="__tutti__">Tutti i mezzi</option>' + mezziOrdinati(mezzi).map(m=>`<option value="${m.id}" ${m.id===mezzoAttuale?'selected':''}>${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  if(mezzoAttuale) sel.value = mezzoAttuale;
 
   const isAdmin = currentUser.ruolo === 'amministratore';
   document.getElementById('btn-esporta-excel').style.display = isAdmin ? 'inline-flex' : 'none';
@@ -2347,7 +2374,7 @@ function renderFogliMarcia(){
   const kmBox = document.getElementById('fogli-km-totale');
   const mezzoId = sel.value;
   if(!mezzoId){
-    container.innerHTML = '<div class="empty-state">Seleziona un mezzo per vedere il suo foglio di marcia.</div>';
+    container.innerHTML = '<div class="empty-state">Seleziona un mezzo (o "Tutti i mezzi") per vedere il foglio di marcia.</div>';
     kmBox.innerHTML = '';
     return;
   }
@@ -2358,20 +2385,24 @@ function renderFogliMarcia(){
     container.innerHTML = '<div class="empty-state">Nessuna riga registrata per questo mezzo nel periodo selezionato.</div>';
     return;
   }
-  let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Registrato il</th><th>Motivazione</th><th>Servizio</th><th>Paziente/Ente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km tot.</th><th>Importo</th><th>Carburante</th><th>Compilatore</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>N°</th><th>Mezzo</th><th>Registrato il</th><th>Motivazione</th><th>Servizio</th><th>Paziente/Ente</th><th>Percorso</th><th>Partenza/Rientro</th><th>Km iniziali</th><th>Km finali</th><th>Km tot.</th><th>Carburante</th><th>Compilatore</th><th></th></tr></thead><tbody>';
   righe.forEach(f=>{
     const servCollegato = f.servizioId ? servizi.find(s=>s.id===f.servizioId) : null;
     const numeroServ = servCollegato ? formatNumeroServizio(servCollegato.numeroProgressivo, servCollegato.numeroAnno) : 'libero';
+    const mezzoRiga = mezzi.find(m=>m.id===f.mezzoId);
+    const nomeMezzoRiga = mezzoRiga ? (mezzoRiga.tipo + (mezzoRiga.codice?' '+mezzoRiga.codice:'') + ' — ' + mezzoRiga.targa) : '—';
     html += `<tr>
       <td class="mono">${f.numeroProgressivo}</td>
+      <td>${escapeHtml(nomeMezzoRiga)}</td>
       <td class="mono">${formatDateTime(f.registratoIl)}</td>
       <td>${escapeHtml(f.motivazioneServizio||'—')}</td>
       <td>${escapeHtml(numeroServ)}</td>
       <td>${escapeHtml(f.paziente||'—')}</td>
       <td>${escapeHtml(f.daDove||'—')} → ${escapeHtml(f.aDove||'—')}${f.viceversa?' (e viceversa)':''}</td>
       <td class="mono">${formatDataIt(f.dataPartenza)} ${f.orarioPartenza||'—'} / ${formatDataIt(f.dataArrivo)} ${f.orarioRientro||'—'}</td>
+      <td class="mono">${f.kmIniziali||'—'}</td>
+      <td class="mono">${f.kmFinali||'—'}</td>
       <td class="mono">${f.kmTotale||'—'}</td>
-      <td class="mono">${f.importo ? '€ '+parseFloat(f.importo).toFixed(2) : '—'}</td>
       <td>${f.carburante==='Si' ? ('Si — '+(f.carburanteLitri||0)+'L / €'+parseFloat(f.carburanteTotale||0).toFixed(2)) : 'No'}</td>
       <td>${escapeHtml(f.compilatore||'—')}</td>
       <td><div class="row-actions">
@@ -2452,8 +2483,15 @@ async function openFoglioModal(id){
   document.getElementById('fm-compilatore').value = f ? f.compilatore : (currentUser.nome + ' ' + currentUser.cognome);
 
   const isAdmin = currentUser.ruolo === 'amministratore';
+  const registratoIlRif = f ? f.registratoIl : new Date().toISOString();
+  document.getElementById('fm-dataRegistrazione').value = registratoIlRif ? registratoIlRif.slice(0,10) : '';
+  document.getElementById('fm-oraRegistrazione').value = registratoIlRif ? registratoIlRif.slice(11,16) : '';
+  document.getElementById('fm-registrazione-hint').style.display = isAdmin ? 'block' : 'none';
+
   const soloLettura = !!f && !isAdmin;
   document.querySelectorAll('#foglio-modal-backdrop input, #foglio-modal-backdrop select, #foglio-modal-backdrop textarea').forEach(el=>{ el.disabled = soloLettura; });
+  document.getElementById('fm-dataRegistrazione').disabled = !isAdmin;
+  document.getElementById('fm-oraRegistrazione').disabled = !isAdmin;
   document.getElementById('foglio-save-btn').style.display = soloLettura ? 'none' : 'inline-block';
   const cercaBtn = document.querySelector('#foglio-modal-backdrop .btn-ghost');
   if(cercaBtn) cercaBtn.style.display = soloLettura ? 'none' : 'inline-block';
@@ -2605,6 +2643,11 @@ function viewFoglioModal(id){
     <div class="view-grid">
       ${item('Compilatore', f.compilatore)}
     </div>
+
+    <h4>Cronologia</h4>
+    <ul class="print-cronologia" style="margin:0;padding-left:18px;">
+      ${(f.cronologia && f.cronologia.length) ? f.cronologia.map(c=>`<li>${escapeHtml(c.tipo)} — ${escapeHtml(c.chi)} — ${formatDateTime(c.quando)}</li>`).join('') : '<li>Nessun evento registrato.</li>'}
+    </ul>
   `;
   document.getElementById('view-foglio-content').innerHTML = html;
   document.getElementById('btn-modifica-da-foglio').style.display = (currentUser.ruolo === 'amministratore') ? 'inline-block' : 'none';
@@ -2812,11 +2855,48 @@ function generaFoglioDaServizio(servizioId){
   onFoglioMezzoChange();
   selezionaServizioPerFoglio(servizioId);
 }
+const CAMPI_LABEL_FOGLIO = {
+  mezzoId:'Mezzo', motivazioneServizio:'Motivazione servizio', paziente:'Paziente/Ente',
+  daDove:'Da dove', aDove:'A dove', viceversa:'Viceversa',
+  numeroScheda118:'N. Scheda 118', dataScheda118:'Data Scheda 118',
+  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore',
+  dataPartenza:'Data partenza', orarioPartenza:'Orario partenza', dataArrivo:'Data rientro', orarioRientro:'Orario rientro',
+  kmIniziali:'Km iniziali', kmFinali:'Km finali', kmTotale:'Km totale',
+  ricevutaNumero:'Ricevuta n.', importo:'Importo', carburante:'Carburante',
+  carburanteLitri:'Litri carburante', carburanteTotale:'Totale carburante', annotazioni:'Annotazioni'
+};
+function calcolaModificheFoglio(vecchio, nuovo){
+  const cambi = [];
+  for(const key in CAMPI_LABEL_FOGLIO){
+    const a = (vecchio[key] ?? '').toString();
+    const b = (nuovo[key] ?? '').toString();
+    if(a !== b) cambi.push(CAMPI_LABEL_FOGLIO[key]);
+  }
+  return cambi;
+}
+// Dopo che l'admin cambia manualmente "Registrato il", il foglio deve
+// spostarsi al posto giusto nell'ordine cronologico: rinumera da capo
+// (1, 2, 3...) tutti i fogli non cestinati di quel mezzo in quell'anno,
+// ordinandoli per data/ora di registrazione.
+async function rinumeraFogliPerRegistrazione(mezzoId, anno){
+  const lista = await fetchFogliAnno(anno);
+  const daRinumerare = lista.filter(f => f.mezzoId===mezzoId && !f.cestinato);
+  daRinumerare.sort((a,b) => (a.registratoIl||'').localeCompare(b.registratoIl||''));
+  daRinumerare.forEach((f,i) => { f.numeroProgressivo = i+1; });
+  if(anno === annoCorrenteFogli){
+    await saveFogliMarciaData();
+  } else {
+    await kvSet('fogli-' + anno, lista);
+  }
+}
 async function saveFoglio(ev){
   ev.preventDefault();
   const mezzoId = document.getElementById('fm-mezzoId').value;
   if(!mezzoId){ alert('Seleziona il mezzo.'); return false; }
   const g = id => document.getElementById(id).value.trim();
+  const isAdmin = currentUser.ruolo === 'amministratore';
+  const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
+  const adesso = new Date().toISOString();
   const data = {
     id: editingFoglioId || ('fm-' + Date.now()),
     mezzoId,
@@ -2836,19 +2916,43 @@ async function saveFoglio(ev){
     carburanteLitri: g('fm-carburanteLitri'), carburanteTotale: g('fm-carburanteTotale'),
     annotazioni: g('fm-annotazioni'),
   };
+
+  // "Registrato il" è modificabile solo dall'admin (il campo resta bloccato
+  // per chiunque altro): se l'admin lo cambia rispetto al valore che avrebbe
+  // avuto normalmente, useremo quello e riordineremo/rinumereremo di conseguenza.
+  const registratoIlManuale = isAdmin && g('fm-dataRegistrazione')
+    ? g('fm-dataRegistrazione') + 'T' + (g('fm-oraRegistrazione') || '00:00') + ':00.000Z'
+    : null;
+
   if(editingFoglioId){
     const existing = fogliMarcia.find(f=>f.id===editingFoglioId);
     data.numeroProgressivo = existing.numeroProgressivo;
-    data.registratoIl = existing.registratoIl;
     data.compilatore = existing.compilatore;
+    const registratoIlModificato = registratoIlManuale && registratoIlManuale !== existing.registratoIl;
+    data.registratoIl = registratoIlModificato ? registratoIlManuale : existing.registratoIl;
+
+    data.cronologia = [...(existing.cronologia || [])];
+    const cambi = calcolaModificheFoglio(existing, data);
+    if(cambi.length){
+      data.cronologia.push({ tipo:'Modifica: ' + cambi.join(', '), chi: nomeUtenteCorrente, quando: adesso });
+    }
+
     const idx = fogliMarcia.findIndex(f=>f.id===editingFoglioId);
     fogliMarcia[idx] = data;
     await saveFogliMarciaData();
+
+    if(registratoIlModificato){
+      const annoRiga = data.dataPartenza ? new Date(data.dataPartenza+'T00:00:00').getFullYear() : annoCorrenteFogli;
+      await rinumeraFogliPerRegistrazione(mezzoId, annoRiga);
+    }
   } else {
     const annoRiga = data.dataPartenza ? new Date(data.dataPartenza+'T00:00:00').getFullYear() : annoCorrenteFogli;
     data.numeroProgressivo = await prossimoNumeroFoglio(mezzoId, annoRiga);
-    data.registratoIl = new Date().toISOString();
+    data.registratoIl = registratoIlManuale || adesso;
     data.compilatore = currentUser.nome + ' ' + currentUser.cognome;
+    // Se l'admin ha inserito manualmente una data/ora di registrazione diversa
+    // da adesso, la cronologia riporta la creazione a quella data, non a quella reale.
+    data.cronologia = [{ tipo:'Creato', chi: nomeUtenteCorrente, quando: registratoIlManuale || adesso }];
     if(annoRiga === annoCorrenteFogli){
       fogliMarcia.push(data);
       await saveFogliMarciaData();
@@ -2859,6 +2963,9 @@ async function saveFoglio(ev){
       await aggiornaIndiceFogli(annoRiga);
     }
     await aggiornaUltimoKm(mezzoId, data.kmFinali);
+    if(registratoIlManuale){
+      await rinumeraFogliPerRegistrazione(mezzoId, annoRiga);
+    }
   }
   closeFoglioModal();
   renderFogliMarcia();
@@ -2933,7 +3040,7 @@ function exportFogliExcel(){
   ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Foglio di marcia');
-  const nomeFile = 'Foglio_marcia_' + (mezzo ? (mezzo.tipo+'_'+mezzo.targa).replace(/[^a-zA-Z0-9]/g,'_') : mezzoId) + '.xlsx';
+  const nomeFile = 'Foglio_marcia_' + (mezzo ? (mezzo.tipo+'_'+mezzo.targa).replace(/[^a-zA-Z0-9]/g,'_') : 'Tutti_i_mezzi') + '.xlsx';
   XLSX.writeFile(wb, nomeFile);
 }
 function printFogliMarcia(){
@@ -2945,7 +3052,7 @@ function printFogliMarcia(){
   const dataDa = document.getElementById('fm-filtroDataDa').value;
   const dataA = document.getElementById('fm-filtroDataA').value;
   const periodoTesto = (dataDa || dataA) ? ` — periodo: ${dataDa?formatDataIt(dataDa):'…'} → ${dataA?formatDataIt(dataA):'…'}` : '';
-  document.getElementById('print-fogli-title').textContent = 'Foglio di marcia — ' + (mezzo ? (mezzo.tipo+' — '+mezzo.targa) : '') + periodoTesto;
+  document.getElementById('print-fogli-title').textContent = 'Foglio di marcia — ' + (mezzo ? (mezzo.tipo+' — '+mezzo.targa) : 'Tutti i mezzi') + periodoTesto;
   const intestazioni = ['N°','Data e ora registrazione','Rif. servizio','Da dove','A dove','Viceversa','Data/Ora partenza','Data/Ora rientro','Motivazione','Km iniziali','Km finali','Km totali','Autista','1° Soccorritore','2° Soccorritore','N. Scheda 118','Data Scheda 118','Paziente/Ente','Ricevuta n.','Importo','Carburante','Litri','Tot. carburante €','Annotazioni'];
   let html = '<table class="mini-table"><thead><tr>' + intestazioni.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
   righe.forEach(f=>{
@@ -3353,6 +3460,7 @@ function gestisciPresidioNessuna(checkbox){
     document.getElementById('sf-presidio-sedia').checked = false;
     document.getElementById('sf-presidio-portantina').checked = false;
     document.getElementById('sf-presidio-spinale').checked = false;
+    document.getElementById('sf-presidio-saliscale').checked = false;
     document.getElementById('sf-presidio-telo').checked = false;
     document.getElementById('sf-presidiAltro').value = '';
   }
@@ -3403,6 +3511,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-presidio-sedia').checked = !!(data?.presidi||[]).includes('Sedia a rotelle');
   document.getElementById('sf-presidio-portantina').checked = !!(data?.presidi||[]).includes('Portantina');
   document.getElementById('sf-presidio-spinale').checked = !!(data?.presidi||[]).includes('Barella spinale');
+  document.getElementById('sf-presidio-saliscale').checked = !!(data?.presidi||[]).includes('Saliscale elettrico');
   document.getElementById('sf-presidio-telo').checked = !!(data?.presidi||[]).includes('Telo');
   document.getElementById('sf-presidio-nessuna').checked = !!(data?.presidi||[]).includes('Nessuno');
   set('sf-presidiAltro', data?.presidiAltro);
@@ -3561,6 +3670,7 @@ async function saveService(ev){
   if(document.getElementById('sf-presidio-sedia').checked) presidi.push('Sedia a rotelle');
   if(document.getElementById('sf-presidio-portantina').checked) presidi.push('Portantina');
   if(document.getElementById('sf-presidio-spinale').checked) presidi.push('Barella spinale');
+  if(document.getElementById('sf-presidio-saliscale').checked) presidi.push('Saliscale elettrico');
   if(document.getElementById('sf-presidio-telo').checked) presidi.push('Telo');
   if(document.getElementById('sf-presidio-nessuna').checked) presidi.push('Nessuno');
   const presidiAltroVal = g('sf-presidiAltro');
