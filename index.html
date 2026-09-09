@@ -1666,7 +1666,7 @@ async function renderElenco(){
     const numeroServizio = formatNumeroServizio(s.numeroProgressivo, s.numeroAnno);
     html += `<tr>
       <td class="mono">${numeroServizio}</td>
-      <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-assegnato">Assegnato</span>':'<span class="tag-non-assegnato">Non assegnato</span>'}</td>
+      <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-assegnato" title="Assegnato">A</span>':'<span class="tag-non-assegnato" title="Non assegnato">NA</span>'}</td>
       <td class="mono">${formatDataIt(s.perGiorno)} ${s.alleOre||''}</td>
       <td>${escapeHtml(nomeVisualizzatoServizio(s))}</td>
       <td>${escapeHtml(s.tipoMezzoRichiesto||'—')}</td>
