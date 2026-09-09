@@ -108,14 +108,14 @@
   .link-piu-altri{font-size:10.5px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:2px;}
   .link-piu-altri:hover{color:var(--teal);}
   #filigrana-utente{
-    position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;display:none;
+    position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden;display:none;
   }
   #filigrana-utente .fu-riquadro{
     position:absolute;top:-40%;left:-20%;width:160%;height:220%;
     transform:rotate(-28deg);display:flex;flex-wrap:wrap;gap:65px 95px;align-content:flex-start;
   }
   #filigrana-utente .fu-riga{
-    font-size:12px;font-weight:600;color:rgba(90,90,80,0.11);white-space:nowrap;
+    font-size:13px;font-weight:700;color:rgba(70,70,60,0.24);white-space:nowrap;
   }
 
   .popover-giorno{
@@ -164,7 +164,7 @@
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
   .modal-backdrop.active{display:flex;}
-  .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;}
+  .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;}
   .modal h3{margin:0 0 2px;font-size:18px;}
   .modal .modal-sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 18px;}
   fieldset{border:1px solid var(--line-soft);border-radius:8px;margin:0 0 16px;padding:14px 16px 6px;}
@@ -992,7 +992,7 @@
       <div></div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeViewModal()">Chiudi</button>
-        <button type="button" class="btn btn-ghost" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-ghost" id="btn-stampa-scheda-servizio" onclick="window.print()">Stampa scheda</button>
         <button type="button" class="btn btn-primary" style="width:auto;" onclick="modificaDaVisualizzazione()">Modifica</button>
       </div>
     </div>
@@ -3168,7 +3168,7 @@ function generaDateRipetizione(startStr, endStr, freq, giorniSel){
 }
 
 function openServiceModal(id, prefillDate){
-  avviaFiligrana();
+  avviaFiligrana('#service-modal-backdrop .modal');
   editingServiceId = id || null;
   fillPersonSelects();
   const sv = id ? servizi.find(s=>s.id===id) : null;
@@ -3207,7 +3207,7 @@ function duplicateService(id){
 function viewServiceModal(id){
   const s = servizi.find(x=>x.id===id);
   if(!s) return;
-  avviaFiligrana();
+  avviaFiligrana('#view-modal-backdrop .modal');
   currentViewServiceId = id;
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
@@ -3326,6 +3326,7 @@ function viewServiceModal(id){
     </div>
   `;
   document.getElementById('view-sheet-content').innerHTML = html;
+  document.getElementById('btn-stampa-scheda-servizio').style.display = (currentUser.ruolo === 'operatore') ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
 }
 function closeViewModal(){
@@ -3748,8 +3749,12 @@ function aggiornaFiligrana(){
     esistenti.forEach(el => { el.textContent = testo; });
   }
 }
-function avviaFiligrana(){
-  document.getElementById('filigrana-utente').style.display = 'block';
+function avviaFiligrana(contenitoreSelector){
+  const filigrana = document.getElementById('filigrana-utente');
+  const contenitore = document.querySelector(contenitoreSelector);
+  if(!contenitore) return;
+  contenitore.appendChild(filigrana); // confina la filigrana dentro la scheda aperta, non su tutto lo schermo
+  filigrana.style.display = 'block';
   aggiornaFiligrana();
   clearInterval(filigranaInterval);
   filigranaInterval = setInterval(aggiornaFiligrana, 60000); // tiene l'orario aggiornato
@@ -3757,8 +3762,9 @@ function avviaFiligrana(){
 function fermaFiligrana(){
   clearInterval(filigranaInterval);
   filigranaInterval = null;
-  document.getElementById('filigrana-utente').style.display = 'none';
-  const riquadro = document.querySelector('#filigrana-utente .fu-riquadro');
+  const filigrana = document.getElementById('filigrana-utente');
+  filigrana.style.display = 'none';
+  const riquadro = filigrana.querySelector('.fu-riquadro');
   if(riquadro) riquadro.innerHTML = '';
 }
 
