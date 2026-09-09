@@ -3155,7 +3155,7 @@ function openServiceModal(id, prefillDate){
   fillPersonSelects();
   const sv = id ? servizi.find(s=>s.id===id) : null;
   fillMezzoSelect(sv?.mezzoId);
-  document.getElementById('service-modal-title').textContent = sv ? 'Servizio — ' + nomeVisualizzatoServizio(sv) : 'Nuovo servizio';
+  document.getElementById('service-modal-title').textContent = sv ? 'Servizio ' + formatNumeroServizio(sv.numeroProgressivo, sv.numeroAnno) + ' — ' + nomeVisualizzatoServizio(sv) : 'Nuovo servizio';
   fillServiceForm(sv, prefillDate);
 
   const delSlot = document.getElementById('modal-delete-slot');
