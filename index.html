@@ -1995,6 +1995,7 @@ function renderTipiMezzo(){
     tipiMezzo.map((t,i)=>`<tr><td>${escapeHtml(t)}</td><td><div class="row-actions">
       ${i>0 ? `<button class="action-btn" onclick="spostaSuTipoMezzo(${i})">↑</button>` : ''}
       ${i<tipiMezzo.length-1 ? `<button class="action-btn" onclick="spostaGiuTipoMezzo(${i})">↓</button>` : ''}
+      <button class="action-btn primary" onclick="modificaTipoMezzo(${i})">✎ Modifica</button>
       <button class="action-btn danger" onclick="eliminaTipoMezzo('${escapeHtml(t)}')">🗑 Elimina</button>
     </div></td></tr>`).join('') +
     '</tbody></table>';
@@ -2010,6 +2011,44 @@ async function spostaGiuTipoMezzo(i){
   [tipiMezzo[i+1], tipiMezzo[i]] = [tipiMezzo[i], tipiMezzo[i+1]];
   await kvSet('tipiMezzo', tipiMezzo);
   renderTipiMezzo();
+}
+async function modificaTipoMezzo(i){
+  const vecchio = tipiMezzo[i];
+  const nuovo = prompt('Nuovo nome per il tipo di mezzo "' + vecchio + '":', vecchio);
+  if(!nuovo || !nuovo.trim() || nuovo.trim() === vecchio) return;
+  const nuovoTrim = nuovo.trim();
+  if(tipiMezzo.some((t,idx)=> idx!==i && t.toLowerCase()===nuovoTrim.toLowerCase())){
+    alert('Esiste già un tipo di mezzo con questo nome.');
+    return;
+  }
+  tipiMezzo[i] = nuovoTrim;
+  await kvSet('tipiMezzo', tipiMezzo);
+
+  // Propaga il nuovo nome ovunque il vecchio nome era usato: mezzi, tariffe
+  // di rimborso, e servizi (cercando in TUTTI gli anni, non solo quello aperto).
+  let mezziModificati = false;
+  mezzi.forEach(m=>{ if(m.tipo === vecchio){ m.tipo = nuovoTrim; mezziModificati = true; } });
+  if(mezziModificati) await saveMezzi();
+
+  let rimborsiModificati = false;
+  rimborsi.forEach(r=>{ if(r.tipoMezzo === vecchio){ r.tipoMezzo = nuovoTrim; rimborsiModificati = true; } });
+  if(rimborsiModificati) await saveRimborsi();
+
+  for(const anno of anniDisponibiliServizi){
+    const lista = await fetchServiziAnno(anno);
+    let modificato = false;
+    lista.forEach(s=>{ if(s.tipoMezzoRichiesto === vecchio){ s.tipoMezzoRichiesto = nuovoTrim; modificato = true; } });
+    if(modificato){
+      await kvSet('servizi-' + anno, lista);
+      if(anno === annoCorrenteServizi) servizi = lista;
+    }
+  }
+
+  renderTipiMezzo();
+  renderMezzi();
+  renderRimborsi();
+  renderElenco();
+  alert('Tipo di mezzo rinominato: aggiornato su mezzi, tariffe e servizi esistenti che lo usavano.');
 }
 async function aggiungiTipoMezzo(){
   const nuovo = document.getElementById('tm-nuovoTipo').value.trim();
