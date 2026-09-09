@@ -3429,7 +3429,7 @@ function scheduleGeoPreview(){
     const boxD = document.getElementById('geo-preview-destinazione');
     if(!partenza){ boxP.innerHTML = '<div class="map-hint">Inserisci l\'indirizzo di partenza.</div>'; }
     else {
-      const qP = encodeURIComponent(partenza + ' Santa Maria di Licodia');
+      const qP = encodeURIComponent(partenza);
       boxP.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${qP}&output=embed" loading="lazy"></iframe></div>`;
     }
     if(!destinazione){ boxD.innerHTML = '<div class="map-hint">Inserisci l\'indirizzo di destinazione.</div>'; }
