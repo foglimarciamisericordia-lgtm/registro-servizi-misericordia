@@ -828,10 +828,10 @@
 
       <fieldset>
         <legend>Rimborso spesa</legend>
-        <div class="field"><label>Rimborso spesa tratta (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true; document.getElementById('rd-totale').textContent = '€ ' + (parseFloat(this.value)||0).toFixed(2).replace('.', ',');"></div>
+        <div class="field"><label id="label-rimborso-tratta">Rimborso spesa tratta (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true; document.getElementById('rd-totale').textContent = '€ ' + (parseFloat(this.value)||0).toFixed(2).replace('.', ',');"></div>
         <div id="rimborso-dettaglio" class="rimborso-dettaglio">
-          <div class="rd-riga"><span>Rimborso tratta</span><span id="rd-tratta">€ 0,00</span></div>
-          <div class="rd-riga"><span>Maggiorazione ossigeno</span><span id="rd-ossigeno">€ 0,00</span></div>
+          <div class="rd-riga"><span id="label-rd-tratta">Rimborso tratta</span><span id="rd-tratta">€ 0,00</span></div>
+          <div class="rd-riga" id="riga-rd-ossigeno"><span>Maggiorazione ossigeno</span><span id="rd-ossigeno">€ 0,00</span></div>
           <div class="rd-riga rd-totale"><span>Totale</span><span id="rd-totale">€ 0,00</span></div>
         </div>
       </fieldset>
@@ -2379,6 +2379,7 @@ async function onFoglioMezzoChange(){
   document.getElementById('fm-kmIniziali').value = mezzoId ? (await ultimoKmFinaliAsync(mezzoId)) : '';
 }
 async function openFoglioModal(id){
+  pulisciEvidenziazioneObbligatori('foglio-form');
   editingFoglioId = id || null;
   fillFoglioPersonSelects();
   const f = id ? fogliMarcia.find(x=>x.id===id) : null;
@@ -3101,6 +3102,10 @@ function toggleTipoScheda(){
   document.getElementById('legend-dati-richiedente-finale').textContent = modalitaRichiedente ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)';
   document.getElementById('label-relazione').textContent = modalitaRichiedente ? 'Rapporto con ente richiedente' : 'Parente/Relazione col paziente';
 
+  document.getElementById('label-rimborso-tratta').textContent = modalitaRichiedente ? 'Rimborso spese (suggerito, modificabile) €' : 'Rimborso spesa tratta (suggerito, modificabile) €';
+  document.getElementById('label-rd-tratta').textContent = modalitaRichiedente ? 'Rimborso spese' : 'Rimborso tratta';
+  document.getElementById('riga-rd-ossigeno').style.display = modalitaRichiedente ? 'none' : 'flex';
+
   // Non ci affidiamo solo al fatto che un campo nascosto venga escluso dalla
   // convalida del browser: togliamo proprio l'attributo "required" dai campi
   // dell'altra modalità, così il salvataggio non può mai restare bloccato
@@ -3274,10 +3279,10 @@ function viewServiceModal(id){
     </div>
 
     <div class="print-section">
-    <h4>Rimborso spesa</h4>
+    <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Rimborso spese' : 'Rimborso spesa tratta'}</h4>
     <div class="rimborso-dettaglio">
-      <div class="rd-riga"><span>Rimborso tratta</span><span>€ ${(parseFloat(s.rimborsoBase)||0).toFixed(2).replace('.', ',')}</span></div>
-      <div class="rd-riga"><span>Maggiorazione ossigeno</span><span>€ ${(parseFloat(s.rimborsoMaggiorazione)||0).toFixed(2).replace('.', ',')}</span></div>
+      <div class="rd-riga"><span>${isModalitaRichiedente(s.tipoScheda) ? 'Rimborso spese' : 'Rimborso tratta'}</span><span>€ ${(parseFloat(s.rimborsoBase)||0).toFixed(2).replace('.', ',')}</span></div>
+      ${isModalitaRichiedente(s.tipoScheda) ? '' : `<div class="rd-riga"><span>Maggiorazione ossigeno</span><span>€ ${(parseFloat(s.rimborsoMaggiorazione)||0).toFixed(2).replace('.', ',')}</span></div>`}
       <div class="rd-riga rd-totale"><span>Totale</span><span>€ ${(parseFloat(s.rimborsoSuggerito)||0).toFixed(2).replace('.', ',')}</span></div>
     </div>
     </div>
@@ -3345,6 +3350,7 @@ function updateAperturaUI(){
 }
 
 function fillServiceForm(sv, prefillDate, cloneData){
+  pulisciEvidenziazioneObbligatori('service-form');
   const data = cloneData || sv;
   const set = (elId, val) => { document.getElementById(elId).value = val || ''; };
   set('sf-enteSig', data?.enteSig); set('sf-telRichiedente', data?.telRichiedente); set('sf-relazione', data?.relazione);
@@ -3706,6 +3712,14 @@ function abilitaEvidenziazioneObbligatori(idForm){
   form.addEventListener('change', function(e){
     e.target.classList.remove('campo-invalido');
   });
+}
+function pulisciEvidenziazioneObbligatori(idForm){
+  // La scheda non viene mai ricreata da zero, solo nascosta e rimostrata:
+  // senza questo, l'evidenziazione in rosso di un tentativo di salvataggio
+  // precedente resterebbe visibile anche aprendo un servizio diverso.
+  const form = document.getElementById(idForm);
+  if(!form) return;
+  form.querySelectorAll('.campo-invalido').forEach(el => el.classList.remove('campo-invalido'));
 }
 abilitaEvidenziazioneObbligatori('service-form');
 abilitaEvidenziazioneObbligatori('foglio-form');
