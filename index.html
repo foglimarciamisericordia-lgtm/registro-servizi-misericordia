@@ -1321,7 +1321,7 @@
           <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
           <div class="field"><label>Nome</label><input type="text" id="e118-nome"></div>
           <div class="field"><label>Nato a</label><input type="text" id="e118-comuneNascita"></div>
-          <div class="field"><label>Il</label><input type="date" id="e118-natoIl" oninput="calcolaEta118()"></div>
+          <div class="field"><label>Il</label><input type="date" id="e118-natoIl" oninput="calcolaEta118()" onchange="calcolaEta118()"></div>
           <div class="field"><label>Età</label><input type="number" id="e118-eta" readonly></div>
           <div class="field"><label>M/F</label>
             <select id="e118-sesso"><option value="">—</option><option value="M">M</option><option value="F">F</option></select>
@@ -1372,6 +1372,27 @@
           <select id="e118-capillare"><option value="">—</option><option value="lt2">&lt; 2 sec.</option><option value="gt2">&gt; 2 sec.</option></select>
         </div>
 
+        <div class="section-title" style="margin-top:20px;">Pupille</div>
+        <div class="field"><label>Valutazione pupille</label>
+          <select id="e118-pupilleValutazione">
+            <option value="">—</option>
+            <option value="isocoria">Isocoria — pupille di uguali dimensioni, ~2mm, fotoreattive</option>
+            <option value="miosi">Miosi — contrazione eccessiva (intossicazione da sostanze/farmaci)</option>
+            <option value="midriasi">Midriasi — dilatazione eccessiva (carenza di ossigeno, intossicazione da alcol o shock)</option>
+            <option value="anisocoria">Anisocoria — pupille di dimensioni diverse (danno cerebrale, TCE, ictus)</option>
+          </select>
+        </div>
+        <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+          <div class="field"><label>Diametro dx</label><input type="text" id="e118-pupDxDiametro"></div>
+          <div class="field"><label>Riflesso fotomotore dx</label><select id="e118-pupDxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label>Riflesso ciliospinale dx</label><select id="e118-pupDxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label>Congiuntive pallide dx</label><select id="e118-pupDxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label>Diametro sx</label><input type="text" id="e118-pupSxDiametro"></div>
+          <div class="field"><label>Riflesso fotomotore sx</label><select id="e118-pupSxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label>Riflesso ciliospinale sx</label><select id="e118-pupSxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label>Congiuntive pallide sx</label><select id="e118-pupSxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        </div>
+
         <div class="section-title" style="margin-top:20px;">RTS — calcolato automaticamente (rif. Valutazione 1)</div>
         <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
           <div class="field"><label>Punteggio GCS</label><input type="text" id="e118-rtsGcs" readonly></div>
@@ -1407,27 +1428,6 @@
       </div>
       <div class="field"><label>Forze dell'ordine intervenute</label>
         <div class="checkbox-grid" id="e118-forzeOrdine"></div>
-      </div>
-
-      <div class="section-title">Pupille</div>
-      <div class="field"><label>Valutazione pupille</label>
-        <select id="e118-pupilleValutazione">
-          <option value="">—</option>
-          <option value="isocoria">Isocoria — pupille di uguali dimensioni, ~2mm, fotoreattive</option>
-          <option value="miosi">Miosi — contrazione eccessiva (intossicazione da sostanze/farmaci)</option>
-          <option value="midriasi">Midriasi — dilatazione eccessiva (carenza di ossigeno, intossicazione da alcol o shock)</option>
-          <option value="anisocoria">Anisocoria — pupille di dimensioni diverse (danno cerebrale, TCE, ictus)</option>
-        </select>
-      </div>
-      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-        <div class="field"><label>Diametro dx</label><input type="text" id="e118-pupDxDiametro"></div>
-        <div class="field"><label>Riflesso fotomotore dx</label><select id="e118-pupDxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        <div class="field"><label>Riflesso ciliospinale dx</label><select id="e118-pupDxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        <div class="field"><label>Congiuntive pallide dx</label><select id="e118-pupDxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        <div class="field"><label>Diametro sx</label><input type="text" id="e118-pupSxDiametro"></div>
-        <div class="field"><label>Riflesso fotomotore sx</label><select id="e118-pupSxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        <div class="field"><label>Riflesso ciliospinale sx</label><select id="e118-pupSxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        <div class="field"><label>Congiuntive pallide sx</label><select id="e118-pupSxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
       </div>
 
       <div class="section-title">Defibrillazione e arresto cardiaco</div>
