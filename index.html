@@ -5746,7 +5746,6 @@ function openScheda118Modal(id){
   document.getElementById('e118-soccorritore1').value = sch?.soccorritore1 || '';
   document.getElementById('e118-soccorritore2').value = sch?.soccorritore2 || '';
   popolaTargaAmbulanza118(sch?.targaAmbulanza, !sch);
-  if(!sch) aggiornaKmInizialiDaFoglioMarcia118();
 
   const F = (id2, val) => { const el = document.getElementById(id2); if(el) el.value = (val === undefined || val === null) ? '' : val; };
   F('e118-numeroScheda', sch?.numeroScheda);
@@ -5778,6 +5777,7 @@ function openScheda118Modal(id){
     onChiamata118Change();
   }
   F('e118-kmIniziali', sch?.kmIniziali); F('e118-kmFinali', sch?.kmFinali);
+  if(!sch) aggiornaKmInizialiDaFoglioMarcia118();
   calcolaKmTotale118();
   scheda118Valutazioni = (sch?.valutazioni && sch.valutazioni.length) ? JSON.parse(JSON.stringify(sch.valutazioni)) : [nuovaValutazione118('')];
   renderValutazioni118();
