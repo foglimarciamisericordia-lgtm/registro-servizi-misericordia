@@ -1312,6 +1312,8 @@
         <button type="button" class="e118-tab-btn active" data-tab="dati-intervento" onclick="switchTab118('dati-intervento')">Dati Intervento</button>
         <button type="button" class="e118-tab-btn" data-tab="dati-paziente" onclick="switchTab118('dati-paziente')">Dati Paziente</button>
         <button type="button" class="e118-tab-btn" data-tab="valutazione-paziente" onclick="switchTab118('valutazione-paziente')">Valutazione Paziente</button>
+        <button type="button" class="e118-tab-btn" data-tab="interventi-paziente" onclick="switchTab118('interventi-paziente')">Interventi sul Paziente</button>
+        <button type="button" class="e118-tab-btn" data-tab="anamnesi-segni" onclick="switchTab118('anamnesi-segni')">Anamnesi / Segni Clinici</button>
         <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Provvisoria</button>
       </div>
 
@@ -1417,19 +1419,40 @@
         <p class="map-hint">Rif. Valutazione 1 — calcolato dal punteggio GCS totale e da F.R. / P.A. della prima valutazione.</p>
 
         <div class="section-title" style="margin-top:26px;">Valutazione Trauma</div>
-        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-          <div class="field"><label>N. pazienti coinvolti</label><input type="number" id="e118-numeroPazienti"></div>
-          <div class="field"><label>Mezzo coinvolto</label><select id="e118-mezzoCoinvolto"><option value="">—</option></select></div>
-          <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-        </div>
         <div id="e118-valutazioneTrauma-flags"></div>
         <div class="body-diagram-col-title" style="margin-top:14px;">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
         <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
 
         <div class="section-title" style="margin-top:26px;">Altre valutazioni</div>
-        <div id="e118-altreValutazioni-flags"></div>
+        <div id="e118-altreValutazioni-flags" class="checkbox-grid"></div>
         <div class="body-diagram-col-title" style="margin-top:14px;">Sede delle ustioni <span class="map-hint">— totale ustionato: <b id="e118-ustioni-totale" class="ustioni-totale-badge">0%</b></span></div>
         <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
+      </div>
+
+      <div class="e118-tab-pane" data-tabpane="interventi-paziente">
+        <div class="section-title">Interventi sul paziente</div>
+        <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
+      </div>
+
+      <div class="e118-tab-pane" data-tabpane="anamnesi-segni">
+        <div class="section-title">Anamnesi, segni clinici, terapia</div>
+        <div class="field"><label>Anamnesi e descrizione</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
+        <div class="field"><label>Terapia in atto</label><textarea id="e118-terapiaInAtto" rows="2"></textarea></div>
+        <div class="field"><label>Allergie riferite</label><textarea id="e118-allergie" rows="2"></textarea></div>
+        <div class="field"><label>Segni clinici</label><textarea id="e118-segniClinici" rows="2"></textarea></div>
+        <div class="field"><label>Terapia praticata</label><textarea id="e118-terapiaPraticata" rows="2"></textarea></div>
+
+        <div class="section-title" style="margin-top:20px;">Defibrillazione e arresto cardiaco</div>
+        <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+          <div class="field"><label>Ore</label><input type="time" id="e118-defibOre"></div>
+          <div class="field"><label>N. scariche</label><input type="number" id="e118-defibScariche"></div>
+          <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
+          <div class="field"><label>Arresto cardiaco</label><select id="e118-arrestoCardiaco"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        </div>
+        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+          <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
+        </div>
+        <div class="field"><label>ECG — Ritmo</label><div class="checkbox-grid cols3" id="e118-egc"></div></div>
       </div>
 
       <div class="e118-tab-pane" data-tabpane="provvisoria">
@@ -1459,25 +1482,12 @@
         <div class="checkbox-grid" id="e118-forzeOrdine"></div>
       </div>
 
-      <div class="section-title">Defibrillazione e arresto cardiaco</div>
-      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-        <div class="field"><label>Ore</label><input type="time" id="e118-defibOre"></div>
-        <div class="field"><label>N. scariche</label><input type="number" id="e118-defibScariche"></div>
-        <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
-        <div class="field"><label>Arresto cardiaco</label><select id="e118-arrestoCardiaco"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-      </div>
+      <div class="section-title">Dinamica del trauma</div>
       <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-        <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
+        <div class="field"><label>N. pazienti coinvolti</label><input type="number" id="e118-numeroPazienti"></div>
+        <div class="field"><label>Mezzo coinvolto</label><select id="e118-mezzoCoinvolto"><option value="">—</option></select></div>
+        <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
       </div>
-      <div class="field"><label>ECG — Ritmo</label><div class="checkbox-grid cols3" id="e118-egc"></div></div>
-
-      <div class="section-title">Interventi sul paziente</div>
-      <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
-
-      <div class="section-title">Anamnesi, segni clinici, terapia</div>
-      <div class="field"><label>Anamnesi, allergie e terapia in atto</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
-      <div class="field"><label>Segni clinici</label><textarea id="e118-segniClinici" rows="2"></textarea></div>
-      <div class="field"><label>Terapia praticata</label><textarea id="e118-terapiaPraticata" rows="2"></textarea></div>
 
       <div class="section-title">Esito</div>
       <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
@@ -5701,7 +5711,7 @@ function openScheda118Modal(id){
   F('e118-arrestoCardiaco', sch?.arrestoCardiaco); F('e118-rcpMinuti', sch?.rcpMinuti);
   F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
   F('e118-numeroPazienti', sch?.numeroPazienti); F('e118-riferito', sch?.riferito);
-  F('e118-anamnesi', sch?.anamnesi); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
+  F('e118-anamnesi', sch?.anamnesi); F('e118-terapiaInAtto', sch?.terapiaInAtto); F('e118-allergie', sch?.allergie); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
   F('e118-pzAffidatoA', sch?.pzAffidatoA); F('e118-diagnosi', sch?.diagnosi); F('e118-constatazioneDecessoOre', sch?.constatazioneDecessoOre);
   F('e118-annotazioni', sch?.annotazioni);
 
@@ -5797,7 +5807,7 @@ function collectScheda118FormData(id){
     dinamicaTrauma: getFlagListValues('e118-valutazioneTrauma-flags'), dinamicaTraumaNote: getFlagListNotes('e118-valutazioneTrauma-flags', VALUTAZIONE_TRAUMA_118),
     altreValutazioni: getCheckboxGridValues('e118-altreValutazioni-flags'),
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
-    anamnesi: G('e118-anamnesi'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
+    anamnesi: G('e118-anamnesi'), terapiaInAtto: G('e118-terapiaInAtto'), allergie: G('e118-allergie'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
     rifiuta: document.getElementById('e118-rifiuta').checked,
     pzImpossibilitatoFirmare: document.getElementById('e118-pzImpossibilitato').checked,
     motivoImpossibilita: G('e118-motivoImpossibilita'),
@@ -5999,7 +6009,9 @@ function costruisciStampaScheda118(s){
 
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
-    <tr><td>Anamnesi, allergie e terapia in atto:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
+    <tr><td>Anamnesi e descrizione:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
+    <tr><td>Terapia in atto:<br>${escapeHtml(s.terapiaInAtto||'—')}</td></tr>
+    <tr><td>Allergie riferite:<br>${escapeHtml(s.allergie||'—')}</td></tr>
     <tr><td>Segni clinici:<br>${escapeHtml(s.segniClinici||'—')}</td></tr>
     <tr><td>Terapia praticata:<br>${escapeHtml(s.terapiaPraticata||'—')}</td></tr>
   </table>`;
