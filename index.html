@@ -180,6 +180,12 @@
   .body-diagram-wrap{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px;}
   .body-diagram-wrap svg{cursor:crosshair;touch-action:manipulation;}
   .body-diagram-marker{fill:#c0392b;stroke:#fff;stroke-width:1;cursor:pointer;}
+  .body-diagram-wrap.small{gap:10px;padding:10px;margin-bottom:0;}
+  .body-diagrams-row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
+  .body-diagram-col{flex:1 1 220px;min-width:200px;}
+  .body-diagram-col-title{font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .ustione-zona{transition:fill .1s;}
+  .ustione-zona:hover{opacity:.8;}
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
   .print-118-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
@@ -207,6 +213,12 @@
   .avpu-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
   .avpu-btn{padding:10px 16px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-weight:700;background:#fff;color:var(--ink-soft);user-select:none;}
   .avpu-btn.selected{border-color:var(--navy);background:var(--navy);color:#fff;}
+  .pupille-viz-grid{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 14px;}
+  .pupille-opt{border:2px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;width:150px;background:#fff;}
+  .pupille-opt.selected{border-color:var(--navy);background:#E3E9F5;}
+  .pupille-opt-flag{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12.5px;margin-bottom:6px;cursor:pointer;}
+  .pupille-opt-flag input{width:14px;height:14px;margin:0;pointer-events:none;}
+  .pupille-opt-desc{font-size:10px;color:var(--ink-soft);margin-top:6px;line-height:1.3;}
 
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
@@ -1343,18 +1355,37 @@
         <div id="e118-valutazioni-container"></div>
         <button type="button" class="btn btn-ghost" style="width:auto;margin-top:4px;" onclick="aggiungiValutazione118()">+ Aggiungi valutazione</button>
 
+        <div class="section-title" style="margin-top:26px;">Torace e respiro</div>
+        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+          <div class="field"><label>Murmure vescicolare dx</label><select id="e118-murmureDx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
+          <div class="field"><label>Murmure vescicolare sx</label><select id="e118-murmureSx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
+          <div class="field"><label>Dispnea</label><select id="e118-dispnea"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        </div>
+        <div class="field"><label>Espansione toracica</label><div class="checkbox-grid" id="e118-espansioneToracica"></div></div>
+
+        <div class="section-title" style="margin-top:26px;">Sede del trauma e delle ustioni</div>
+        <div class="body-diagrams-row">
+          <div class="body-diagram-col">
+            <div class="body-diagram-col-title">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
+            <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
+          </div>
+          <div class="body-diagram-col">
+            <div class="body-diagram-col-title">Sede delle ustioni <span class="map-hint">— totale: <b id="e118-ustioni-totale">0%</b></span></div>
+            <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
+            <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="cancellaUstioni118()">Cancella</button>
+          </div>
+        </div>
+
         <div class="section-title" style="margin-top:26px;">Glasgow Coma Scale (GCS)</div>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>Apertura occhi</label><select id="e118-gcsOcchi" onchange="calcolaGCS118()"></select></div>
           <div class="field"><label>Risposta verbale</label><select id="e118-gcsVerbale" onchange="calcolaGCS118()"></select></div>
           <div class="field"><label>Risposta motoria</label><select id="e118-gcsMotoria" onchange="calcolaGCS118()"></select></div>
         </div>
-        <div class="grid2" style="grid-template-columns:repeat(2,1fr);align-items:end;">
-          <div class="field"><label>Punteggio GCS totale</label>
-            <div id="e118-gcsPunteggioBox" class="gcs-total-box">—</div>
-            <input type="hidden" id="e118-gcsPunteggio">
-          </div>
-          <div class="field"><label>Pediatric GCS</label><input type="text" id="e118-gcsPediatrico"></div>
+        <div class="field" style="max-width:320px;">
+          <label>Punteggio GCS totale</label>
+          <div id="e118-gcsPunteggioBox" class="gcs-total-box">—</div>
+          <input type="hidden" id="e118-gcsPunteggio">
         </div>
 
         <div class="section-title" style="margin-top:20px;">AVPU</div>
@@ -1373,21 +1404,12 @@
         </div>
 
         <div class="section-title" style="margin-top:20px;">Pupille</div>
-        <div class="field"><label>Valutazione pupille</label>
-          <select id="e118-pupilleValutazione">
-            <option value="">—</option>
-            <option value="isocoria">Isocoria — pupille di uguali dimensioni, ~2mm, fotoreattive</option>
-            <option value="miosi">Miosi — contrazione eccessiva (intossicazione da sostanze/farmaci)</option>
-            <option value="midriasi">Midriasi — dilatazione eccessiva (carenza di ossigeno, intossicazione da alcol o shock)</option>
-            <option value="anisocoria">Anisocoria — pupille di dimensioni diverse (danno cerebrale, TCE, ictus)</option>
-          </select>
-        </div>
-        <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-          <div class="field"><label>Diametro dx</label><input type="text" id="e118-pupDxDiametro"></div>
+        <div class="pupille-viz-grid" id="e118-pupille-viz"></div>
+        <input type="hidden" id="e118-pupilleValutazione">
+        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>Riflesso fotomotore dx</label><select id="e118-pupDxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
           <div class="field"><label>Riflesso ciliospinale dx</label><select id="e118-pupDxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
           <div class="field"><label>Congiuntive pallide dx</label><select id="e118-pupDxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-          <div class="field"><label>Diametro sx</label><input type="text" id="e118-pupSxDiametro"></div>
           <div class="field"><label>Riflesso fotomotore sx</label><select id="e118-pupSxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
           <div class="field"><label>Riflesso ciliospinale sx</label><select id="e118-pupSxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
           <div class="field"><label>Congiuntive pallide sx</label><select id="e118-pupSxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
@@ -1442,15 +1464,6 @@
       </div>
       <div class="field"><label>ECG — Ritmo</label><div class="checkbox-grid cols3" id="e118-egc"></div></div>
 
-      <div class="section-title">Torace e respiro</div>
-      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-        <div class="field"><label>Temperatura corporea (°C)</label><input type="text" id="e118-temperatura"></div>
-        <div class="field"><label>Murmure vescicolare dx</label><select id="e118-murmureDx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
-        <div class="field"><label>Murmure vescicolare sx</label><select id="e118-murmureSx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
-        <div class="field"><label>Dispnea</label><select id="e118-dispnea"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-      </div>
-      <div class="field"><label>Espansione toracica</label><div class="checkbox-grid" id="e118-espansioneToracica"></div></div>
-
       <div class="section-title">Interventi sul paziente</div>
       <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
 
@@ -1461,12 +1474,6 @@
         <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
       </div>
       <div class="checkbox-grid cols3" id="e118-dinamicaTrauma"></div>
-
-      <div class="section-title">Sede del trauma <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(tocca il corpo per segnare un punto, tocca un punto per rimuoverlo)</span></div>
-      <div id="e118-diagramma-trauma" class="body-diagram-wrap"></div>
-
-      <div class="section-title">Sede delle ustioni <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(tocca il corpo per segnare un punto, tocca un punto per rimuoverlo)</span></div>
-      <div id="e118-diagramma-ustioni" class="body-diagram-wrap"></div>
 
       <div class="section-title">Anamnesi, segni clinici, terapia</div>
       <div class="field"><label>Anamnesi, allergie e terapia in atto</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
@@ -4976,7 +4983,45 @@ const GCS_OCCHI_PED_118 = [['4','4 - Spontanea (il bambino apre gli occhi da sol
 const GCS_VERBALE_PED_118 = [['5','5 - Coerente, sorride, balbetta, versi appropriati per l\'età, riconosce il genitore'],['4','4 - Pianto irritabile ma consolabile'],['3','3 - Pianto inconsolabile, agitato o persistente al dolore'],['2','2 - Lamenti o suoni incomprensibili (grugniti) al dolore'],['1','1 - Nessuna risposta verbale']];
 const GCS_MOTORIA_PED_118 = [['6','6 - Movimenti spontanei normali e finalizzati'],['5','5 - Si ritrae al tatto o localizza il dolore'],['4','4 - Si ritrae ritirando l\'arto dallo stimolo doloroso'],['3','3 - Flessione anormale al dolore (decorticazione)'],['2','2 - Estensione anormale al dolore (decerebrazione)'],['1','1 - Nessuna risposta motoria']];
 const AVPU_118 = [['A','A — Alert (vigile)'],['V','V — Verbal (verbale)'],['P','P — Pain (dolore)'],['U','U — Unresponsive (senza risposta)']];
-const PUPILLE_VALUTAZIONE_118 = [['isocoria','Isocoria'],['miosi','Miosi'],['midriasi','Midriasi'],['anisocoria','Anisocoria']];
+const PUPILLE_VALUTAZIONE_118 = [
+  ['isocoria','Isocoria','Pupille uguali, ~2mm, fotoreattive'],
+  ['miosi','Miosi','Contrazione eccessiva (intossicazione da sostanze/farmaci)'],
+  ['midriasi','Midriasi','Dilatazione eccessiva (carenza di ossigeno, intossicazione da alcol o shock)'],
+  ['anisocoria','Anisocoria','Dimensioni diverse (danno cerebrale, TCE, ictus)']
+];
+function svgPupillaTipo(tipo){
+  const cfg = { isocoria:[5,5], miosi:[2.5,2.5], midriasi:[8,8], anisocoria:[3,8] };
+  const [rL,rR] = cfg[tipo] || [5,5];
+  return `<svg viewBox="0 0 80 40" width="64" height="32" style="display:block;margin:0 auto;">
+    <ellipse cx="20" cy="20" rx="18" ry="11" fill="#fff" stroke="#8a8f98" stroke-width="1.5"/>
+    <circle cx="20" cy="20" r="${rL}" fill="#1a1a2e"/>
+    <ellipse cx="60" cy="20" rx="18" ry="11" fill="#fff" stroke="#8a8f98" stroke-width="1.5"/>
+    <circle cx="60" cy="20" r="${rR}" fill="#1a1a2e"/>
+  </svg>`;
+}
+function buildPupilleViz(selected){
+  const container = document.getElementById('e118-pupille-viz');
+  if(!container) return;
+  document.getElementById('e118-pupilleValutazione').value = selected || '';
+  container.innerHTML = PUPILLE_VALUTAZIONE_118.map(([key,label,desc]) => `
+    <div class="pupille-opt ${selected===key?'selected':''}" data-key="${key}" onclick="selezionaPupilleValutazione118('${key}')">
+      <label class="pupille-opt-flag" onclick="event.stopPropagation();"><input type="checkbox" ${selected===key?'checked':''} onclick="event.preventDefault();selezionaPupilleValutazione118('${key}')"> <b>${escapeHtml(label)}</b></label>
+      ${svgPupillaTipo(key)}
+      <div class="pupille-opt-desc">${escapeHtml(desc)}</div>
+    </div>
+  `).join('');
+}
+function selezionaPupilleValutazione118(key){
+  const hidden = document.getElementById('e118-pupilleValutazione');
+  if(hidden.disabled) return;
+  const nuovo = hidden.value === key ? '' : key;
+  hidden.value = nuovo;
+  document.querySelectorAll('#e118-pupille-viz .pupille-opt').forEach(el=>{
+    const sel = el.dataset.key === nuovo;
+    el.classList.toggle('selected', sel);
+    el.querySelector('.pupille-opt-flag input').checked = sel;
+  });
+}
 
 function buildCheckboxGrid(containerId, list, selected){
   const container = document.getElementById(containerId);
@@ -5054,11 +5099,6 @@ function aggiornaScalaGCS118(){
   populateSimpleSelect('e118-gcsOcchi', ped ? GCS_OCCHI_PED_118 : GCS_OCCHI_118, curOcchi);
   populateSimpleSelect('e118-gcsVerbale', ped ? GCS_VERBALE_PED_118 : GCS_VERBALE_118, curVerbale);
   populateSimpleSelect('e118-gcsMotoria', ped ? GCS_MOTORIA_PED_118 : GCS_MOTORIA_118, curMotoria);
-  const pedField = document.getElementById('e118-gcsPediatrico');
-  if(pedField){
-    pedField.readOnly = ped;
-    if(!ped){ pedField.style.background=''; pedField.style.color=''; pedField.style.fontWeight=''; }
-  }
   calcolaGCS118();
 }
 function calcolaGCS118(){
@@ -5072,19 +5112,6 @@ function calcolaGCS118(){
   if(box){
     box.className = 'gcs-total-box' + (info.liv ? (' '+info.liv) : '');
     box.textContent = (tot === '') ? '—' : (tot + ' — ' + info.label);
-  }
-  if(etaPediatrica118()){
-    const pedField = document.getElementById('e118-gcsPediatrico');
-    if(pedField){
-      pedField.value = tot;
-      if(tot === ''){
-        pedField.style.background=''; pedField.style.color=''; pedField.style.fontWeight='';
-      } else {
-        const colori = { lieve:['#DCEBE1','#1E6B45'], moderata:['#FCEFC7','#8a6d1d'], severa:['#FBE1DC','#B23A24'] };
-        const cc = colori[info.liv] || ['',''];
-        pedField.style.background = cc[0]; pedField.style.color = cc[1]; pedField.style.fontWeight = '700';
-      }
-    }
   }
   calcolaRTS118();
 }
@@ -5230,7 +5257,7 @@ function calcolaEta118(){
   const val = document.getElementById('e118-natoIl').value;
   const etaEl = document.getElementById('e118-eta');
   if(!etaEl) return;
-  if(!val){ etaEl.value = ''; aggiornaScalaGCS118(); return; }
+  if(!val){ etaEl.value = ''; aggiornaScalaGCS118(); renderUstioniDiagram(); return; }
   const nascita = new Date(val);
   const oggi = new Date();
   let eta = oggi.getFullYear() - nascita.getFullYear();
@@ -5238,6 +5265,7 @@ function calcolaEta118(){
   if(diffMese < 0 || (diffMese === 0 && oggi.getDate() < nascita.getDate())) eta--;
   etaEl.value = eta >= 0 ? eta : '';
   aggiornaScalaGCS118();
+  renderUstioniDiagram();
 }
 function aggiornaAnteprimaNumeroScheda118(){
   const hint = document.getElementById('e118-numeroScheda-hint');
@@ -5306,10 +5334,18 @@ function renderCodiceScenaPrint(key){
 }
 
 /* --- Diagrammi corpo cliccabili --- */
+function corpoSilhouetteSvgInner(){
+  return `<ellipse cx="60" cy="24" rx="16" ry="18" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>
+    <rect x="35" y="47" width="50" height="68" rx="10" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>
+    <rect x="8" y="50" width="22" height="82" rx="10" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>
+    <rect x="90" y="50" width="22" height="82" rx="10" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>
+    <rect x="37" y="118" width="21" height="108" rx="10" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>
+    <rect x="62" y="118" width="21" height="108" rx="10" fill="#f2ede6" stroke="#8a8f98" stroke-width="1.2"/>`;
+}
 function svgBodyPairLabeled(){
-  const body = `<circle cx="35" cy="14" r="12" fill="none" stroke="#8a8f98" stroke-width="1.5"/><path d="M35 26 L35 85 M12 40 L35 55 L58 40 M35 85 L15 145 M35 85 L55 145" fill="none" stroke="#8a8f98" stroke-width="1.5" stroke-linecap="round"/>`;
-  return `<div style="text-align:center;"><svg class="body-svg" data-view="front" viewBox="0 0 70 150" width="90" height="190">${body}</svg><div class="map-hint">Fronte</div></div>
-  <div style="text-align:center;"><svg class="body-svg" data-view="back" viewBox="0 0 70 150" width="90" height="190">${body}</svg><div class="map-hint">Retro</div></div>`;
+  const body = corpoSilhouetteSvgInner();
+  return `<div style="text-align:center;"><svg class="body-svg" data-view="front" viewBox="0 0 120 236" width="62" height="122">${body}</svg><div class="map-hint">Fronte</div></div>
+  <div style="text-align:center;"><svg class="body-svg" data-view="back" viewBox="0 0 120 236" width="62" height="122">${body}</svg><div class="map-hint">Retro</div></div>`;
 }
 function renderBodyDiagram(containerId, dataArray){
   const container = document.getElementById(containerId);
@@ -5328,7 +5364,7 @@ function renderBodyDiagram(containerId, dataArray){
     const svg = container.querySelector(`svg.body-svg[data-view="${m.view}"]`);
     if(!svg) return;
     const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('cx', m.x); c.setAttribute('cy', m.y); c.setAttribute('r', 4);
+    c.setAttribute('cx', m.x); c.setAttribute('cy', m.y); c.setAttribute('r', 6);
     c.setAttribute('class','body-diagram-marker');
     c.addEventListener('click', function(ev){ ev.stopPropagation(); dataArray.splice(idx,1); renderBodyDiagram(containerId, dataArray); });
     svg.appendChild(c);
@@ -5337,10 +5373,102 @@ function renderBodyDiagram(containerId, dataArray){
 function renderBodyDiagramSvgStatic(points){
   const svgFor = (view) => {
     const pts = (points||[]).filter(p=>p.view===view);
-    const circles = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="#c0392b"/>`).join('');
-    return `<svg width="40" height="86" viewBox="0 0 70 150" style="display:inline-block;"><circle cx="35" cy="14" r="12" fill="none" stroke="#333"/><path d="M35 26 L35 85 M12 40 L35 55 L58 40 M35 85 L15 145 M35 85 L55 145" fill="none" stroke="#333"/>${circles}</svg>`;
+    const circles = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="#c0392b"/>`).join('');
+    return `<svg width="34" height="68" viewBox="0 0 120 236" style="display:inline-block;">${corpoSilhouetteSvgInner()}${circles}</svg>`;
   };
   return svgFor('front') + svgFor('back');
+}
+
+/* --- Sede ustioni: regioni a percentuale (regola del 9) --- */
+const USTIONI_REGIONI_118 = [
+  { id:'head-f', view:'front', tipo:'head', shape:{type:'ellipse',cx:60,cy:24,rx:16,ry:18} },
+  { id:'trunk-f', view:'front', tipo:'trunk', pctBase:18, shape:{type:'rect',x:35,y:47,w:50,h:68,rx:10} },
+  { id:'arm-r-f', view:'front', tipo:'arm', pctBase:4.5, shape:{type:'rect',x:8,y:50,w:22,h:82,rx:10} },
+  { id:'arm-l-f', view:'front', tipo:'arm', pctBase:4.5, shape:{type:'rect',x:90,y:50,w:22,h:82,rx:10} },
+  { id:'leg-r-f', view:'front', tipo:'leg', shape:{type:'rect',x:37,y:118,w:21,h:108,rx:10} },
+  { id:'leg-l-f', view:'front', tipo:'leg', shape:{type:'rect',x:62,y:118,w:21,h:108,rx:10} },
+  { id:'genitals-f', view:'front', tipo:'genitals', pctBase:1, shape:{type:'rect',x:53,y:112,w:14,h:10,rx:2} },
+  { id:'head-b', view:'back', tipo:'head', shape:{type:'ellipse',cx:60,cy:24,rx:16,ry:18} },
+  { id:'trunk-b', view:'back', tipo:'trunk', pctBase:18, shape:{type:'rect',x:35,y:47,w:50,h:68,rx:10} },
+  { id:'arm-r-b', view:'back', tipo:'arm', pctBase:4.5, shape:{type:'rect',x:8,y:50,w:22,h:82,rx:10} },
+  { id:'arm-l-b', view:'back', tipo:'arm', pctBase:4.5, shape:{type:'rect',x:90,y:50,w:22,h:82,rx:10} },
+  { id:'leg-r-b', view:'back', tipo:'leg', shape:{type:'rect',x:37,y:118,w:21,h:108,rx:10} },
+  { id:'leg-l-b', view:'back', tipo:'leg', shape:{type:'rect',x:62,y:118,w:21,h:108,rx:10} }
+];
+/* Adattamento pediatrico della regola del 9: la testa vale di più e le gambe
+   di meno più il paziente è piccolo, per poi convergere ai valori adulti
+   (9% testa, 18% per gamba) verso i 10 anni. Tronco e braccia restano invariati. */
+function calcolaPercentualiUstioniPerEta(eta){
+  if(eta === null || eta === undefined || isNaN(eta)) return { head: 9, leg: 18 };
+  if(eta <= 1) return { head: 18, leg: 14 };
+  if(eta >= 10) return { head: 9, leg: 18 };
+  let head = 18 - 1 * (eta - 1);
+  let leg = 14 + 0.5 * (eta - 1);
+  if(head < 9) head = 9;
+  if(leg > 18) leg = 18;
+  return { head, leg };
+}
+function etaCorrente118(){
+  const el = document.getElementById('e118-eta');
+  if(!el || el.value === '') return null;
+  const v = parseInt(el.value);
+  return isNaN(v) ? null : v;
+}
+function pctRegioneUstioni118(regione){
+  if(regione.tipo === 'head' || regione.tipo === 'leg'){
+    const { head, leg } = calcolaPercentualiUstioniPerEta(etaCorrente118());
+    return (regione.tipo === 'head' ? head : leg) / 2;
+  }
+  return regione.pctBase || 0;
+}
+function ustioneShapeToSvg(r, selezionate){
+  const sel = selezionate.includes(r.id);
+  const fill = sel ? '#D64545' : '#f2ede6';
+  const common = `data-rid="${r.id}" class="ustione-zona" fill="${fill}" stroke="#8a8f98" stroke-width="1.2"`;
+  return r.shape.type === 'ellipse'
+    ? `<ellipse cx="${r.shape.cx}" cy="${r.shape.cy}" rx="${r.shape.rx}" ry="${r.shape.ry}" ${common}/>`
+    : `<rect x="${r.shape.x}" y="${r.shape.y}" width="${r.shape.w}" height="${r.shape.h}" rx="${r.shape.rx}" ${common}/>`;
+}
+function svgUstioniPair(selezionate){
+  const front = USTIONI_REGIONI_118.filter(r=>r.view==='front').map(r=>ustioneShapeToSvg(r, selezionate)).join('');
+  const back = USTIONI_REGIONI_118.filter(r=>r.view==='back').map(r=>ustioneShapeToSvg(r, selezionate)).join('');
+  return `<div style="text-align:center;"><svg data-view="front" viewBox="0 0 120 236" width="62" height="122">${front}</svg><div class="map-hint">Fronte</div></div>
+  <div style="text-align:center;"><svg data-view="back" viewBox="0 0 120 236" width="62" height="122">${back}</svg><div class="map-hint">Retro</div></div>`;
+}
+function calcolaTotaleUstioni118(){
+  return scheda118SedeUstioni.reduce((sum,rid)=>{
+    const r = USTIONI_REGIONI_118.find(x=>x.id===rid);
+    return sum + (r ? pctRegioneUstioni118(r) : 0);
+  }, 0);
+}
+function renderUstioniDiagram(){
+  const container = document.getElementById('e118-diagramma-ustioni');
+  if(!container) return;
+  container.innerHTML = svgUstioniPair(scheda118SedeUstioni);
+  container.querySelectorAll('[data-rid]').forEach(el=>{
+    el.addEventListener('click', function(){ toggleUstioneRegione118(el.dataset.rid); });
+  });
+  const totEl = document.getElementById('e118-ustioni-totale');
+  if(totEl) totEl.textContent = (Math.round(calcolaTotaleUstioni118()*10)/10) + '%';
+}
+function toggleUstioneRegione118(rid){
+  const regione = USTIONI_REGIONI_118.find(r=>r.id===rid);
+  if(!regione) return;
+  const idx = scheda118SedeUstioni.indexOf(rid);
+  if(idx >= 0){
+    scheda118SedeUstioni.splice(idx, 1);
+  } else {
+    if(calcolaTotaleUstioni118() + pctRegioneUstioni118(regione) > 100){
+      alert('Il totale delle ustioni non può superare il 100%.');
+      return;
+    }
+    scheda118SedeUstioni.push(rid);
+  }
+  renderUstioniDiagram();
+}
+function cancellaUstioni118(){
+  scheda118SedeUstioni = [];
+  renderUstioniDiagram();
 }
 
 /* --- Firme touch --- */
@@ -5515,19 +5643,18 @@ function openScheda118Modal(id){
   F('e118-codiceRientro', sch?.codiceRientro);
   scheda118Valutazioni = (sch?.valutazioni && sch.valutazioni.length) ? JSON.parse(JSON.stringify(sch.valutazioni)) : [nuovaValutazione118('')];
   renderValutazioni118();
-  F('e118-gcsPediatrico', sch?.gcs?.pediatrico);
   calcolaGCS118();
   F('e118-capillare', sch?.capillare);
   const c = sch?.cincinnati || {};
   F('e118-cinMimica', c.mimica); F('e118-cinMotorio', c.motorio); F('e118-cinLinguaggio', c.linguaggio);
   const pd = sch?.pupille?.dx || {}, ps = sch?.pupille?.sx || {};
-  F('e118-pupilleValutazione', sch?.pupille?.valutazione);
-  F('e118-pupDxDiametro', pd.diametro); F('e118-pupDxFoto', pd.foto); F('e118-pupDxCilio', pd.cilio); F('e118-pupDxCong', pd.cong);
-  F('e118-pupSxDiametro', ps.diametro); F('e118-pupSxFoto', ps.foto); F('e118-pupSxCilio', ps.cilio); F('e118-pupSxCong', ps.cong);
+  buildPupilleViz(sch?.pupille?.valutazione);
+  F('e118-pupDxFoto', pd.foto); F('e118-pupDxCilio', pd.cilio); F('e118-pupDxCong', pd.cong);
+  F('e118-pupSxFoto', ps.foto); F('e118-pupSxCilio', ps.cilio); F('e118-pupSxCong', ps.cong);
   const def = sch?.defibrillazione || {};
   F('e118-defibOre', def.ore); F('e118-defibScariche', def.scariche); F('e118-defibJoule', def.joule);
   F('e118-arrestoCardiaco', sch?.arrestoCardiaco); F('e118-rcpMinuti', sch?.rcpMinuti);
-  F('e118-temperatura', sch?.temperatura); F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
+  F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
   F('e118-numeroPazienti', sch?.numeroPazienti); F('e118-riferito', sch?.riferito);
   F('e118-anamnesi', sch?.anamnesi); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
   F('e118-pzAffidatoA', sch?.pzAffidatoA); F('e118-diagnosi', sch?.diagnosi); F('e118-constatazioneDecessoOre', sch?.constatazioneDecessoOre);
@@ -5543,9 +5670,10 @@ function openScheda118Modal(id){
   const inpFoto = document.getElementById('e118-fotoDocumento-input'); if(inpFoto) inpFoto.value = '';
 
   scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
-  scheda118SedeUstioni = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
+  const ustioniSalvate = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
+  scheda118SedeUstioni = ustioniSalvate.filter(v => typeof v === 'string' && USTIONI_REGIONI_118.some(r=>r.id===v));
   renderBodyDiagram('e118-diagramma-trauma', scheda118SedeTrauma);
-  renderBodyDiagram('e118-diagramma-ustioni', scheda118SedeUstioni);
+  renderUstioniDiagram();
 
   const isChiuso = !!sch?.chiuso;
   const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
@@ -5560,6 +5688,10 @@ function openScheda118Modal(id){
   document.getElementById('e118-codiceScena-buttons').style.opacity = readOnly ? '0.6' : '1';
   document.getElementById('e118-avpu-buttons').style.pointerEvents = readOnly ? 'none' : 'auto';
   document.getElementById('e118-avpu-buttons').style.opacity = readOnly ? '0.6' : '1';
+  document.getElementById('e118-pupille-viz').style.pointerEvents = readOnly ? 'none' : 'auto';
+  document.getElementById('e118-pupille-viz').style.opacity = readOnly ? '0.6' : '1';
+  document.getElementById('e118-diagramma-ustioni').style.pointerEvents = readOnly ? 'none' : 'auto';
+  document.getElementById('e118-diagramma-ustioni').style.opacity = readOnly ? '0.6' : '1';
 
   document.getElementById('scheda118-modal-backdrop').classList.add('active');
   setTimeout(()=>{
@@ -5600,25 +5732,25 @@ function collectScheda118FormData(id){
     luogoIntervento: G('e118-luogoIntervento'),
     patologiaComunicata: G('e118-patologiaComunicata'),
     valutazioni: (raccogliValutazioniDalDOM(), JSON.parse(JSON.stringify(scheda118Valutazioni))),
-    gcs: { occhi: G('e118-gcsOcchi'), verbale: G('e118-gcsVerbale'), motoria: G('e118-gcsMotoria'), punteggio: G('e118-gcsPunteggio'), pediatrico: G('e118-gcsPediatrico'), pediatrica: etaPediatrica118() },
+    gcs: { occhi: G('e118-gcsOcchi'), verbale: G('e118-gcsVerbale'), motoria: G('e118-gcsMotoria'), punteggio: G('e118-gcsPunteggio'), pediatrica: etaPediatrica118() },
     avpu: G('e118-avpu'),
     capillare: G('e118-capillare'),
     cincinnati: { mimica: G('e118-cinMimica'), motorio: G('e118-cinMotorio'), linguaggio: G('e118-cinLinguaggio') },
     rts: { gcs: G('e118-rtsGcs'), fr: G('e118-rtsFr'), pas: G('e118-rtsPas'), totale: G('e118-rtsTotale') },
     pupille: {
       valutazione: G('e118-pupilleValutazione'),
-      dx: { diametro: G('e118-pupDxDiametro'), foto: G('e118-pupDxFoto'), cilio: G('e118-pupDxCilio'), cong: G('e118-pupDxCong') },
-      sx: { diametro: G('e118-pupSxDiametro'), foto: G('e118-pupSxFoto'), cilio: G('e118-pupSxCilio'), cong: G('e118-pupSxCong') }
+      dx: { foto: G('e118-pupDxFoto'), cilio: G('e118-pupDxCilio'), cong: G('e118-pupDxCong') },
+      sx: { foto: G('e118-pupSxFoto'), cilio: G('e118-pupSxCilio'), cong: G('e118-pupSxCong') }
     },
     defibrillazione: { ore: G('e118-defibOre'), scariche: G('e118-defibScariche'), joule: G('e118-defibJoule') },
     arrestoCardiaco: G('e118-arrestoCardiaco'), rcpMinuti: G('e118-rcpMinuti'),
     egc: getCheckboxGridValues('e118-egc'),
-    temperatura: G('e118-temperatura'), murmureDx: G('e118-murmureDx'), murmureSx: G('e118-murmureSx'), dispnea: G('e118-dispnea'),
+    murmureDx: G('e118-murmureDx'), murmureSx: G('e118-murmureSx'), dispnea: G('e118-dispnea'),
     espansioneToracica: getCheckboxGridValues('e118-espansioneToracica'),
     interventiPaziente: getCheckboxGridValues('e118-interventiPaziente'),
     numeroPazienti: G('e118-numeroPazienti'), mezzoCoinvolto: G('e118-mezzoCoinvolto'), riferito: G('e118-riferito'),
     dinamicaTrauma: getCheckboxGridValues('e118-dinamicaTrauma'),
-    sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni,
+    sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
     anamnesi: G('e118-anamnesi'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
     rifiuta: document.getElementById('e118-rifiuta').checked,
     pzImpossibilitatoFirmare: document.getElementById('e118-pzImpossibilitato').checked,
@@ -5776,7 +5908,6 @@ function costruisciStampaScheda118(s){
     <td>Punteggio GCS totale<br><b>${escapeHtml(g.punteggio||'—')}</b>${g.punteggio ? (' ('+infoColoreGCS118(g.punteggio).label+')') : ''}</td>
   </tr><tr>
     <td>AVPU<br><b>${escapeHtml(s.avpu||'—')}</b></td>
-    <td>Pediatric GCS<br><b>${escapeHtml(g.pediatrico||'—')}</b></td>
     <td>Riempimento capillare (CRT)<br><b>${s.capillare==='lt2'?'< 2 sec.':(s.capillare==='gt2'?'> 2 sec.':'—')}</b></td>
     <td></td>
   </tr><tr>
@@ -5784,10 +5915,10 @@ function costruisciStampaScheda118(s){
     <td>RTS totale (rif. Val. 1)<br><b>${escapeHtml(rts.totale||'—')}</b> (GCS ${escapeHtml(rts.gcs||'—')} / FR ${escapeHtml(rts.fr||'—')} / PA ${escapeHtml(rts.pas||'—')})</td>
   </tr></table>
   <table class="print-118-table"><tr>
-    <td colspan="2">Valutazione pupille: <b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
+    <td colspan="2">Valutazione pupille: ${svgPupillaTipo(s.pupille?.valutazione||'isocoria')} <b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
   </tr><tr>
-    <td>Pupilla dx: diam. <b>${escapeHtml(pd.diametro||'—')}</b> — fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
-    <td>Pupilla sx: diam. <b>${escapeHtml(ps.diametro||'—')}</b> — fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
+    <td>Pupilla dx: fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
+    <td>Pupilla sx: fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">DEFIBRILLAZIONE / ARRESTO CARDIACO</div>
@@ -5799,10 +5930,10 @@ function costruisciStampaScheda118(s){
 
   html += `<div class="print-118-section-title">TORACE E RESPIRO</div>
   <table class="print-118-table"><tr>
-    <td>Temperatura<br><b>${escapeHtml(s.temperatura||'—')}</b></td>
     <td>Murmure dx<br><b>${s.murmureDx==='si'?'Presente':(s.murmureDx==='no'?'Assente':'—')}</b></td>
     <td>Murmure sx<br><b>${s.murmureSx==='si'?'Presente':(s.murmureSx==='no'?'Assente':'—')}</b></td>
     <td>Dispnea<br>${yn118(s.dispnea)}</td>
+    <td></td>
   </tr><tr><td colspan="4">${ESPANSIONE_TORACICA_118.map(([k,l])=>`${ck118(s.espansioneToracica,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
   html += `<div class="print-118-section-title">INTERVENTI SUL PAZIENTE</div>
@@ -5818,7 +5949,7 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">SEDE DEL TRAUMA / USTIONI</div>
   <table class="print-118-table"><tr>
     <td style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma)}<div>Trauma</div></td>
-    <td style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeUstioni)}<div>Ustioni</div></td>
+    <td style="text-align:center;">${svgUstioniPair(s.sedeUstioni||[])}<div>Ustioni — totale: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
