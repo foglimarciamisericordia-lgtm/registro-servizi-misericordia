@@ -677,9 +677,11 @@
             <div class="field"><label>Stato</label>
               <select id="pg-stato">
                 <option value="disponibile">Disponibile</option>
+                <option value="in_prestito">In prestito</option>
                 <option value="manutenzione">In manutenzione</option>
                 <option value="fuori_uso">Fuori uso</option>
               </select>
+              <p class="map-hint">Se un prestito è stato segnato per errore come "rientrato", puoi correggerlo qui riportando il presidio su "In prestito".</p>
             </div>
             <div class="field"><label>Note</label><textarea id="pg-note" rows="2"></textarea></div>
             <div class="modal-actions">
@@ -1711,8 +1713,8 @@ function switchView(v){
   if(v === 'mezzi') renderMezzi();
   if(v === 'rimborsi') renderRimborsi();
   if(v === 'fogli') renderFogliMarcia();
-  if(v === 'presidi') renderPrestiti();
-  if(v === 'gestionepresidi') renderGestionePresidi();
+  if(v === 'presidi') aggiornaEDisegnaPrestiti();
+  if(v === 'gestionepresidi') aggiornaEDisegnaGestionePresidi();
   if(v === 'statistiche') renderStatistiche();
   if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
@@ -3389,6 +3391,24 @@ function renderPrestiti(){
   container.innerHTML = html;
 }
 
+// Prestiti e presidi non sono partizionati per anno come servizi/fogli, quindi
+// basta ricaricarli da zero ad ogni apertura della sezione: così, se un altro
+// utente collegato da un altro computer ha salvato una modifica nel frattempo,
+// la si vede subito, senza dover ricaricare l'intera pagina.
+async function ricaricaPresidiFreschi(){
+  presidi = (await kvGet('presidi-magazzino')) || [];
+}
+async function ricaricaPrestitiFreschi(){
+  prestiti = (await kvGet('prestiti-presidi')) || [];
+}
+async function aggiornaEDisegnaPrestiti(){
+  await Promise.all([ricaricaPresidiFreschi(), ricaricaPrestitiFreschi()]);
+  renderPrestiti();
+}
+async function aggiornaEDisegnaGestionePresidi(){
+  await ricaricaPresidiFreschi();
+  renderGestionePresidi();
+}
 function presidiOrdinati(lista){
   return [...lista].sort((a,b)=> (a.ordine??0) - (b.ordine??0));
 }
@@ -3496,7 +3516,8 @@ async function eliminaTipoPresidio(tipo){
   renderTipiPresidio();
 }
 
-function openPrestitoModal(id){
+async function openPrestitoModal(id){
+  await Promise.all([ricaricaPresidiFreschi(), ricaricaPrestitiFreschi()]);
   editingPrestitoId = id || null;
   const p = id ? prestiti.find(x=>x.id===id) : null;
   document.getElementById('prestito-modal-title').textContent = p ? 'Modifica prestito' : 'Nuovo prestito';
@@ -3534,6 +3555,7 @@ async function savePrestito(ev){
   ev.preventDefault();
   const presidioId = document.getElementById('pr-presidioId').value;
   if(!presidioId){ alert('Seleziona un presidio disponibile.'); return false; }
+  await Promise.all([ricaricaPresidiFreschi(), ricaricaPrestitiFreschi()]); // dati aggiornati, non quelli in memoria da quando è stata aperta la scheda
   const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
   const adesso = new Date().toISOString();
   const g = id => document.getElementById(id).value.trim();
@@ -3585,6 +3607,7 @@ async function savePrestito(ev){
 }
 async function deletePrestito(id){
   if(!confirm('Eliminare definitivamente questo prestito? Questa azione non è reversibile.')) return;
+  await Promise.all([ricaricaPresidiFreschi(), ricaricaPrestitiFreschi()]);
   const p = prestiti.find(x=>x.id===id);
   prestiti = prestiti.filter(x=>x.id!==id);
   await savePrestitiData();
@@ -3596,7 +3619,8 @@ async function deletePrestito(id){
   renderPrestiti();
 }
 
-function openRientroModal(id){
+async function openRientroModal(id){
+  await ricaricaPrestitiFreschi();
   rientroPrestitoId = id;
   const p = prestiti.find(x=>x.id===id);
   if(!p) return;
@@ -3612,6 +3636,7 @@ function closeRientroModal(){
 }
 async function confermaRientro(ev){
   ev.preventDefault();
+  await Promise.all([ricaricaPresidiFreschi(), ricaricaPrestitiFreschi()]);
   const p = prestiti.find(x=>x.id===rientroPrestitoId);
   if(!p) return false;
   const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
@@ -3668,8 +3693,12 @@ function viewPrestitoModal(id){
       </div>
       <div style="text-align:center;">
         <div style="border-top:1px solid var(--ink);margin-top:34px;padding-top:6px;font-size:12.5px;">Firma volontario riconsegna</div>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px;">${(() => { const ev = (p.cronologia||[]).slice().reverse().find(c=>c.tipo==='Rientro registrato'); return ev ? formatDateTime(ev.quando) : '____________________'; })()}</div>
       </div>
+    </div>
+    <div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+      <div></div>
+      <div></div>
+      <div style="text-align:center;font-size:12.5px;">Data e ora riconsegna: __________________</div>
     </div>
   `;
   document.getElementById('view-prestito-modal-backdrop').classList.add('active');
@@ -3678,15 +3707,15 @@ function closeViewPrestitoModal(){
   document.getElementById('view-prestito-modal-backdrop').classList.remove('active');
 }
 
-function openPresidioModal(id){
+async function openPresidioModal(id){
+  await ricaricaPresidiFreschi();
   editingPresidioId = id || null;
   const p = id ? presidi.find(x=>x.id===id) : null;
   document.getElementById('presidio-modal-title').textContent = p ? 'Modifica presidio' : 'Nuovo presidio';
   const selTipo = document.getElementById('pg-tipo');
   selTipo.innerHTML = tipiPresidio.map(t=>`<option value="${escapeHtml(t)}" ${t===p?.tipo?'selected':''}>${escapeHtml(t)}</option>`).join('');
   document.getElementById('pg-codice').value = p?.codice || '';
-  document.getElementById('pg-stato').value = (p && p.stato !== 'in_prestito') ? p.stato : 'disponibile';
-  document.getElementById('pg-stato').disabled = p?.stato === 'in_prestito';
+  document.getElementById('pg-stato').value = p?.stato || 'disponibile';
   document.getElementById('pg-note').value = p?.note || '';
   document.getElementById('presidio-delete-slot').innerHTML = p ? `<button type="button" class="action-btn danger" onclick="deletePresidio('${p.id}')">🗑 Elimina</button>` : '';
   document.getElementById('presidio-modal-backdrop').classList.add('active');
@@ -3697,6 +3726,7 @@ function closePresidioModal(){
 }
 async function savePresidio(ev){
   ev.preventDefault();
+  await ricaricaPresidiFreschi();
   const codice = document.getElementById('pg-codice').value.trim();
   const tipo = document.getElementById('pg-tipo').value;
   if(presidi.some(x => !x.cestinato && x.codice.toLowerCase()===codice.toLowerCase() && x.id !== editingPresidioId)){
@@ -3708,7 +3738,7 @@ async function savePresidio(ev){
   const data = {
     id: editingPresidioId || ('pg-' + Date.now()),
     tipo, codice,
-    stato: (esistente && esistente.stato === 'in_prestito') ? 'in_prestito' : document.getElementById('pg-stato').value,
+    stato: document.getElementById('pg-stato').value, // l'amministratore controlla liberamente lo stato, incluso "in_prestito" per correggere un rientro segnato per errore
     note: document.getElementById('pg-note').value.trim(),
     ordine: esistente ? (esistente.ordine ?? ordineMax + 1) : ordineMax + 1,
     cestinato: false
@@ -3725,6 +3755,7 @@ async function savePresidio(ev){
   return false;
 }
 async function deletePresidio(id){
+  await ricaricaPresidiFreschi();
   const p = presidi.find(x=>x.id===id);
   if(p && p.stato === 'in_prestito'){ alert('Questo presidio è attualmente in prestito: non può essere eliminato finché non rientra.'); return; }
   if(!confirm('Eliminare definitivamente questo presidio dal magazzino?')) return;
