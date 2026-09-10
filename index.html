@@ -185,6 +185,15 @@
   .print-118-table td{border:1px solid #999;padding:3px 6px;vertical-align:top;}
   .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:4px 0;font-size:12px;}
   @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} }
+  .e118-tabs{display:flex;gap:6px;margin:14px 0 18px;border-bottom:1.5px solid var(--border);flex-wrap:wrap;}
+  .e118-tab-btn{padding:9px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1.5px;}
+  .e118-tab-btn.active{color:var(--navy);border-bottom-color:var(--navy);}
+  .e118-tab-pane{display:none;}
+  .e118-tab-pane.active{display:block;}
+  .codice-invio-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+  .codice-invio-btn{position:relative;width:56px;height:56px;border-radius:10px;border:2px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;user-select:none;}
+  .codice-invio-btn.selected{border-color:#000;box-shadow:0 0 0 2px #000;}
+  .codice-invio-btn.selected::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;}
 
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
@@ -1238,16 +1247,36 @@
   <div class="modal" style="max-width:920px;">
     <button class="close-x" onclick="closeScheda118Modal()">✕</button>
     <h3 id="scheda118-modal-title">Scheda Eccedenza 118</h3>
+    <div class="e118-tabs">
+      <button type="button" class="e118-tab-btn active" data-tab="dati-intervento" onclick="switchTab118('dati-intervento')">Dati Intervento</button>
+      <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Provvisoria</button>
+    </div>
     <form onsubmit="return saveScheda118(event)">
       <input type="hidden" id="e118-id">
 
+      <div class="e118-tab-pane active" data-tabpane="dati-intervento">
+        <div class="grid2">
+          <div class="field"><label>Via e n.</label><input type="text" id="e118-via"></div>
+          <div class="field"><label>Città di intervento</label><input type="text" id="e118-comuneIntervento"></div>
+          <div class="field"><label>Luogo intervento</label><select id="e118-luogoIntervento"><option value="">—</option></select></div>
+          <div class="field"><label>Patologia comunicata</label><select id="e118-patologiaComunicata"><option value="">—</option></select></div>
+          <div class="field"><label>Operatore di centrale n.</label><input type="text" id="e118-operatoreCentrale"></div>
+          <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale"></div>
+        </div>
+        <div class="field">
+          <label>Codice invio</label>
+          <div class="codice-invio-buttons" id="e118-codiceInvio-buttons"></div>
+          <input type="hidden" id="e118-codiceInvio">
+        </div>
+      </div>
+
+      <div class="e118-tab-pane" data-tabpane="provvisoria">
+
       <div class="section-title">Dati generali</div>
       <div class="grid2">
-        <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale"></div>
         <div class="field"><label>Data</label><input type="date" id="e118-data" required></div>
         <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
         <div class="field"><label>Targa ambulanza</label><input type="text" id="e118-targaAmbulanza" style="text-transform:uppercase;"></div>
-        <div class="field"><label>Operatore di centrale n.</label><input type="text" id="e118-operatoreCentrale"></div>
         <div class="field"><label>Allertamento → P.S.</label>
           <select id="e118-allertamentoPS"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
         </div>
@@ -1259,8 +1288,6 @@
         <div class="field"><label>Sesso</label>
           <select id="e118-sesso"><option value="">—</option><option value="M">Maschio</option><option value="F">Femmina</option></select>
         </div>
-        <div class="field"><label>Comune di intervento</label><input type="text" id="e118-comuneIntervento"></div>
-        <div class="field"><label>Via</label><input type="text" id="e118-via"></div>
         <div class="field"><label>Comune di nascita</label><input type="text" id="e118-comuneNascita"></div>
         <div class="field"><label>Comune di residenza</label><input type="text" id="e118-comuneResidenza"></div>
         <div class="field"><label>Rianimatore</label>
@@ -1291,21 +1318,12 @@
       </div>
 
       <div class="section-title">Codici</div>
-      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-        <div class="field"><label>Codice invio</label><input type="text" id="e118-codiceInvio" placeholder="es. Rosso, Giallo..."></div>
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
         <div class="field"><label>Codice scena</label><input type="text" id="e118-codiceScena"></div>
         <div class="field"><label>Codice rientro</label><input type="text" id="e118-codiceRientro"></div>
       </div>
       <div class="field"><label>Forze dell'ordine intervenute</label>
         <div class="checkbox-grid" id="e118-forzeOrdine"></div>
-      </div>
-
-      <div class="section-title">Luogo di intervento e patologia riscontrata</div>
-      <div class="grid2">
-        <div class="field"><label>Luogo di intervento</label><select id="e118-luogoIntervento"><option value="">—</option></select></div>
-      </div>
-      <div class="field"><label>Patologia riscontrata</label>
-        <div class="checkbox-grid cols3" id="e118-patologia"></div>
       </div>
 
       <div class="section-title">Parametri vitali</div>
@@ -1455,6 +1473,8 @@
         </div>
       </div>
 
+      </div>
+
       <div class="modal-actions">
         <div id="e118-stato-label" class="map-hint"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1469,6 +1489,7 @@
 </div>
 
 <!-- MODAL VISUALIZZA/STAMPA SCHEDA 118 -->
+
 <div class="modal-backdrop" id="view-modal-118-backdrop">
   <div class="modal" style="max-width:820px;">
     <button class="close-x" onclick="closeView118Modal()">✕</button>
@@ -4865,8 +4886,9 @@ abilitaEvidenziazioneObbligatori('foglio-form');
 /* ============ ECCEDENZA 118 ============ */
 async function saveInterventi118(){ await kvSet('interventi118', interventi118); }
 
-const LUOGO_118 = [['strada','Strada'],['casa','Casa'],['esercizi','Esercizi pubblici'],['sportivi','Impianti sportivi'],['scuole','Scuole'],['lavorativi','Impianti lavorativi'],['altro','Altro']];
-const PATOLOGIA_118 = [['trauma','Traumatologica'],['cardiocircolatoria','Cardiocircolatoria'],['respiratoria','Respiratoria'],['neurologica','Neurologica'],['metabolica','Metabolica'],['psichiatrica','Psichiatrica'],['neoplastica','Neoplastica'],['intossicazione','Intossicazione'],['infettiva','Infettiva'],['gastroenterologica','Gastroenterologica'],['urologica','Urologica'],['oculistica','Oculistica'],['otorino','Otorinolaringoiatrica'],['dermatologica','Dermatologica'],['ostetrico','Ostetrico-ginecologica'],['altra','Altra patologia'],['non_identificata','Patologia non identificata']];
+const LUOGO_118 = [['S','Strada (S)'],['K','Casa (K)'],['P','Esercizi pubblici (P)'],['Y','Impianti sportivi (Y)'],['Q','Scuole (Q)'],['L','Impianti lavorativi (L)'],['Z','Altro (Z)']];
+const PATOLOGIA_118 = [['C1','Trauma (C1)'],['C2','Cardiocircolatoria (C2)'],['C3','Respiratoria (C3)'],['C4','Neurologica (C4)'],['C5','Psichiatrica (C5)'],['C6','Neoplastica (C6)'],['C7','Intossicazione (C7)'],['C8','Metabolica (C8)'],['C9','Gastroenterologica (C9)'],['C10','Urologica (C10)'],['C11','Oculistica (C11)'],['C12','Otorinolaringoiatrica (C12)'],['C13','Dermatologica (C13)'],['C14','Ostetrico-Ginecologica (C14)'],['C15','Infettiva (C15)'],['C19','Altro (C19)'],['C20','Patologia non identificata (C20)']];
+const CODICE_INVIO_118 = [['rosso','R','#D64545','#fff'],['giallo','G','#F2C744','#000'],['verde','V','#3FA34D','#fff'],['bianco','B','#FFFFFF','#000']];
 const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
 const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
 const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
@@ -4904,6 +4926,36 @@ function calcolaGCS118(){
   const v = parseInt(document.getElementById('e118-gcsVerbale').value) || 0;
   const m = parseInt(document.getElementById('e118-gcsMotoria').value) || 0;
   document.getElementById('e118-gcsPunteggio').value = (o && v && m) ? (o+v+m) : '';
+}
+
+/* --- Linguette --- */
+function switchTab118(name){
+  document.querySelectorAll('#scheda118-modal-backdrop .e118-tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('#scheda118-modal-backdrop .e118-tab-pane').forEach(p=>p.classList.toggle('active', p.dataset.tabpane===name));
+}
+
+/* --- Codice invio (pulsanti colorati) --- */
+function buildCodiceInvioButtons(selected){
+  const container = document.getElementById('e118-codiceInvio-buttons');
+  document.getElementById('e118-codiceInvio').value = selected || '';
+  container.innerHTML = CODICE_INVIO_118.map(([key,label,bg,fg]) =>
+    `<div class="codice-invio-btn ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceInvio118('${key}')">${label}</div>`
+  ).join('');
+}
+function selezionaCodiceInvio118(key){
+  const hidden = document.getElementById('e118-codiceInvio');
+  if(hidden.disabled) return;
+  const nuovo = hidden.value === key ? '' : key;
+  hidden.value = nuovo;
+  document.querySelectorAll('#e118-codiceInvio-buttons .codice-invio-btn').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.key === nuovo);
+  });
+}
+function renderCodiceInvioPrint(key){
+  const found = CODICE_INVIO_118.find(([k])=>k===key);
+  if(!found) return '—';
+  const [,label,bg,fg] = found;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;position:relative;">${label}<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#000;">✕</span></span>`;
 }
 
 /* --- Diagrammi corpo cliccabili --- */
@@ -5058,7 +5110,6 @@ function openScheda118Modal(id){
   document.getElementById('e118-id').value = id || '';
 
   buildCheckboxGrid('e118-forzeOrdine', FORZE_ORDINE_118, sch?.forzeOrdine);
-  buildCheckboxGrid('e118-patologia', PATOLOGIA_118, sch?.patologia);
   buildCheckboxGrid('e118-cute', CUTE_118, sch?.cute);
   buildCheckboxGrid('e118-egc', EGC_118, sch?.egc);
   buildCheckboxGrid('e118-espansioneToracica', ESPANSIONE_TORACICA_118, sch?.espansioneToracica);
@@ -5066,7 +5117,10 @@ function openScheda118Modal(id){
   buildCheckboxGrid('e118-dinamicaTrauma', DINAMICA_TRAUMA_118, sch?.dinamicaTrauma);
   buildCheckboxGrid('e118-esito', ESITO_118, sch?.esito);
   populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
+  populateSimpleSelect('e118-patologiaComunicata', PATOLOGIA_118, sch?.patologiaComunicata);
   populateSimpleSelect('e118-mezzoCoinvolto', MEZZO_COINVOLTO_118, sch?.mezzoCoinvolto);
+  buildCodiceInvioButtons(sch?.codiceInvio);
+  switchTab118('dati-intervento');
   fillPersonSelects118();
   document.getElementById('e118-autista').value = sch?.autista || '';
   document.getElementById('e118-soccorritore1').value = sch?.soccorritore1 || '';
@@ -5094,7 +5148,7 @@ function openScheda118Modal(id){
   F('e118-oPartenzaPosto', o.partenzaPosto); F('e118-oArrivoPS', o.arrivoPS); F('e118-oLiberi', o.liberi);
   F('e118-oInPostazione', o.inPostazione); F('e118-oDisponibili', o.disponibili);
   F('e118-kmIniziali', sch?.kmIniziali); F('e118-kmFinali', sch?.kmFinali);
-  F('e118-codiceInvio', sch?.codiceInvio); F('e118-codiceScena', sch?.codiceScena); F('e118-codiceRientro', sch?.codiceRientro);
+  F('e118-codiceScena', sch?.codiceScena); F('e118-codiceRientro', sch?.codiceRientro);
   const pv = sch?.parametriVitali || {};
   F('e118-pa', pv.pa); F('e118-fc', pv.fc); F('e118-fr', pv.fr); F('e118-spo2', pv.spo2); F('e118-etco2', pv.etco2); F('e118-glicemia', pv.glicemia);
   F('e118-polsoCentrale', pv.polsoCentrale); F('e118-polsoPeriferico', pv.polsoPeriferico);
@@ -5138,6 +5192,8 @@ function openScheda118Modal(id){
   document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
   document.getElementById('e118-stato-label').textContent = isChiuso ? ('Scheda chiusa' + (readOnly ? ' — sola lettura' : '')) : 'Scheda aperta';
   document.querySelectorAll('#scheda118-modal-backdrop input, #scheda118-modal-backdrop select, #scheda118-modal-backdrop textarea').forEach(el=>{ el.disabled = !!readOnly; });
+  document.getElementById('e118-codiceInvio-buttons').style.pointerEvents = readOnly ? 'none' : 'auto';
+  document.getElementById('e118-codiceInvio-buttons').style.opacity = readOnly ? '0.6' : '1';
 
   document.getElementById('scheda118-modal-backdrop').classList.add('active');
   setTimeout(()=>{
@@ -5175,7 +5231,7 @@ function collectScheda118FormData(id){
     codiceInvio: G('e118-codiceInvio'), codiceScena: G('e118-codiceScena'), codiceRientro: G('e118-codiceRientro'),
     forzeOrdine: getCheckboxGridValues('e118-forzeOrdine'),
     luogoIntervento: G('e118-luogoIntervento'),
-    patologia: getCheckboxGridValues('e118-patologia'),
+    patologiaComunicata: G('e118-patologiaComunicata'),
     parametriVitali: {
       pa: G('e118-pa'), fc: G('e118-fc'), fr: G('e118-fr'), spo2: G('e118-spo2'), etco2: G('e118-etco2'), glicemia: G('e118-glicemia'),
       polsoCentrale: G('e118-polsoCentrale'), polsoPeriferico: G('e118-polsoPeriferico')
@@ -5313,9 +5369,19 @@ function costruisciStampaScheda118(s){
     <td>SOCCORRITORE 2<br><b>${escapeHtml(s.soccorritore2||'—')}</b></td>
   </tr></table>`;
 
-  html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA RISCONTRATA</div>
-  <table class="print-118-table"><tr><td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join('<br>')}</td>
-  <td>${PATOLOGIA_118.map(([k,l])=>`${ck118(s.patologia,k)} ${l}`).join('<br>')}</td></tr></table>`;
+  html += `<table class="print-118-table"><tr>
+    <td>OPERATORE DI CENTRALE N.<br><b>${escapeHtml(s.operatoreCentrale||'—')}</b></td>
+    <td>CODICE INVIO<br>${renderCodiceInvioPrint(s.codiceInvio)}</td>
+    <td>CODICE SCENA<br><b>${escapeHtml(s.codiceScena||'—')}</b></td>
+    <td>CODICE RIENTRO<br><b>${escapeHtml(s.codiceRientro||'—')}</b></td>
+    <td>FORZE DELL'ORDINE<br>${FORZE_ORDINE_118.map(([k,l])=>`${ck118(s.forzeOrdine,k)} ${l}`).join(' ')}</td>
+  </tr></table>`;
+
+  html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA COMUNICATA</div>
+  <table class="print-118-table"><tr>
+  <td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join('<br>')}</td>
+  <td>Patologia comunicata: <b>${(PATOLOGIA_118.find(([k])=>k===s.patologiaComunicata)||[null,'—'])[1]}</b></td>
+  </tr></table>`;
 
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>
   <table class="print-118-table"><tr>
