@@ -1184,7 +1184,7 @@
         <p class="map-hint" id="uf-password-hint">L'utente dovrà cambiarla al primo accesso.</p>
       </div>
       <div class="field"><label>Ruolo</label>
-        <select id="uf-ruolo">
+        <select id="uf-ruolo" onchange="onUfRuoloChange()">
           <option value="operatore">Operatore</option>
           <option value="eccedenza">Eccedenza</option>
           <option value="responsabile">Responsabile</option>
@@ -1192,6 +1192,12 @@
           <option value="amministratore">Amministratore</option>
         </select>
         <p class="map-hint">Eccedenza: come Operatore, più gestione della scheda Eccedenza 118 (non visibile all'Operatore base). Responsabile 118: come Responsabile, più gestione della scheda Eccedenza 118 (non visibile al Responsabile base).</p>
+      </div>
+      <div class="field" id="uf-firma118-wrap" style="display:none;">
+        <label>Firma per la scheda Eccedenza 118</label>
+        <p class="map-hint">Verrà proposta in automatico quando questo utente è selezionato come autista o soccorritore nella firma di una scheda 118 (resta comunque modificabile al momento della firma).</p>
+        <div class="signature-pad-wrap"><canvas id="uf-firma118-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('uf-firma118-canvas')">Cancella firma</button>
       </div>
       <div class="modal-actions">
         <div></div>
@@ -2502,7 +2508,16 @@ function openUserModal(id){
   document.getElementById('uf-password-label').textContent = u ? 'Nuova password' : 'Password provvisoria';
   document.getElementById('uf-password-hint').textContent = u ? 'Lascia vuoto per non cambiarla. Se la imposti, l\'utente dovrà cambiarla al prossimo accesso.' : 'L\'utente dovrà cambiarla al primo accesso.';
   document.getElementById('uf-ruolo').value = u ? u.ruolo : 'operatore';
+  onUfRuoloChange();
   document.getElementById('user-modal-backdrop').classList.add('active');
+  setTimeout(()=>{
+    initSignaturePad('uf-firma118-canvas');
+    if(u?.firma118) drawFirmaFromDataUrl('uf-firma118-canvas', u.firma118);
+  }, 60);
+}
+function onUfRuoloChange(){
+  const ruolo = document.getElementById('uf-ruolo').value;
+  document.getElementById('uf-firma118-wrap').style.display = (ruolo === 'eccedenza' || ruolo === 'responsabile118') ? 'block' : 'none';
 }
 function closeUserModal(){ document.getElementById('user-modal-backdrop').classList.remove('active'); editingUserId = null; }
 async function saveUser(ev){
@@ -2518,18 +2533,23 @@ async function saveUser(ev){
     u.cognome = document.getElementById('uf-cognome').value.trim();
     u.username = username;
     if(u.ruolo !== 'amministratore') u.ruolo = document.getElementById('uf-ruolo').value;
+    if(u.ruolo === 'eccedenza' || u.ruolo === 'responsabile118'){
+      u.firma118 = getFirmaDataUrl118('uf-firma118-canvas');
+    }
     if(nuovaPassword){
       u.passwordHash = await sha256Hex(nuovaPassword);
       delete u.password;
       u.mustChangePassword = true;
     }
   } else {
+    const nuovoRuolo = document.getElementById('uf-ruolo').value;
     utenti.push({
       id: 'u-' + Date.now(),
       nome: document.getElementById('uf-nome').value.trim(),
       cognome: document.getElementById('uf-cognome').value.trim(),
       username, passwordHash: await sha256Hex(nuovaPassword || 'cambiami123'),
-      ruolo: document.getElementById('uf-ruolo').value,
+      ruolo: nuovoRuolo,
+      firma118: (nuovoRuolo === 'eccedenza' || nuovoRuolo === 'responsabile118') ? getFirmaDataUrl118('uf-firma118-canvas') : null,
       mustChangePassword: true
     });
   }
@@ -5791,6 +5811,11 @@ function openScheda118Modal(id){
     if(sch?.firmaRifiuto) drawFirmaFromDataUrl('e118-firmaRifiuto-canvas', sch.firmaRifiuto);
   }, 60);
 }
+function firmaSalvataUtentePerNome(nomeCompleto){
+  if(!nomeCompleto) return null;
+  const u = utenti.find(x => (x.nome+' '+x.cognome) === nomeCompleto);
+  return (u && u.firma118) ? u.firma118 : null;
+}
 function apriFirmaSchedaModal(){
   const id = document.getElementById('e118-id').value;
   const sch = id ? interventi118.find(x=>x.id===id) : null;
@@ -5799,9 +5824,12 @@ function apriFirmaSchedaModal(){
     initSignaturePad('e118-firmaAutista-canvas');
     initSignaturePad('e118-firmaSoccorritore1-canvas');
     initSignaturePad('e118-firmaSoccorritore2-canvas');
-    if(sch?.firmaAutista) drawFirmaFromDataUrl('e118-firmaAutista-canvas', sch.firmaAutista);
-    if(sch?.firmaSoccorritore1) drawFirmaFromDataUrl('e118-firmaSoccorritore1-canvas', sch.firmaSoccorritore1);
-    if(sch?.firmaSoccorritore2) drawFirmaFromDataUrl('e118-firmaSoccorritore2-canvas', sch.firmaSoccorritore2);
+    const firmaAutista = sch?.firmaAutista || firmaSalvataUtentePerNome(document.getElementById('e118-autista').value);
+    const firmaSocc1 = sch?.firmaSoccorritore1 || firmaSalvataUtentePerNome(document.getElementById('e118-soccorritore1').value);
+    const firmaSocc2 = sch?.firmaSoccorritore2 || firmaSalvataUtentePerNome(document.getElementById('e118-soccorritore2').value);
+    if(firmaAutista) drawFirmaFromDataUrl('e118-firmaAutista-canvas', firmaAutista);
+    if(firmaSocc1) drawFirmaFromDataUrl('e118-firmaSoccorritore1-canvas', firmaSocc1);
+    if(firmaSocc2) drawFirmaFromDataUrl('e118-firmaSoccorritore2-canvas', firmaSocc2);
   }, 60);
 }
 function closeFirmaSchedaModal(){
