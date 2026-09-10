@@ -135,6 +135,27 @@
   .tag-chiuso{font-size:10.5px;background:var(--line-soft);color:var(--ink-soft);padding:2px 7px;border-radius:10px;margin-left:6px;}
   .tag-assegnato{font-size:10.5px;background:var(--teal-bg);color:var(--teal);padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:600;}
   .tag-non-assegnato{font-size:10.5px;background:var(--red-bg);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:600;}
+  .badge-prestito{font-size:11.5px;padding:3px 10px;border-radius:10px;font-weight:600;white-space:nowrap;}
+  .badge-prestito.corso{background:var(--teal-bg);color:var(--teal);}
+  .badge-prestito.scadenza{background:var(--amber-bg);color:var(--amber);}
+  .badge-prestito.ritardo{background:var(--red-bg);color:var(--red);}
+  .badge-prestito.rientrato{background:var(--line-soft);color:var(--ink-soft);}
+  .badge-prestito.in_prestito{background:#E3E9F5;color:var(--navy);}
+  .badge-prestito.disponibile{background:var(--teal-bg);color:var(--teal);}
+  .badge-prestito.manutenzione{background:var(--amber-bg);color:var(--amber);}
+  .badge-prestito.fuori_uso{background:var(--red-bg);color:var(--red);}
+  .subtab-bar{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+  .subtab-btn{background:none;border:none;padding:9px 16px;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .subtab-btn.active{color:var(--navy);border-bottom-color:var(--navy);}
+  .metric-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .metric-card{background:var(--bg);border-radius:10px;padding:12px 14px;}
+  .metric-card .num{font-size:22px;font-weight:700;color:var(--navy);}
+  .metric-card .lbl{font-size:12px;color:var(--ink-soft);}
+  .metric-card.scadenza{background:var(--amber-bg);}
+  .metric-card.scadenza .num{color:var(--amber);}
+  .metric-card.ritardo{background:var(--red-bg);}
+  .metric-card.ritardo .num{color:var(--red);}
+  @media (max-width: 760px){ .metric-cards{grid-template-columns:repeat(2,1fr);} }
   .link-btn{background:none;border:none;color:var(--navy);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:0;font-family:inherit;}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
   .action-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .12s,border-color .12s;}
@@ -328,6 +349,7 @@
       <div class="nav-item" id="nav-mezzi" data-view="mezzi" onclick="switchView('mezzi')" style="display:none;">🚑 Mezzi</div>
       <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
       <div class="nav-item" data-view="fogli" onclick="switchView('fogli')">🚐 Fogli di marcia</div>
+      <div class="nav-item" data-view="presidi" onclick="switchView('presidi')">🦽 Prestito presidi</div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
       <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
       <div class="nav-spacer"></div>
@@ -492,6 +514,166 @@
           </div>
           <h3 id="print-fogli-title">Foglio di marcia</h3>
           <div id="print-fogli-content"></div>
+        </div>
+      </div>
+
+      <!-- PRESTITO PRESIDI -->
+      <div class="view" id="view-presidi">
+        <div class="page-head">
+          <div>
+            <h2>Prestito presidi</h2>
+            <p>Prestito e rientro di presidi sanitari a persone che ne hanno bisogno</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" id="btn-nuovo-presidio" style="display:none;" onclick="openPresidioModal()">+ Nuovo presidio</button>
+            <button class="btn btn-primary" style="width:auto;" onclick="openPrestitoModal()">+ Nuovo prestito</button>
+          </div>
+        </div>
+
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="subtab-prestiti" onclick="switchSubtabPresidi('prestiti')">Prestiti</button>
+          <button class="subtab-btn" id="subtab-magazzino" onclick="switchSubtabPresidi('magazzino')">Magazzino presidi</button>
+        </div>
+
+        <div id="subview-prestiti">
+          <div class="metric-cards" id="prestiti-metriche"></div>
+          <div class="filters">
+            <select id="pf-stato" onchange="renderPrestiti()">
+              <option value="">Tutti gli stati</option>
+              <option value="corso">In corso</option>
+              <option value="scadenza">In scadenza</option>
+              <option value="ritardo">In ritardo</option>
+              <option value="rientrato">Rientrato</option>
+            </select>
+            <input type="text" id="pf-cerca" placeholder="Cerca per persona o presidio..." oninput="renderPrestiti()">
+          </div>
+          <div id="prestiti-container"></div>
+        </div>
+
+        <div id="subview-magazzino" style="display:none;">
+          <div class="filters">
+            <select id="mg-stato" onchange="renderMagazzino()">
+              <option value="">Tutti gli stati</option>
+              <option value="disponibile">Disponibile</option>
+              <option value="in_prestito">In prestito</option>
+              <option value="manutenzione">In manutenzione</option>
+              <option value="fuori_uso">Fuori uso</option>
+            </select>
+          </div>
+          <div id="magazzino-container"></div>
+        </div>
+      </div>
+
+      <!-- MODAL NUOVO/MODIFICA PRESTITO -->
+      <div class="modal-backdrop" id="prestito-modal-backdrop">
+        <div class="modal">
+          <button class="close-x" onclick="closePrestitoModal()">✕</button>
+          <h3 id="prestito-modal-title">Nuovo prestito</h3>
+          <p class="modal-sub">Registrazione prestito presidio</p>
+          <form id="prestito-form" onsubmit="return savePrestito(event)">
+            <fieldset>
+              <legend>Presidio</legend>
+              <div class="field"><label>Presidio *</label><select id="pr-presidioId" required onchange="document.getElementById('pr-presidio-hint').textContent = this.selectedOptions[0]?.dataset.hint || '';"></select></div>
+              <p class="map-hint" id="pr-presidio-hint"></p>
+            </fieldset>
+            <fieldset>
+              <legend>Dati della persona</legend>
+              <div class="grid2">
+                <div class="field"><label>Cognome *</label><input type="text" id="pr-cognome" required></div>
+                <div class="field"><label>Nome *</label><input type="text" id="pr-nome" required></div>
+              </div>
+              <div class="grid2">
+                <div class="field"><label>Telefono</label><input type="text" id="pr-telefono"></div>
+                <div class="field"><label>Indirizzo</label><input type="text" id="pr-indirizzo"></div>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Consegna</legend>
+              <div class="grid2">
+                <div class="field"><label>Data consegna *</label><input type="date" id="pr-dataConsegna" required></div>
+                <div class="field"><label>Rientro previsto (facoltativo)</label><input type="date" id="pr-dataRientroPrevista"></div>
+              </div>
+              <div class="field"><label>Note alla consegna</label><textarea id="pr-noteConsegna" rows="2" placeholder="es. condizioni del presidio, accessori consegnati..."></textarea></div>
+            </fieldset>
+            <div class="modal-actions">
+              <div id="prestito-delete-slot"></div>
+              <div style="display:flex;gap:10px;">
+                <button type="button" class="btn btn-ghost" onclick="closePrestitoModal()">Annulla</button>
+                <button type="submit" class="btn btn-primary" style="width:auto;">Salva</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL REGISTRA RIENTRO -->
+      <div class="modal-backdrop" id="rientro-modal-backdrop">
+        <div class="modal" style="max-width:480px;">
+          <button class="close-x" onclick="closeRientroModal()">✕</button>
+          <h3>Registra rientro</h3>
+          <p class="modal-sub" id="rientro-modal-sub"></p>
+          <form id="rientro-form" onsubmit="return confermaRientro(event)">
+            <div class="field"><label>Data rientro *</label><input type="date" id="ri-dataRientro" required></div>
+            <div class="field"><label>Stato del presidio al rientro</label>
+              <select id="ri-statoPresidio">
+                <option value="disponibile">Disponibile per un nuovo prestito</option>
+                <option value="manutenzione">Da mettere in manutenzione</option>
+                <option value="fuori_uso">Fuori uso</option>
+              </select>
+            </div>
+            <div class="field"><label>Note al rientro</label><textarea id="ri-noteRientro" rows="2"></textarea></div>
+            <div class="modal-actions">
+              <div></div>
+              <div style="display:flex;gap:10px;">
+                <button type="button" class="btn btn-ghost" onclick="closeRientroModal()">Annulla</button>
+                <button type="submit" class="btn btn-primary" style="width:auto;">Conferma rientro</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL VISUALIZZA PRESTITO (con cronologia) -->
+      <div class="modal-backdrop" id="view-prestito-modal-backdrop">
+        <div class="modal">
+          <button class="close-x" onclick="closeViewPrestitoModal()">✕</button>
+          <h3>Prestito</h3>
+          <p class="modal-sub">Riepilogo</p>
+          <div id="view-prestito-content"></div>
+          <div class="modal-actions">
+            <div></div>
+            <button type="button" class="btn btn-ghost" onclick="closeViewPrestitoModal()">Chiudi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL NUOVO/MODIFICA PRESIDIO (magazzino) -->
+      <div class="modal-backdrop" id="presidio-modal-backdrop">
+        <div class="modal" style="max-width:480px;">
+          <button class="close-x" onclick="closePresidioModal()">✕</button>
+          <h3 id="presidio-modal-title">Nuovo presidio</h3>
+          <p class="modal-sub">Anagrafica magazzino presidi</p>
+          <form id="presidio-form" onsubmit="return savePresidio(event)">
+            <div class="field"><label>Tipo *</label>
+              <select id="pg-tipo" required></select>
+            </div>
+            <div class="field"><label>Codice identificativo *</label><input type="text" id="pg-codice" required placeholder="es. SR-04"></div>
+            <div class="field"><label>Stato</label>
+              <select id="pg-stato">
+                <option value="disponibile">Disponibile</option>
+                <option value="manutenzione">In manutenzione</option>
+                <option value="fuori_uso">Fuori uso</option>
+              </select>
+            </div>
+            <div class="field"><label>Note</label><textarea id="pg-note" rows="2"></textarea></div>
+            <div class="modal-actions">
+              <div id="presidio-delete-slot"></div>
+              <div style="display:flex;gap:10px;">
+                <button type="button" class="btn btn-ghost" onclick="closePresidioModal()">Annulla</button>
+                <button type="submit" class="btn btn-primary" style="width:auto;">Salva</button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -1028,6 +1210,12 @@ let annoCorrenteServizi = new Date().getFullYear();
 let anniDisponibiliServizi = [];
 let annoCorrenteFogli = new Date().getFullYear();
 let anniDisponibiliFogli = [];
+let presidi = [];
+let prestiti = [];
+let editingPresidioId = null;
+let editingPrestitoId = null;
+let currentViewPrestitoId = null;
+let tipiPresidio = ['Sedia a rotelle','Deambulatore','Stampelle','Tripode','Letto ortopedico','Materasso antidecubito','Comoda','Carrozzina','Altro'];
 
 let tipiMezzo = ['Ambulanza','Automedica','Smart','L200','Pulmino disabili','Altro'];
 
@@ -1151,20 +1339,30 @@ async function loadData(){
   // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
   // invece che una dopo l'altra — l'attesa totale diventa quella della
   // richiesta più lenta, non la somma di tutte quante.
-  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli] = await Promise.all([
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes] = await Promise.all([
     kvGet('utenti'),
     kvGet('mezzi'),
     kvGet('rimborsi'),
     kvGet('maggiorazioniOssigeno'),
     kvGet('tipiMezzo'),
     migraServiziLegacy(),
-    migraFogliLegacy()
+    migraFogliLegacy(),
+    kvGet('presidi-magazzino'),
+    kvGet('prestiti-presidi'),
+    kvGet('tipiPresidio')
   ]);
 
   utenti = utentiRes || [];
   mezzi = mezziRes || [];
   rimborsi = rimborsiRes || [];
   maggiorazioniOssigeno = maggiorazioniRes || [];
+  presidi = presidiRes || [];
+  prestiti = prestitiRes || [];
+  if(tipiPresidioRes && tipiPresidioRes.length){
+    tipiPresidio = tipiPresidioRes;
+  } else {
+    await kvSet('tipiPresidio', tipiPresidio);
+  }
   if(tipiRes && tipiRes.length){
     tipiMezzo = tipiRes;
   } else {
@@ -1200,6 +1398,8 @@ async function saveUtenti(){ await kvSet('utenti', utenti); }
 async function saveMezzi(){ await kvSet('mezzi', mezzi); }
 async function saveRimborsi(){ await kvSet('rimborsi', rimborsi); }
 async function saveMaggiorazioni(){ await kvSet('maggiorazioniOssigeno', maggiorazioniOssigeno); }
+async function savePresidiData(){ await kvSet('presidi-magazzino', presidi); }
+async function savePrestitiData(){ await kvSet('prestiti-presidi', prestiti); }
 
 /* ---- Partizione dei servizi per anno (per non scaricare tutto l'archivio ad ogni apertura) ---- */
 async function migraServiziLegacy(){
@@ -1490,6 +1690,7 @@ function switchView(v){
   if(v === 'mezzi') renderMezzi();
   if(v === 'rimborsi') renderRimborsi();
   if(v === 'fogli') renderFogliMarcia();
+  if(v === 'presidi') renderPrestiti();
   if(v === 'statistiche') renderStatistiche();
   if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
@@ -3093,6 +3294,325 @@ function printFogliMarcia(){
     const s = document.getElementById('stile-stampa-orizzontale');
     if(s) s.remove();
   }, 500);
+}
+
+/* ============ PRESTITO PRESIDI ============ */
+const STATO_PRESTITO_LABEL = { corso:'In corso', scadenza:'In scadenza', ritardo:'In ritardo', rientrato:'Rientrato' };
+const STATO_PRESIDIO_LABEL = { disponibile:'Disponibile', in_prestito:'In prestito', manutenzione:'In manutenzione', fuori_uso:'Fuori uso' };
+let rientroPrestitoId = null;
+
+function calcolaStatoPrestito(p){
+  if(p.dataRientroEffettiva) return 'rientrato';
+  if(!p.dataRientroPrevista) return 'corso';
+  const oggi = new Date().toISOString().slice(0,10);
+  const traSetteGiorni = new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10);
+  if(p.dataRientroPrevista < oggi) return 'ritardo';
+  if(p.dataRientroPrevista <= traSetteGiorni) return 'scadenza';
+  return 'corso';
+}
+function nomePresidio(id){
+  const p = presidi.find(x=>x.id===id);
+  return p ? (p.tipo + ' — ' + p.codice) : '(presidio non trovato)';
+}
+function switchSubtabPresidi(tab){
+  document.getElementById('subtab-prestiti').classList.toggle('active', tab==='prestiti');
+  document.getElementById('subtab-magazzino').classList.toggle('active', tab==='magazzino');
+  document.getElementById('subview-prestiti').style.display = tab==='prestiti' ? 'block' : 'none';
+  document.getElementById('subview-magazzino').style.display = tab==='magazzino' ? 'block' : 'none';
+  if(tab==='prestiti') renderPrestiti(); else renderMagazzino();
+}
+
+function renderPrestiti(){
+  const isAdmin = currentUser.ruolo === 'amministratore';
+  document.getElementById('btn-nuovo-presidio').style.display = isAdmin ? 'inline-flex' : 'none';
+
+  const presidiAttivi = presidi.filter(p=>!p.cestinato);
+  const nDisponibili = presidiAttivi.filter(p=>p.stato==='disponibile').length;
+  const nInPrestito = presidiAttivi.filter(p=>p.stato==='in_prestito').length;
+  const prestitiConStato = prestiti.filter(p=>!p.cestinato).map(p=>({...p, statoCalc: calcolaStatoPrestito(p)}));
+  const nScadenza = prestitiConStato.filter(p=>p.statoCalc==='scadenza').length;
+  const nRitardo = prestitiConStato.filter(p=>p.statoCalc==='ritardo').length;
+
+  document.getElementById('prestiti-metriche').innerHTML = `
+    <div class="metric-card"><div class="num">${nDisponibili}</div><div class="lbl">Presidi disponibili</div></div>
+    <div class="metric-card"><div class="num">${nInPrestito}</div><div class="lbl">Presidi in prestito</div></div>
+    <div class="metric-card scadenza"><div class="num">${nScadenza}</div><div class="lbl">In scadenza (7 giorni)</div></div>
+    <div class="metric-card ritardo"><div class="num">${nRitardo}</div><div class="lbl">In ritardo</div></div>
+  `;
+
+  const statoFiltro = document.getElementById('pf-stato').value;
+  const cerca = document.getElementById('pf-cerca').value.trim().toLowerCase();
+  let lista = prestitiConStato;
+  if(statoFiltro) lista = lista.filter(p=>p.statoCalc===statoFiltro);
+  if(cerca) lista = lista.filter(p =>
+    (p.personaCognome||'').toLowerCase().includes(cerca) ||
+    (p.personaNome||'').toLowerCase().includes(cerca) ||
+    nomePresidio(p.presidioId).toLowerCase().includes(cerca)
+  );
+  lista.sort((a,b)=> (b.dataConsegna||'').localeCompare(a.dataConsegna||''));
+
+  const container = document.getElementById('prestiti-container');
+  if(lista.length === 0){
+    container.innerHTML = '<div class="empty-state">Nessun prestito trovato.</div>';
+    return;
+  }
+  let html = '<table class="mini-table"><thead><tr><th>Presidio</th><th>Persona</th><th>Consegnato il</th><th>Rientro previsto</th><th>Stato</th><th></th></tr></thead><tbody>';
+  lista.forEach(p=>{
+    html += `<tr>
+      <td>${escapeHtml(nomePresidio(p.presidioId))}</td>
+      <td>${escapeHtml(p.personaCognome)} ${escapeHtml(p.personaNome)}</td>
+      <td class="mono">${formatDataIt(p.dataConsegna)}</td>
+      <td class="mono">${p.dataRientroPrevista ? formatDataIt(p.dataRientroPrevista) : 'non prevista'}</td>
+      <td><span class="badge-prestito ${p.statoCalc}">${STATO_PRESTITO_LABEL[p.statoCalc]}</span></td>
+      <td><div class="row-actions">
+        <button class="action-btn" onclick="viewPrestitoModal('${p.id}')">👁 Visualizza</button>
+        ${p.statoCalc !== 'rientrato' ? `<button class="action-btn primary" onclick="openRientroModal('${p.id}')">Registra rientro</button>` : ''}
+        <button class="action-btn" onclick="openPrestitoModal('${p.id}')">✎ Modifica</button>
+        ${isAdmin ? `<button class="action-btn danger" onclick="deletePrestito('${p.id}')">🗑 Elimina</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderMagazzino(){
+  const isAdmin = currentUser.ruolo === 'amministratore';
+  const statoFiltro = document.getElementById('mg-stato').value;
+  let lista = presidi.filter(p=>!p.cestinato);
+  if(statoFiltro) lista = lista.filter(p=>p.stato===statoFiltro);
+  lista.sort((a,b)=> a.tipo.localeCompare(b.tipo) || a.codice.localeCompare(b.codice));
+
+  const container = document.getElementById('magazzino-container');
+  if(lista.length === 0){
+    container.innerHTML = '<div class="empty-state">Nessun presidio in magazzino. Aggiungine uno con "+ Nuovo presidio".</div>';
+    return;
+  }
+  let html = '<table class="mini-table"><thead><tr><th>Tipo</th><th>Codice</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody>';
+  lista.forEach(p=>{
+    html += `<tr>
+      <td>${escapeHtml(p.tipo)}</td>
+      <td class="mono">${escapeHtml(p.codice)}</td>
+      <td><span class="badge-prestito ${p.stato}">${STATO_PRESIDIO_LABEL[p.stato]}</span></td>
+      <td>${escapeHtml(p.note||'—')}</td>
+      <td><div class="row-actions">
+        ${isAdmin ? `<button class="action-btn" onclick="openPresidioModal('${p.id}')">✎ Modifica</button> <button class="action-btn danger" onclick="deletePresidio('${p.id}')">🗑 Elimina</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function openPrestitoModal(id){
+  editingPrestitoId = id || null;
+  const p = id ? prestiti.find(x=>x.id===id) : null;
+  document.getElementById('prestito-modal-title').textContent = p ? 'Modifica prestito' : 'Nuovo prestito';
+
+  const selPresidio = document.getElementById('pr-presidioId');
+  const scelte = presidi.filter(x => !x.cestinato && (x.stato==='disponibile' || x.id === p?.presidioId));
+  selPresidio.innerHTML = scelte.length
+    ? scelte.map(x=>`<option value="${x.id}" ${x.id===p?.presidioId?'selected':''}>${escapeHtml(x.tipo)} — ${escapeHtml(x.codice)}</option>`).join('')
+    : '<option value="">Nessun presidio disponibile</option>';
+
+  document.getElementById('pr-cognome').value = p?.personaCognome || '';
+  document.getElementById('pr-nome').value = p?.personaNome || '';
+  document.getElementById('pr-telefono').value = p?.personaTelefono || '';
+  document.getElementById('pr-indirizzo').value = p?.personaIndirizzo || '';
+  document.getElementById('pr-dataConsegna').value = p?.dataConsegna || new Date().toISOString().slice(0,10);
+  document.getElementById('pr-dataRientroPrevista').value = p?.dataRientroPrevista || '';
+  document.getElementById('pr-noteConsegna').value = p?.noteConsegna || '';
+
+  const isAdmin = currentUser.ruolo === 'amministratore';
+  document.getElementById('prestito-delete-slot').innerHTML = (p && isAdmin) ? `<button type="button" class="action-btn danger" onclick="deletePrestito('${p.id}')">🗑 Elimina prestito</button>` : '';
+
+  document.getElementById('prestito-modal-backdrop').classList.add('active');
+}
+function closePrestitoModal(){
+  document.getElementById('prestito-modal-backdrop').classList.remove('active');
+  editingPrestitoId = null;
+}
+async function savePrestito(ev){
+  ev.preventDefault();
+  const presidioId = document.getElementById('pr-presidioId').value;
+  if(!presidioId){ alert('Seleziona un presidio disponibile.'); return false; }
+  const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
+  const adesso = new Date().toISOString();
+  const g = id => document.getElementById(id).value.trim();
+
+  const data = {
+    id: editingPrestitoId || ('pt-' + Date.now()),
+    presidioId,
+    personaCognome: g('pr-cognome'), personaNome: g('pr-nome'),
+    personaTelefono: g('pr-telefono'), personaIndirizzo: g('pr-indirizzo'),
+    dataConsegna: g('pr-dataConsegna'), dataRientroPrevista: g('pr-dataRientroPrevista'),
+    noteConsegna: g('pr-noteConsegna'),
+    cestinato: false
+  };
+
+  if(editingPrestitoId){
+    const existing = prestiti.find(x=>x.id===editingPrestitoId);
+    data.dataRientroEffettiva = existing.dataRientroEffettiva || null;
+    data.noteRientro = existing.noteRientro || '';
+    data.operatoreConsegna = existing.operatoreConsegna;
+    data.operatoreRientro = existing.operatoreRientro;
+    data.cronologia = [...(existing.cronologia||[]), { tipo:'Modifica', chi: nomeUtenteCorrente, quando: adesso }];
+    const oldPresidioId = existing.presidioId;
+    const idx = prestiti.findIndex(x=>x.id===editingPrestitoId);
+    prestiti[idx] = data;
+    if(oldPresidioId !== presidioId && !data.dataRientroEffettiva){
+      const vecchio = presidi.find(x=>x.id===oldPresidioId);
+      if(vecchio) vecchio.stato = 'disponibile';
+      const nuovo = presidi.find(x=>x.id===presidioId);
+      if(nuovo) nuovo.stato = 'in_prestito';
+      await savePresidiData();
+    }
+  } else {
+    data.dataRientroEffettiva = null;
+    data.noteRientro = '';
+    data.operatoreConsegna = nomeUtenteCorrente;
+    data.operatoreRientro = '';
+    data.cronologia = [{ tipo:'Prestito registrato', chi: nomeUtenteCorrente, quando: adesso }];
+    prestiti.push(data);
+    const presidio = presidi.find(x=>x.id===presidioId);
+    if(presidio){ presidio.stato = 'in_prestito'; await savePresidiData(); }
+  }
+  await savePrestitiData();
+  closePrestitoModal();
+  renderPrestiti();
+  return false;
+}
+async function deletePrestito(id){
+  if(!confirm('Eliminare definitivamente questo prestito? Questa azione non è reversibile.')) return;
+  const p = prestiti.find(x=>x.id===id);
+  prestiti = prestiti.filter(x=>x.id!==id);
+  await savePrestitiData();
+  if(p && !p.dataRientroEffettiva){
+    const presidio = presidi.find(x=>x.id===p.presidioId);
+    if(presidio && presidio.stato==='in_prestito'){ presidio.stato = 'disponibile'; await savePresidiData(); }
+  }
+  closePrestitoModal();
+  renderPrestiti();
+}
+
+function openRientroModal(id){
+  rientroPrestitoId = id;
+  const p = prestiti.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('rientro-modal-sub').textContent = nomePresidio(p.presidioId) + ' — ' + p.personaCognome + ' ' + p.personaNome;
+  document.getElementById('ri-dataRientro').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ri-statoPresidio').value = 'disponibile';
+  document.getElementById('ri-noteRientro').value = '';
+  document.getElementById('rientro-modal-backdrop').classList.add('active');
+}
+function closeRientroModal(){
+  document.getElementById('rientro-modal-backdrop').classList.remove('active');
+  rientroPrestitoId = null;
+}
+async function confermaRientro(ev){
+  ev.preventDefault();
+  const p = prestiti.find(x=>x.id===rientroPrestitoId);
+  if(!p) return false;
+  const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
+  const adesso = new Date().toISOString();
+  p.dataRientroEffettiva = document.getElementById('ri-dataRientro').value;
+  p.noteRientro = document.getElementById('ri-noteRientro').value.trim();
+  p.operatoreRientro = nomeUtenteCorrente;
+  p.cronologia = [...(p.cronologia||[]), { tipo:'Rientro registrato', chi: nomeUtenteCorrente, quando: adesso }];
+  await savePrestitiData();
+
+  const statoPresidio = document.getElementById('ri-statoPresidio').value;
+  const presidio = presidi.find(x=>x.id===p.presidioId);
+  if(presidio){ presidio.stato = statoPresidio; await savePresidiData(); }
+
+  closeRientroModal();
+  renderPrestiti();
+  return false;
+}
+
+function viewPrestitoModal(id){
+  const p = prestiti.find(x=>x.id===id);
+  if(!p) return;
+  const statoCalc = calcolaStatoPrestito(p);
+  const item = (label, val) => `<div class="view-item"><span class="vl">${escapeHtml(label)}</span><span class="vv">${val && String(val).trim() ? escapeHtml(String(val)) : '—'}</span></div>`;
+  document.getElementById('view-prestito-content').innerHTML = `
+    <div class="view-grid">
+      ${item('Presidio', nomePresidio(p.presidioId))}
+      ${item('Stato', STATO_PRESTITO_LABEL[statoCalc])}
+      ${item('Persona', (p.personaCognome + ' ' + p.personaNome).trim())}
+      ${item('Telefono', p.personaTelefono)}
+      ${item('Indirizzo', p.personaIndirizzo)}
+      ${item('Data consegna', formatDataIt(p.dataConsegna))}
+      ${item('Rientro previsto', p.dataRientroPrevista ? formatDataIt(p.dataRientroPrevista) : 'non prevista')}
+      ${item('Note alla consegna', p.noteConsegna)}
+      ${item('Consegnato da', p.operatoreConsegna)}
+      ${p.dataRientroEffettiva ? item('Data rientro effettiva', formatDataIt(p.dataRientroEffettiva)) : ''}
+      ${p.dataRientroEffettiva ? item('Note al rientro', p.noteRientro) : ''}
+      ${p.dataRientroEffettiva ? item('Rientro registrato da', p.operatoreRientro) : ''}
+    </div>
+    <h4 style="margin-top:16px;">Cronologia</h4>
+    <ul style="margin:0;padding-left:18px;">
+      ${(p.cronologia && p.cronologia.length) ? p.cronologia.map(c=>`<li>${escapeHtml(c.tipo)} — ${escapeHtml(c.chi)} — ${formatDateTime(c.quando)}</li>`).join('') : '<li>Nessun evento registrato.</li>'}
+    </ul>
+  `;
+  document.getElementById('view-prestito-modal-backdrop').classList.add('active');
+}
+function closeViewPrestitoModal(){
+  document.getElementById('view-prestito-modal-backdrop').classList.remove('active');
+}
+
+function openPresidioModal(id){
+  editingPresidioId = id || null;
+  const p = id ? presidi.find(x=>x.id===id) : null;
+  document.getElementById('presidio-modal-title').textContent = p ? 'Modifica presidio' : 'Nuovo presidio';
+  const selTipo = document.getElementById('pg-tipo');
+  selTipo.innerHTML = tipiPresidio.map(t=>`<option value="${escapeHtml(t)}" ${t===p?.tipo?'selected':''}>${escapeHtml(t)}</option>`).join('');
+  document.getElementById('pg-codice').value = p?.codice || '';
+  document.getElementById('pg-stato').value = (p && p.stato !== 'in_prestito') ? p.stato : 'disponibile';
+  document.getElementById('pg-stato').disabled = p?.stato === 'in_prestito';
+  document.getElementById('pg-note').value = p?.note || '';
+  document.getElementById('presidio-delete-slot').innerHTML = p ? `<button type="button" class="action-btn danger" onclick="deletePresidio('${p.id}')">🗑 Elimina</button>` : '';
+  document.getElementById('presidio-modal-backdrop').classList.add('active');
+}
+function closePresidioModal(){
+  document.getElementById('presidio-modal-backdrop').classList.remove('active');
+  editingPresidioId = null;
+}
+async function savePresidio(ev){
+  ev.preventDefault();
+  const codice = document.getElementById('pg-codice').value.trim();
+  const tipo = document.getElementById('pg-tipo').value;
+  if(presidi.some(x => !x.cestinato && x.codice.toLowerCase()===codice.toLowerCase() && x.id !== editingPresidioId)){
+    alert('Esiste già un presidio con questo codice.');
+    return false;
+  }
+  const esistente = editingPresidioId ? presidi.find(x=>x.id===editingPresidioId) : null;
+  const data = {
+    id: editingPresidioId || ('pg-' + Date.now()),
+    tipo, codice,
+    stato: (esistente && esistente.stato === 'in_prestito') ? 'in_prestito' : document.getElementById('pg-stato').value,
+    note: document.getElementById('pg-note').value.trim(),
+    cestinato: false
+  };
+  if(editingPresidioId){
+    const idx = presidi.findIndex(x=>x.id===editingPresidioId);
+    presidi[idx] = data;
+  } else {
+    presidi.push(data);
+  }
+  await savePresidiData();
+  closePresidioModal();
+  renderMagazzino();
+  return false;
+}
+async function deletePresidio(id){
+  const p = presidi.find(x=>x.id===id);
+  if(p && p.stato === 'in_prestito'){ alert('Questo presidio è attualmente in prestito: non può essere eliminato finché non rientra.'); return; }
+  if(!confirm('Eliminare definitivamente questo presidio dal magazzino?')) return;
+  presidi = presidi.filter(x=>x.id!==id);
+  await savePresidiData();
+  closePresidioModal();
+  renderMagazzino();
 }
 
 /* ============ STATISTICHE ============ */
