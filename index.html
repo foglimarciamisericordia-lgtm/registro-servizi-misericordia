@@ -180,9 +180,12 @@
   .body-diagram-wrap{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px;}
   .body-diagram-wrap svg{cursor:crosshair;touch-action:manipulation;}
   .body-diagram-marker{fill:#c0392b;stroke:#fff;stroke-width:1;cursor:pointer;}
-  .body-diagram-wrap.small{gap:10px;padding:10px;margin-bottom:0;}
+  .body-diagram-wrap.small{gap:8px;padding:8px;margin-bottom:0;background:transparent;border:1px solid var(--border);}
   .body-diagrams-row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
   .body-diagram-col{flex:1 1 220px;min-width:200px;}
+  .flag-with-diagram-row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
+  .flag-with-diagram-row .flag-list-col{flex:1 1 320px;min-width:260px;}
+  .flag-with-diagram-row .diagram-col{flex:0 0 auto;}
   .body-diagram-col-title{font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
   .ustione-zona{transition:fill .1s;}
   .ustione-zona:hover{opacity:.8;}
@@ -190,7 +193,7 @@
   .flag-item-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;}
   .flag-item-row label{display:flex;align-items:center;gap:5px;font-size:12.5px;white-space:nowrap;font-weight:400;}
   .flag-item-row input[type="checkbox"]{width:14px;height:14px;margin:0;}
-  .flag-item-note{flex:1 1 150px;min-width:120px;font-size:12px;padding:5px 8px;}
+  .flag-item-note{flex:0 1 110px;min-width:80px;max-width:140px;font-size:12px;padding:5px 7px;}
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
   .print-118-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
@@ -1417,15 +1420,30 @@
         </div>
         <p class="map-hint">Rif. Valutazione 1 — calcolato dal punteggio GCS totale e da F.R. / P.A. della prima valutazione.</p>
 
+        <div class="section-title" style="margin-top:26px;">ECG — Ritmo</div>
+        <div class="checkbox-grid cols3" id="e118-egc"></div>
+
         <div class="section-title" style="margin-top:26px;">Valutazione Trauma</div>
-        <div id="e118-valutazioneTrauma-flags"></div>
-        <div class="body-diagram-col-title" style="margin-top:14px;">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
-        <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
+        <div class="flag-with-diagram-row">
+          <div class="flag-list-col">
+            <div id="e118-valutazioneTrauma-flags"></div>
+          </div>
+          <div class="diagram-col">
+            <div class="body-diagram-col-title">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
+            <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
+          </div>
+        </div>
 
         <div class="section-title" style="margin-top:26px;">Altre valutazioni</div>
-        <div id="e118-altreValutazioni-flags" class="checkbox-grid"></div>
-        <div class="body-diagram-col-title" style="margin-top:14px;">Sede delle ustioni <span class="map-hint">— totale ustionato: <b id="e118-ustioni-totale" class="ustioni-totale-badge">0%</b></span></div>
-        <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
+        <div class="flag-with-diagram-row">
+          <div class="flag-list-col">
+            <div id="e118-altreValutazioni-flags" class="checkbox-grid"></div>
+          </div>
+          <div class="diagram-col">
+            <div class="body-diagram-col-title">Sede delle ustioni <span class="map-hint">— totale: <b id="e118-ustioni-totale" class="ustioni-totale-badge">0%</b></span></div>
+            <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
+          </div>
+        </div>
       </div>
 
       <div class="e118-tab-pane" data-tabpane="anamnesi-interventi">
@@ -1449,7 +1467,6 @@
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
         </div>
-        <div class="field"><label>ECG — Ritmo</label><div class="checkbox-grid cols3" id="e118-egc"></div></div>
       </div>
 
       <div class="e118-tab-pane" data-tabpane="provvisoria">
