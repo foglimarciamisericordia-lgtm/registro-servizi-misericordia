@@ -171,6 +171,20 @@
   .role-chip.amministratore{background:#E3E9F5;color:var(--navy);}
   .role-chip.responsabile{background:var(--teal-bg);color:var(--teal);}
   .role-chip.operatore{background:var(--amber-bg);color:var(--amber);}
+  .role-chip.eccedenza{background:#FBE1DC;color:#B23A24;}
+  .role-chip.responsabile118{background:#DCEBE1;color:#1E6B45;}
+  .checkbox-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px;margin-bottom:12px;}
+  .checkbox-grid.cols3{grid-template-columns:1fr 1fr 1fr;}
+  .checkbox-grid label{display:flex;align-items:center;gap:6px;font-weight:400;}
+  .body-diagram-wrap{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px;}
+  .body-diagram-wrap svg{cursor:crosshair;touch-action:manipulation;}
+  .body-diagram-marker{fill:#c0392b;stroke:#fff;stroke-width:1;cursor:pointer;}
+  .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
+  .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
+  .print-118-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
+  .print-118-table td{border:1px solid #999;padding:3px 6px;vertical-align:top;}
+  .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:4px 0;font-size:12px;}
+  @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} }
 
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
@@ -344,6 +358,7 @@
       <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
       <div class="nav-item" data-view="fogli" onclick="switchView('fogli')">🚐 Fogli di marcia</div>
       <div class="nav-item" data-view="presidi" onclick="switchView('presidi')">🦽 Prestito presidi</div>
+      <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenza 118</div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
       <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
       <div class="nav-spacer"></div>
@@ -533,6 +548,26 @@
           <input type="text" id="pf-cerca" placeholder="Cerca per persona o presidio..." oninput="renderPrestiti()">
         </div>
         <div id="prestiti-container"></div>
+      </div>
+
+      <!-- ECCEDENZA 118 -->
+      <div class="view" id="view-eccedenza118">
+        <div class="page-head">
+          <div>
+            <h2>Eccedenza 118</h2>
+            <p>Schede di intervento di soccorso 118</p>
+          </div>
+          <button class="btn btn-primary" style="width:auto;" onclick="openScheda118Modal()">+ Nuovo intervento</button>
+        </div>
+        <div class="filters">
+          <select id="e118f-stato" onchange="renderElenco118()">
+            <option value="">Tutti gli stati</option>
+            <option value="aperta">Aperta</option>
+            <option value="chiusa">Chiusa</option>
+          </select>
+          <input type="text" id="e118f-cerca" placeholder="Cerca per cognome/nome paziente o n. scheda..." oninput="renderElenco118()">
+        </div>
+        <div id="e118-container"></div>
       </div>
 
       <!-- GESTIONE PRESIDI (magazzino, solo amministratore) -->
@@ -1109,9 +1144,12 @@
       <div class="field"><label>Ruolo</label>
         <select id="uf-ruolo">
           <option value="operatore">Operatore</option>
+          <option value="eccedenza">Eccedenza</option>
           <option value="responsabile">Responsabile</option>
+          <option value="responsabile118">Responsabile 118</option>
           <option value="amministratore">Amministratore</option>
         </select>
+        <p class="map-hint">Eccedenza: come Operatore, più gestione della scheda Eccedenza 118 (non visibile all'Operatore base). Responsabile 118: come Responsabile, più gestione della scheda Eccedenza 118 (non visibile al Responsabile base).</p>
       </div>
       <div class="modal-actions">
         <div></div>
@@ -1195,6 +1233,266 @@
     </div>
   </div>
 </div>
+<!-- MODAL SCHEDA ECCEDENZA 118 -->
+<div class="modal-backdrop" id="scheda118-modal-backdrop">
+  <div class="modal" style="max-width:920px;">
+    <button class="close-x" onclick="closeScheda118Modal()">✕</button>
+    <h3 id="scheda118-modal-title">Scheda Eccedenza 118</h3>
+    <form onsubmit="return saveScheda118(event)">
+      <input type="hidden" id="e118-id">
+
+      <div class="section-title">Dati generali</div>
+      <div class="grid2">
+        <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale"></div>
+        <div class="field"><label>Data</label><input type="date" id="e118-data" required></div>
+        <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
+        <div class="field"><label>Targa ambulanza</label><input type="text" id="e118-targaAmbulanza" style="text-transform:uppercase;"></div>
+        <div class="field"><label>Operatore di centrale n.</label><input type="text" id="e118-operatoreCentrale"></div>
+        <div class="field"><label>Allertamento → P.S.</label>
+          <select id="e118-allertamentoPS"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
+        <div class="field"><label>Nome</label><input type="text" id="e118-nome"></div>
+        <div class="field"><label>Nato il</label><input type="date" id="e118-natoIl"></div>
+        <div class="field"><label>Sesso</label>
+          <select id="e118-sesso"><option value="">—</option><option value="M">Maschio</option><option value="F">Femmina</option></select>
+        </div>
+        <div class="field"><label>Comune di intervento</label><input type="text" id="e118-comuneIntervento"></div>
+        <div class="field"><label>Via</label><input type="text" id="e118-via"></div>
+        <div class="field"><label>Comune di nascita</label><input type="text" id="e118-comuneNascita"></div>
+        <div class="field"><label>Comune di residenza</label><input type="text" id="e118-comuneResidenza"></div>
+        <div class="field"><label>Rianimatore</label>
+          <select id="e118-rianimatore"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
+        </div>
+        <div class="field"><label>Pronto Soccorso di</label><input type="text" id="e118-prontoSoccorsoDi"></div>
+      </div>
+
+      <div class="section-title">Orari</div>
+      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+        <div class="field"><label>Chiamata</label><input type="time" id="e118-oChiamata"></div>
+        <div class="field"><label>Partenza</label><input type="time" id="e118-oPartenza"></div>
+        <div class="field"><label>Arrivo sul posto</label><input type="time" id="e118-oArrivoPosto"></div>
+        <div class="field"><label>Partenza dal posto</label><input type="time" id="e118-oPartenzaPosto"></div>
+        <div class="field"><label>Arrivo al PS</label><input type="time" id="e118-oArrivoPS"></div>
+        <div class="field"><label>Liberi</label><input type="time" id="e118-oLiberi"></div>
+        <div class="field"><label>In postazione</label><input type="time" id="e118-oInPostazione"></div>
+        <div class="field"><label>Disponibili</label><input type="time" id="e118-oDisponibili"></div>
+      </div>
+
+      <div class="section-title">Equipaggio e mezzo</div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Km iniziali</label><input type="number" id="e118-kmIniziali"></div>
+        <div class="field"><label>Km finali</label><input type="number" id="e118-kmFinali"></div>
+        <div class="field"><label>Autista</label><select id="e118-autista"></select></div>
+        <div class="field"><label>Soccorritore 1</label><select id="e118-soccorritore1"></select></div>
+        <div class="field"><label>Soccorritore 2</label><select id="e118-soccorritore2"></select></div>
+      </div>
+
+      <div class="section-title">Codici</div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Codice invio</label><input type="text" id="e118-codiceInvio" placeholder="es. Rosso, Giallo..."></div>
+        <div class="field"><label>Codice scena</label><input type="text" id="e118-codiceScena"></div>
+        <div class="field"><label>Codice rientro</label><input type="text" id="e118-codiceRientro"></div>
+      </div>
+      <div class="field"><label>Forze dell'ordine intervenute</label>
+        <div class="checkbox-grid" id="e118-forzeOrdine"></div>
+      </div>
+
+      <div class="section-title">Luogo di intervento e patologia riscontrata</div>
+      <div class="grid2">
+        <div class="field"><label>Luogo di intervento</label><select id="e118-luogoIntervento"><option value="">—</option></select></div>
+      </div>
+      <div class="field"><label>Patologia riscontrata</label>
+        <div class="checkbox-grid cols3" id="e118-patologia"></div>
+      </div>
+
+      <div class="section-title">Parametri vitali</div>
+      <div class="grid2" style="grid-template-columns:repeat(6,1fr);">
+        <div class="field"><label>P.A.</label><input type="text" id="e118-pa" placeholder="120/80"></div>
+        <div class="field"><label>F.C.</label><input type="text" id="e118-fc"></div>
+        <div class="field"><label>F.R.</label><input type="text" id="e118-fr"></div>
+        <div class="field"><label>SpO2</label><input type="text" id="e118-spo2"></div>
+        <div class="field"><label>ETCO2</label><input type="text" id="e118-etco2"></div>
+        <div class="field"><label>Glicemia</label><input type="text" id="e118-glicemia"></div>
+      </div>
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Polso centrale</label><select id="e118-polsoCentrale"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Polso periferico</label><select id="e118-polsoPeriferico"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+      <div class="field"><label>Cute</label><div class="checkbox-grid" id="e118-cute"></div></div>
+
+      <div class="section-title">GCS / Cincinnati / RTS</div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Apertura occhi (1-4)</label><input type="number" min="1" max="4" id="e118-gcsOcchi" oninput="calcolaGCS118()"></div>
+        <div class="field"><label>Risposta verbale (1-5)</label><input type="number" min="1" max="5" id="e118-gcsVerbale" oninput="calcolaGCS118()"></div>
+        <div class="field"><label>Risposta motoria (1-6)</label><input type="number" min="1" max="6" id="e118-gcsMotoria" oninput="calcolaGCS118()"></div>
+      </div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Punteggio GCS (totale)</label><input type="number" id="e118-gcsPunteggio" readonly></div>
+        <div class="field"><label>Pediatric GCS</label><input type="text" id="e118-gcsPediatrico"></div>
+        <div class="field"><label>Tempo di riempimento capillare</label>
+          <select id="e118-capillare"><option value="">—</option><option value="lt2">&lt; 2 sec.</option><option value="gt2">&gt; 2 sec.</option></select>
+        </div>
+      </div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Cincinnati — Alterazione mimica facciale</label><select id="e118-cinMimica"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Cincinnati — Deficit motorio arti</label><select id="e118-cinMotorio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Cincinnati — Anomalie del linguaggio</label><select id="e118-cinLinguaggio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>RTS — punteggio GCS</label><input type="number" id="e118-rtsGcs"></div>
+        <div class="field"><label>RTS — punteggio F.R.</label><input type="number" id="e118-rtsFr"></div>
+        <div class="field"><label>RTS — punteggio P.A.S.</label><input type="number" id="e118-rtsPas"></div>
+      </div>
+
+      <div class="section-title">Pupille</div>
+      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+        <div class="field"><label>Diametro dx</label><input type="text" id="e118-pupDxDiametro"></div>
+        <div class="field"><label>Riflesso fotomotore dx</label><select id="e118-pupDxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Riflesso ciliospinale dx</label><select id="e118-pupDxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Congiuntive pallide dx</label><select id="e118-pupDxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Diametro sx</label><input type="text" id="e118-pupSxDiametro"></div>
+        <div class="field"><label>Riflesso fotomotore sx</label><select id="e118-pupSxFoto"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Riflesso ciliospinale sx</label><select id="e118-pupSxCilio"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        <div class="field"><label>Congiuntive pallide sx</label><select id="e118-pupSxCong"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+
+      <div class="section-title">Defibrillazione e arresto cardiaco</div>
+      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+        <div class="field"><label>Ore</label><input type="time" id="e118-defibOre"></div>
+        <div class="field"><label>N. scariche</label><input type="number" id="e118-defibScariche"></div>
+        <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
+        <div class="field"><label>Arresto cardiaco</label><select id="e118-arrestoCardiaco"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
+      </div>
+      <div class="field"><label>ECG — Ritmo</label><div class="checkbox-grid cols3" id="e118-egc"></div></div>
+
+      <div class="section-title">Torace e respiro</div>
+      <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+        <div class="field"><label>Temperatura corporea (°C)</label><input type="text" id="e118-temperatura"></div>
+        <div class="field"><label>Murmure vescicolare dx</label><select id="e118-murmureDx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
+        <div class="field"><label>Murmure vescicolare sx</label><select id="e118-murmureSx"><option value="">—</option><option value="si">Presente</option><option value="no">Assente</option></select></div>
+        <div class="field"><label>Dispnea</label><select id="e118-dispnea"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+      <div class="field"><label>Espansione toracica</label><div class="checkbox-grid" id="e118-espansioneToracica"></div></div>
+
+      <div class="section-title">Interventi sul paziente</div>
+      <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
+
+      <div class="section-title">Dinamica del trauma</div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>N. pazienti coinvolti</label><input type="number" id="e118-numeroPazienti"></div>
+        <div class="field"><label>Mezzo coinvolto</label><select id="e118-mezzoCoinvolto"><option value="">—</option></select></div>
+        <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+      </div>
+      <div class="checkbox-grid cols3" id="e118-dinamicaTrauma"></div>
+
+      <div class="section-title">Sede del trauma <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(tocca il corpo per segnare un punto, tocca un punto per rimuoverlo)</span></div>
+      <div id="e118-diagramma-trauma" class="body-diagram-wrap"></div>
+
+      <div class="section-title">Sede delle ustioni <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(tocca il corpo per segnare un punto, tocca un punto per rimuoverlo)</span></div>
+      <div id="e118-diagramma-ustioni" class="body-diagram-wrap"></div>
+
+      <div class="section-title">Anamnesi, segni clinici, terapia</div>
+      <div class="field"><label>Anamnesi, allergie e terapia in atto</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
+      <div class="field"><label>Segni clinici</label><textarea id="e118-segniClinici" rows="2"></textarea></div>
+      <div class="field"><label>Terapia praticata</label><textarea id="e118-terapiaPraticata" rows="2"></textarea></div>
+
+      <div class="section-title">Esito</div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div class="field"><label>Paziente affidato a</label><input type="text" id="e118-pzAffidatoA"></div>
+        <div class="field"><label>Diagnosi</label><input type="text" id="e118-diagnosi"></div>
+        <div class="field"><label>Constatazione decesso ore</label><input type="time" id="e118-constatazioneDecessoOre"></div>
+      </div>
+      <div class="checkbox-grid cols3" id="e118-esito"></div>
+
+      <div class="section-title">Rifiuto soccorso</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <input type="checkbox" id="e118-rifiuta" onchange="onRifiutaToggle118()"> Il paziente rifiuta il soccorso
+      </label>
+      <div id="e118-rifiuto-box" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <input type="checkbox" id="e118-pzImpossibilitato" onchange="onImpossibilitatoToggle118()"> Paziente impossibilitato a firmare
+        </label>
+        <div class="field" id="e118-motivoImpossibilita-wrap" style="display:none;">
+          <label>Motivo</label><input type="text" id="e118-motivoImpossibilita">
+        </div>
+        <div id="e118-firma-rifiuto-wrap">
+          <label class="map-hint" style="display:block;margin-bottom:6px;">Firma del paziente per il rifiuto</label>
+          <div class="signature-pad-wrap">
+            <canvas id="e118-firmaRifiuto-canvas" class="signature-canvas"></canvas>
+          </div>
+          <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('e118-firmaRifiuto-canvas')">Cancella firma</button>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Foto documento d'identità (facoltativa)</label>
+          <input type="file" accept="image/*" capture="environment" id="e118-fotoDocumento-input" onchange="onFotoDocumento118Change(event)">
+          <div id="e118-fotoDocumento-preview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div class="section-title">Annotazioni e firme</div>
+      <div class="field"><label>Annotazioni sul servizio</label><textarea id="e118-annotazioni" rows="2"></textarea></div>
+      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+        <div>
+          <label class="map-hint" style="display:block;margin-bottom:6px;">Firma autista</label>
+          <div class="signature-pad-wrap"><canvas id="e118-firmaAutista-canvas" class="signature-canvas"></canvas></div>
+          <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('e118-firmaAutista-canvas')">Cancella</button>
+        </div>
+        <div>
+          <label class="map-hint" style="display:block;margin-bottom:6px;">Firma soccorritore 1</label>
+          <div class="signature-pad-wrap"><canvas id="e118-firmaSoccorritore1-canvas" class="signature-canvas"></canvas></div>
+          <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('e118-firmaSoccorritore1-canvas')">Cancella</button>
+        </div>
+        <div>
+          <label class="map-hint" style="display:block;margin-bottom:6px;">Firma soccorritore 2</label>
+          <div class="signature-pad-wrap"><canvas id="e118-firmaSoccorritore2-canvas" class="signature-canvas"></canvas></div>
+          <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('e118-firmaSoccorritore2-canvas')">Cancella</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <div id="e118-stato-label" class="map-hint"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Annulla</button>
+          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="stampaScheda118()">Stampa scheda</button>
+          <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="chiudiScheda118FromModal()">Chiudi scheda e compila foglio marcia</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL VISUALIZZA/STAMPA SCHEDA 118 -->
+<div class="modal-backdrop" id="view-modal-118-backdrop">
+  <div class="modal" style="max-width:820px;">
+    <button class="close-x" onclick="closeView118Modal()">✕</button>
+    <div id="print-area-118" class="printable-area">
+      <div class="print-letterhead">
+        <img id="print-118-logo" src="" alt="Logo">
+        <div>
+          <div class="plh-org">Fraternita di Misericordia di S.M. di Licodia ODV</div>
+          <div class="plh-sub">Scheda intervento Soccorso 118 — documento generato dal sistema</div>
+        </div>
+      </div>
+      <h3>Scheda intervento 118</h3>
+      <div id="print-118-content"></div>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-ghost" onclick="closeView118Modal()">Chiudi</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="window.print()">Stampa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============ STATO GLOBALE ============ */
 let currentUser = null;
@@ -1223,6 +1521,11 @@ let annoCorrenteFogli = new Date().getFullYear();
 let anniDisponibiliFogli = [];
 let presidi = [];
 let prestiti = [];
+let interventi118 = [];
+let editingScheda118Id = null;
+let scheda118SedeTrauma = [];
+let scheda118SedeUstioni = [];
+let scheda118FotoDocumento = null;
 let editingPresidioId = null;
 let editingPrestitoId = null;
 let currentViewPrestitoId = null;
@@ -1374,7 +1677,7 @@ async function loadData(){
   // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
   // invece che una dopo l'altra — l'attesa totale diventa quella della
   // richiesta più lenta, non la somma di tutte quante.
-  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes] = await Promise.all([
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res] = await Promise.all([
     kvGet('utenti'),
     kvGet('mezzi'),
     kvGet('rimborsi'),
@@ -1384,7 +1687,8 @@ async function loadData(){
     migraFogliLegacy(),
     kvGet('presidi-magazzino'),
     kvGet('prestiti-presidi'),
-    kvGet('tipiPresidio')
+    kvGet('tipiPresidio'),
+    kvGet('interventi118')
   ]);
 
   utenti = utentiRes || [];
@@ -1393,6 +1697,7 @@ async function loadData(){
   maggiorazioniOssigeno = maggiorazioniRes || [];
   presidi = presidiRes || [];
   prestiti = prestitiRes || [];
+  interventi118 = interventi118Res || [];
   if(tipiPresidioRes && tipiPresidioRes.length){
     tipiPresidio = tipiPresidioRes;
   } else {
@@ -1687,13 +1992,14 @@ async function doLogin(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('shell').classList.add('active');
   document.getElementById('ub-name').textContent = currentUser.nome + ' ' + currentUser.cognome;
-  document.getElementById('ub-role').textContent = currentUser.ruolo;
+  document.getElementById('ub-role').textContent = ruoloLabel(currentUser.ruolo);
   document.getElementById('nav-utenti').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-mezzi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-gestionepresidi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-rimborsi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-statistiche').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
   document.getElementById('nav-cestino').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('nav-eccedenza118').style.display = canVedereEccedenza() ? 'flex' : 'none';
   renderCalendar();
   renderElenco();
   renderUsers();
@@ -1730,6 +2036,7 @@ function switchView(v){
   if(v === 'rimborsi') renderRimborsi();
   if(v === 'fogli') renderFogliMarcia();
   if(v === 'presidi') aggiornaEDisegnaPrestiti();
+  if(v === 'eccedenza118') renderElenco118();
   if(v === 'gestionepresidi') aggiornaEDisegnaGestionePresidi();
   if(v === 'statistiche') renderStatistiche();
   if(v === 'cestino') renderCestino();
@@ -1746,14 +2053,35 @@ function closeSidebarMobile(){
 }
 
 /* ============ PERMESSI ============ */
+// Eccedenza si comporta come Operatore, Responsabile118 come Responsabile, su tutte le funzioni "di base"
+// (servizi, fogli marcia, presidi). In più, entrambi hanno accesso alla scheda Eccedenza 118.
+function ruoloLabel(ruolo){
+  return {operatore:'Operatore', eccedenza:'Eccedenza', responsabile:'Responsabile', responsabile118:'Responsabile 118', amministratore:'Amministratore'}[ruolo] || ruolo;
+}
+function ruoloBase(ruolo){
+  if(ruolo === 'eccedenza') return 'operatore';
+  if(ruolo === 'responsabile118') return 'responsabile';
+  return ruolo;
+}
 function canManageUsers(){ return currentUser.ruolo === 'amministratore'; }
-function canEditEquipaggio(){ return currentUser.ruolo === 'amministratore' || currentUser.ruolo === 'responsabile'; }
-function canCloseService(){ return currentUser.ruolo === 'amministratore' || currentUser.ruolo === 'responsabile'; }
+function canEditEquipaggio(){ return currentUser.ruolo === 'amministratore' || ruoloBase(currentUser.ruolo) === 'responsabile'; }
+function canCloseService(){ return currentUser.ruolo === 'amministratore' || ruoloBase(currentUser.ruolo) === 'responsabile'; }
 function canEditServizio(sv){
   if(currentUser.ruolo === 'amministratore') return true;
   if(sv && sv.chiuso) return false;
   return true; // operatore e responsabile possono modificare i dati finché non è chiuso
 }
+// --- Permessi scheda Eccedenza 118 ---
+// Visibile e gestibile solo da Eccedenza, Responsabile118 e Amministratore. Operatore e Responsabile base: nessun accesso.
+function canVedereEccedenza(){ return ['eccedenza','responsabile118','amministratore'].includes(currentUser.ruolo); }
+function canGestireEccedenza(){ return canVedereEccedenza(); } // creare/inserire/modificare mentre la scheda è aperta
+function canChiudereEccedenza(){ return currentUser.ruolo === 'responsabile118' || currentUser.ruolo === 'amministratore'; }
+function canEditScheda118(sch){
+  if(currentUser.ruolo === 'amministratore') return true;
+  if(sch && sch.chiuso) return false;
+  return canVedereEccedenza();
+}
+function canDeleteScheda118(){ return currentUser.ruolo === 'amministratore'; }
 
 /* ============ CALENDARIO ============ */
 function setCalMode(m){
@@ -2009,7 +2337,7 @@ function renderUsers(){
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
       <div class="un">@${escapeHtml(u.username)}</div>
-      <span class="role-chip ${u.ruolo}">${u.ruolo}</span>
+      <span class="role-chip ${u.ruolo}">${ruoloLabel(u.ruolo)}</span>
       ${u.mustChangePassword ? '<span class="tag-chiuso">Deve cambiare password</span>' : ''}
       ${u.archiviato ? `<span class="tag-chiuso">Archiviato il ${u.dataArchiviazione||''}</span>` : ''}
       <div class="row-actions" style="margin-top:10px;">
@@ -3870,7 +4198,7 @@ function fillPersonSelects(){
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
   const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['sf-autista','sf-soccorritore1','sf-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
-  const responsabiliAdmin = utenti.filter(u=>(u.ruolo==='responsabile'||u.ruolo==='amministratore'));
+  const responsabiliAdmin = utenti.filter(u=>(u.ruolo==='responsabile'||u.ruolo==='responsabile118'||u.ruolo==='amministratore'));
   const attiviRA = responsabiliAdmin.filter(u=>!u.archiviato);
   const archiviatiRA = responsabiliAdmin.filter(u=>u.archiviato);
   document.getElementById('sf-autorizzatoDa').innerHTML = '<option value="">-- seleziona --</option>' + attiviRA.map(opt).join('') + archiviatiRA.map(opt).join('');
@@ -4111,7 +4439,7 @@ function viewServiceModal(id){
     </div>
   `;
   document.getElementById('view-sheet-content').innerHTML = html;
-  document.getElementById('btn-stampa-scheda-servizio').style.display = (currentUser.ruolo === 'operatore') ? 'none' : 'inline-block';
+  document.getElementById('btn-stampa-scheda-servizio').style.display = (ruoloBase(currentUser.ruolo) === 'operatore') ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
 }
 function closeViewModal(){
@@ -4214,7 +4542,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   const equipaggioAllowed = canEditEquipaggio();
   document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = !equipaggioAllowed);
 
-  const locked = sv && sv.chiuso && currentUser.ruolo === 'operatore';
+  const locked = sv && sv.chiuso && ruoloBase(currentUser.ruolo) === 'operatore';
   document.getElementById('locked-note-box').innerHTML = locked ? '<div class="locked-note">Questo servizio è stato assegnato: puoi modificare solo lo stato del servizio. Per altre modifiche rivolgiti a un responsabile o a un amministratore.</div>' : '';
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>{
     el.disabled = false;
@@ -4534,6 +4862,570 @@ function pulisciEvidenziazioneObbligatori(idForm){
 }
 abilitaEvidenziazioneObbligatori('service-form');
 abilitaEvidenziazioneObbligatori('foglio-form');
+/* ============ ECCEDENZA 118 ============ */
+async function saveInterventi118(){ await kvSet('interventi118', interventi118); }
+
+const LUOGO_118 = [['strada','Strada'],['casa','Casa'],['esercizi','Esercizi pubblici'],['sportivi','Impianti sportivi'],['scuole','Scuole'],['lavorativi','Impianti lavorativi'],['altro','Altro']];
+const PATOLOGIA_118 = [['trauma','Traumatologica'],['cardiocircolatoria','Cardiocircolatoria'],['respiratoria','Respiratoria'],['neurologica','Neurologica'],['metabolica','Metabolica'],['psichiatrica','Psichiatrica'],['neoplastica','Neoplastica'],['intossicazione','Intossicazione'],['infettiva','Infettiva'],['gastroenterologica','Gastroenterologica'],['urologica','Urologica'],['oculistica','Oculistica'],['otorino','Otorinolaringoiatrica'],['dermatologica','Dermatologica'],['ostetrico','Ostetrico-ginecologica'],['altra','Altra patologia'],['non_identificata','Patologia non identificata']];
+const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
+const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
+const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
+const MEZZO_COINVOLTO_118 = [['pedone','Pedone'],['bicicletta','Bicicletta'],['motociclo','Motociclo'],['autovettura','Autovettura'],['camion','Camion'],['autobus','Autobus'],['treno','Treno/Altro']];
+const DINAMICA_TRAUMA_118 = [['investito','Investito'],['caduta','Riferita caduta'],['annegato','Annegato'],['precipitato','Precipitato'],['impiccato','Sosp. impiccato'],['folgorato','Folgorato'],['fumi','Intossicato da fumi'],['violenzaSessuale','Riferita violenza sessuale'],['aggressione','Riferita aggressione'],['schiacciato','Schiacciato'],['contusivo','Trauma contusivo'],['ustionato','Ustionato'],['frattura','Sosp. frattura'],['amputazione','Amputazione'],['laceroContusa','Ferita lacero-contusa'],['armaFuoco','Ferita arma da fuoco'],['taglio','Ferita da taglio']];
+const EGC_118 = [['sinusale','Ritmo sinusale'],['fa','Fibrillazione atriale'],['aritmiaSopra','Aritmia sopraventricolare'],['fibrillazioneVentricolare','Fibrillazione ventricolare'],['pea','PEA'],['asistolia','Asistolia'],['tachicardiaVentricolare','Tachicardia ventricolare s.p.'],['bav','BAV I°-IIa-IIb-III°'],['bbsBbd','BBS-BBD'],['qrsStretto','QRS stretto'],['qrsLargo','QRS largo']];
+const ESPANSIONE_TORACICA_118 = [['simmetrico','Simmetrico'],['asimmetrico','Asimmetrico'],['enfisema','Enfisema sottocutaneo'],['voletCostale','Sospetto volet costale'],['traumaChiuso','Trauma chiuso']];
+const ESITO_118 = [['trasportoPS','Trasporto in PS'],['medicoCurante','Medico curante'],['terapia','Terapia'],['accessoVenoso','Accesso venoso'],['altri','Altri'],['tso','T.S.O.'],['aso','A.S.O.'],['nonTrovato','Non trovato'],['decedutoDuranteTrasporto','Deceduto durante il trasporto'],['trattatoSulPosto','Trattato sul posto']];
+
+function buildCheckboxGrid(containerId, list, selected){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const sel = selected || [];
+  container.innerHTML = list.map(([key,label]) => `<label><input type="checkbox" value="${key}" ${sel.includes(key)?'checked':''}> ${escapeHtml(label)}</label>`).join('');
+}
+function getCheckboxGridValues(containerId){
+  return Array.from(document.querySelectorAll('#'+containerId+' input[type=checkbox]:checked')).map(el=>el.value);
+}
+function populateSimpleSelect(selectId, list, selectedValue){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  sel.innerHTML = '<option value="">—</option>' + list.map(([k,l]) => `<option value="${k}">${escapeHtml(l)}</option>`).join('');
+  sel.value = selectedValue || '';
+}
+function fillPersonSelects118(){
+  const attivi = utenti.filter(u=>!u.archiviato);
+  const archiviati = utenti.filter(u=>u.archiviato);
+  const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
+  const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
+  ['e118-autista','e118-soccorritore1','e118-soccorritore2'].forEach(id=>{ const el = document.getElementById(id); if(el) el.innerHTML = options; });
+}
+
+function calcolaGCS118(){
+  const o = parseInt(document.getElementById('e118-gcsOcchi').value) || 0;
+  const v = parseInt(document.getElementById('e118-gcsVerbale').value) || 0;
+  const m = parseInt(document.getElementById('e118-gcsMotoria').value) || 0;
+  document.getElementById('e118-gcsPunteggio').value = (o && v && m) ? (o+v+m) : '';
+}
+
+/* --- Diagrammi corpo cliccabili --- */
+function svgBodyPairLabeled(){
+  const body = `<circle cx="35" cy="14" r="12" fill="none" stroke="#8a8f98" stroke-width="1.5"/><path d="M35 26 L35 85 M12 40 L35 55 L58 40 M35 85 L15 145 M35 85 L55 145" fill="none" stroke="#8a8f98" stroke-width="1.5" stroke-linecap="round"/>`;
+  return `<div style="text-align:center;"><svg class="body-svg" data-view="front" viewBox="0 0 70 150" width="90" height="190">${body}</svg><div class="map-hint">Fronte</div></div>
+  <div style="text-align:center;"><svg class="body-svg" data-view="back" viewBox="0 0 70 150" width="90" height="190">${body}</svg><div class="map-hint">Retro</div></div>`;
+}
+function renderBodyDiagram(containerId, dataArray){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  container.innerHTML = svgBodyPairLabeled();
+  container.querySelectorAll('svg.body-svg').forEach(svg=>{
+    svg.addEventListener('click', function(ev){
+      const pt = svg.createSVGPoint();
+      pt.x = ev.clientX; pt.y = ev.clientY;
+      const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+      dataArray.push({ x: Math.round(loc.x), y: Math.round(loc.y), view: svg.dataset.view });
+      renderBodyDiagram(containerId, dataArray);
+    });
+  });
+  dataArray.forEach((m, idx)=>{
+    const svg = container.querySelector(`svg.body-svg[data-view="${m.view}"]`);
+    if(!svg) return;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', m.x); c.setAttribute('cy', m.y); c.setAttribute('r', 4);
+    c.setAttribute('class','body-diagram-marker');
+    c.addEventListener('click', function(ev){ ev.stopPropagation(); dataArray.splice(idx,1); renderBodyDiagram(containerId, dataArray); });
+    svg.appendChild(c);
+  });
+}
+function renderBodyDiagramSvgStatic(points){
+  const svgFor = (view) => {
+    const pts = (points||[]).filter(p=>p.view===view);
+    const circles = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="#c0392b"/>`).join('');
+    return `<svg width="40" height="86" viewBox="0 0 70 150" style="display:inline-block;"><circle cx="35" cy="14" r="12" fill="none" stroke="#333"/><path d="M35 26 L35 85 M12 40 L35 55 L58 40 M35 85 L15 145 M35 85 L55 145" fill="none" stroke="#333"/>${circles}</svg>`;
+  };
+  return svgFor('front') + svgFor('back');
+}
+
+/* --- Firme touch --- */
+function initSignaturePad(canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || canvas.dataset.inited) return;
+  canvas.dataset.inited = '1';
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width || 300;
+  canvas.height = rect.height || 130;
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0F6E56';
+  let drawing = false;
+  const pos = ev => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+  canvas.addEventListener('pointerdown', ev=>{ drawing = true; canvas.dataset.hasInk = '1'; const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); });
+  canvas.addEventListener('pointermove', ev=>{ if(!drawing) return; const p = pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); });
+  window.addEventListener('pointerup', ()=>{ drawing = false; });
+  canvas.addEventListener('pointerup', ()=>{ drawing = false; });
+}
+function clearFirma118(canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  canvas.dataset.hasInk = '';
+}
+function getFirmaDataUrl118(canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || canvas.dataset.hasInk !== '1') return null;
+  return canvas.toDataURL('image/png');
+}
+function drawFirmaFromDataUrl(canvasId, dataUrl){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || !dataUrl) return;
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = function(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.dataset.hasInk = '1';
+  };
+  img.src = dataUrl;
+}
+
+/* --- Rifiuto / foto documento --- */
+function onRifiutaToggle118(){
+  document.getElementById('e118-rifiuto-box').style.display = document.getElementById('e118-rifiuta').checked ? 'block' : 'none';
+}
+function onImpossibilitatoToggle118(){
+  const on = document.getElementById('e118-pzImpossibilitato').checked;
+  document.getElementById('e118-motivoImpossibilita-wrap').style.display = on ? 'block' : 'none';
+  document.getElementById('e118-firma-rifiuto-wrap').style.display = on ? 'none' : 'block';
+}
+function onFotoDocumento118Change(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    scheda118FotoDocumento = e.target.result;
+    document.getElementById('e118-fotoDocumento-preview').innerHTML = `<img src="${scheda118FotoDocumento}" style="max-width:160px;border-radius:6px;"> <button type="button" class="btn btn-ghost" style="width:auto;margin-left:8px;" onclick="rimuoviFotoDocumento118()">Rimuovi</button>`;
+  };
+  reader.readAsDataURL(file);
+}
+function rimuoviFotoDocumento118(){
+  scheda118FotoDocumento = null;
+  document.getElementById('e118-fotoDocumento-preview').innerHTML = '';
+  const inp = document.getElementById('e118-fotoDocumento-input');
+  if(inp) inp.value = '';
+}
+
+/* --- Elenco --- */
+function renderElenco118(){
+  if(!canVedereEccedenza()) return;
+  const stato = document.getElementById('e118f-stato')?.value || '';
+  const cerca = (document.getElementById('e118f-cerca')?.value || '').toLowerCase();
+  let righe = interventi118.slice().sort((a,b) => (b.data||'').localeCompare(a.data||''));
+  if(stato === 'aperta') righe = righe.filter(s=>!s.chiuso);
+  if(stato === 'chiusa') righe = righe.filter(s=>s.chiuso);
+  if(cerca) righe = righe.filter(s => ((s.cognome||'')+' '+(s.nome||'')+' '+(s.numeroScheda||'')).toLowerCase().includes(cerca));
+  const container = document.getElementById('e118-container');
+  if(!container) return;
+  if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
+  let html = '<table class="mini-table"><thead><tr><th>N. scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
+  righe.forEach(s=>{
+    html += `<tr>
+      <td>${escapeHtml(s.numeroScheda||'—')}</td>
+      <td>${formatDataIt(s.data)}</td>
+      <td>${escapeHtml(((s.cognome||'')+' '+(s.nome||'')).trim()||'—')}</td>
+      <td>${escapeHtml(s.comuneIntervento||'—')}</td>
+      <td>${s.chiuso ? '<span class="role-chip responsabile">Chiusa</span>' : '<span class="role-chip operatore">Aperta</span>'}</td>
+      <td><div class="row-actions">
+        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(s.chiuso && currentUser.ruolo!=='amministratore')?'👁 Apri':'✏️ Modifica'}</button>
+        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">🖨 Stampa</button>
+        ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}')">🗑 Elimina</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+async function deleteScheda118(id){
+  if(!canDeleteScheda118()) return;
+  if(!confirm('Eliminare definitivamente questa scheda 118?')) return;
+  interventi118 = interventi118.filter(x=>x.id!==id);
+  await saveInterventi118();
+  renderElenco118();
+}
+
+/* --- Apertura / chiusura modal --- */
+function openScheda118Modal(id){
+  if(!canVedereEccedenza()) return;
+  editingScheda118Id = id || null;
+  const sch = id ? interventi118.find(x=>x.id===id) : null;
+  document.getElementById('scheda118-modal-title').textContent = sch ? 'Scheda Eccedenza 118' : 'Nuovo intervento 118';
+  document.getElementById('e118-id').value = id || '';
+
+  buildCheckboxGrid('e118-forzeOrdine', FORZE_ORDINE_118, sch?.forzeOrdine);
+  buildCheckboxGrid('e118-patologia', PATOLOGIA_118, sch?.patologia);
+  buildCheckboxGrid('e118-cute', CUTE_118, sch?.cute);
+  buildCheckboxGrid('e118-egc', EGC_118, sch?.egc);
+  buildCheckboxGrid('e118-espansioneToracica', ESPANSIONE_TORACICA_118, sch?.espansioneToracica);
+  buildCheckboxGrid('e118-interventiPaziente', INTERVENTI_PAZIENTE_118, sch?.interventiPaziente);
+  buildCheckboxGrid('e118-dinamicaTrauma', DINAMICA_TRAUMA_118, sch?.dinamicaTrauma);
+  buildCheckboxGrid('e118-esito', ESITO_118, sch?.esito);
+  populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
+  populateSimpleSelect('e118-mezzoCoinvolto', MEZZO_COINVOLTO_118, sch?.mezzoCoinvolto);
+  fillPersonSelects118();
+  document.getElementById('e118-autista').value = sch?.autista || '';
+  document.getElementById('e118-soccorritore1').value = sch?.soccorritore1 || '';
+  document.getElementById('e118-soccorritore2').value = sch?.soccorritore2 || '';
+
+  const F = (id2, val) => { const el = document.getElementById(id2); if(el) el.value = (val === undefined || val === null) ? '' : val; };
+  F('e118-numeroScheda', sch?.numeroScheda);
+  F('e118-data', sch?.data || new Date().toISOString().slice(0,10));
+  F('e118-postazione', sch?.postazione);
+  F('e118-targaAmbulanza', sch?.targaAmbulanza);
+  F('e118-operatoreCentrale', sch?.operatoreCentrale);
+  F('e118-allertamentoPS', sch?.allertamentoPS);
+  F('e118-cognome', sch?.cognome);
+  F('e118-nome', sch?.nome);
+  F('e118-natoIl', sch?.natoIl);
+  F('e118-sesso', sch?.sesso);
+  F('e118-comuneIntervento', sch?.comuneIntervento);
+  F('e118-via', sch?.via);
+  F('e118-comuneNascita', sch?.comuneNascita);
+  F('e118-comuneResidenza', sch?.comuneResidenza);
+  F('e118-rianimatore', sch?.rianimatore);
+  F('e118-prontoSoccorsoDi', sch?.prontoSoccorsoDi);
+  const o = sch?.orari || {};
+  F('e118-oChiamata', o.chiamata); F('e118-oPartenza', o.partenza); F('e118-oArrivoPosto', o.arrivoPosto);
+  F('e118-oPartenzaPosto', o.partenzaPosto); F('e118-oArrivoPS', o.arrivoPS); F('e118-oLiberi', o.liberi);
+  F('e118-oInPostazione', o.inPostazione); F('e118-oDisponibili', o.disponibili);
+  F('e118-kmIniziali', sch?.kmIniziali); F('e118-kmFinali', sch?.kmFinali);
+  F('e118-codiceInvio', sch?.codiceInvio); F('e118-codiceScena', sch?.codiceScena); F('e118-codiceRientro', sch?.codiceRientro);
+  const pv = sch?.parametriVitali || {};
+  F('e118-pa', pv.pa); F('e118-fc', pv.fc); F('e118-fr', pv.fr); F('e118-spo2', pv.spo2); F('e118-etco2', pv.etco2); F('e118-glicemia', pv.glicemia);
+  F('e118-polsoCentrale', pv.polsoCentrale); F('e118-polsoPeriferico', pv.polsoPeriferico);
+  const g = sch?.gcs || {};
+  F('e118-gcsOcchi', g.occhi); F('e118-gcsVerbale', g.verbale); F('e118-gcsMotoria', g.motoria); F('e118-gcsPunteggio', g.punteggio); F('e118-gcsPediatrico', g.pediatrico);
+  F('e118-capillare', sch?.capillare);
+  const c = sch?.cincinnati || {};
+  F('e118-cinMimica', c.mimica); F('e118-cinMotorio', c.motorio); F('e118-cinLinguaggio', c.linguaggio);
+  const rts = sch?.rts || {};
+  F('e118-rtsGcs', rts.gcs); F('e118-rtsFr', rts.fr); F('e118-rtsPas', rts.pas);
+  const pd = sch?.pupille?.dx || {}, ps = sch?.pupille?.sx || {};
+  F('e118-pupDxDiametro', pd.diametro); F('e118-pupDxFoto', pd.foto); F('e118-pupDxCilio', pd.cilio); F('e118-pupDxCong', pd.cong);
+  F('e118-pupSxDiametro', ps.diametro); F('e118-pupSxFoto', ps.foto); F('e118-pupSxCilio', ps.cilio); F('e118-pupSxCong', ps.cong);
+  const def = sch?.defibrillazione || {};
+  F('e118-defibOre', def.ore); F('e118-defibScariche', def.scariche); F('e118-defibJoule', def.joule);
+  F('e118-arrestoCardiaco', sch?.arrestoCardiaco); F('e118-rcpMinuti', sch?.rcpMinuti);
+  F('e118-temperatura', sch?.temperatura); F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
+  F('e118-numeroPazienti', sch?.numeroPazienti); F('e118-riferito', sch?.riferito);
+  F('e118-anamnesi', sch?.anamnesi); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
+  F('e118-pzAffidatoA', sch?.pzAffidatoA); F('e118-diagnosi', sch?.diagnosi); F('e118-constatazioneDecessoOre', sch?.constatazioneDecessoOre);
+  F('e118-annotazioni', sch?.annotazioni);
+
+  document.getElementById('e118-rifiuta').checked = !!sch?.rifiuta;
+  document.getElementById('e118-pzImpossibilitato').checked = !!sch?.pzImpossibilitatoFirmare;
+  F('e118-motivoImpossibilita', sch?.motivoImpossibilita);
+  onRifiutaToggle118();
+  onImpossibilitatoToggle118();
+  scheda118FotoDocumento = sch?.fotoDocumentoDataUrl || null;
+  document.getElementById('e118-fotoDocumento-preview').innerHTML = scheda118FotoDocumento ? `<img src="${scheda118FotoDocumento}" style="max-width:160px;border-radius:6px;">` : '';
+  const inpFoto = document.getElementById('e118-fotoDocumento-input'); if(inpFoto) inpFoto.value = '';
+
+  scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
+  scheda118SedeUstioni = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
+  renderBodyDiagram('e118-diagramma-trauma', scheda118SedeTrauma);
+  renderBodyDiagram('e118-diagramma-ustioni', scheda118SedeUstioni);
+
+  const isChiuso = !!sch?.chiuso;
+  const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
+  document.getElementById('e118-btn-chiudi').style.display = (sch && !isChiuso && canChiudereEccedenza()) ? 'inline-block' : 'none';
+  document.getElementById('e118-btn-stampa').style.display = sch ? 'inline-block' : 'none';
+  document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
+  document.getElementById('e118-stato-label').textContent = isChiuso ? ('Scheda chiusa' + (readOnly ? ' — sola lettura' : '')) : 'Scheda aperta';
+  document.querySelectorAll('#scheda118-modal-backdrop input, #scheda118-modal-backdrop select, #scheda118-modal-backdrop textarea').forEach(el=>{ el.disabled = !!readOnly; });
+
+  document.getElementById('scheda118-modal-backdrop').classList.add('active');
+  setTimeout(()=>{
+    initSignaturePad('e118-firmaRifiuto-canvas');
+    initSignaturePad('e118-firmaAutista-canvas');
+    initSignaturePad('e118-firmaSoccorritore1-canvas');
+    initSignaturePad('e118-firmaSoccorritore2-canvas');
+    if(sch?.firmaRifiuto) drawFirmaFromDataUrl('e118-firmaRifiuto-canvas', sch.firmaRifiuto);
+    if(sch?.firmaAutista) drawFirmaFromDataUrl('e118-firmaAutista-canvas', sch.firmaAutista);
+    if(sch?.firmaSoccorritore1) drawFirmaFromDataUrl('e118-firmaSoccorritore1-canvas', sch.firmaSoccorritore1);
+    if(sch?.firmaSoccorritore2) drawFirmaFromDataUrl('e118-firmaSoccorritore2-canvas', sch.firmaSoccorritore2);
+  }, 60);
+}
+function closeScheda118Modal(){
+  document.getElementById('scheda118-modal-backdrop').classList.remove('active');
+  editingScheda118Id = null;
+}
+
+function collectScheda118FormData(id){
+  const G = id2 => document.getElementById(id2).value;
+  return {
+    id,
+    numeroScheda: G('e118-numeroScheda'), data: G('e118-data'), postazione: G('e118-postazione'),
+    targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), allertamentoPS: G('e118-allertamentoPS'),
+    cognome: G('e118-cognome'), nome: G('e118-nome'), natoIl: G('e118-natoIl'), sesso: G('e118-sesso'),
+    comuneIntervento: G('e118-comuneIntervento'), via: G('e118-via'), comuneNascita: G('e118-comuneNascita'), comuneResidenza: G('e118-comuneResidenza'),
+    rianimatore: G('e118-rianimatore'), prontoSoccorsoDi: G('e118-prontoSoccorsoDi'),
+    orari: {
+      chiamata: G('e118-oChiamata'), partenza: G('e118-oPartenza'), arrivoPosto: G('e118-oArrivoPosto'),
+      partenzaPosto: G('e118-oPartenzaPosto'), arrivoPS: G('e118-oArrivoPS'), liberi: G('e118-oLiberi'),
+      inPostazione: G('e118-oInPostazione'), disponibili: G('e118-oDisponibili')
+    },
+    kmIniziali: G('e118-kmIniziali'), kmFinali: G('e118-kmFinali'),
+    autista: G('e118-autista'), soccorritore1: G('e118-soccorritore1'), soccorritore2: G('e118-soccorritore2'),
+    codiceInvio: G('e118-codiceInvio'), codiceScena: G('e118-codiceScena'), codiceRientro: G('e118-codiceRientro'),
+    forzeOrdine: getCheckboxGridValues('e118-forzeOrdine'),
+    luogoIntervento: G('e118-luogoIntervento'),
+    patologia: getCheckboxGridValues('e118-patologia'),
+    parametriVitali: {
+      pa: G('e118-pa'), fc: G('e118-fc'), fr: G('e118-fr'), spo2: G('e118-spo2'), etco2: G('e118-etco2'), glicemia: G('e118-glicemia'),
+      polsoCentrale: G('e118-polsoCentrale'), polsoPeriferico: G('e118-polsoPeriferico')
+    },
+    cute: getCheckboxGridValues('e118-cute'),
+    gcs: { occhi: G('e118-gcsOcchi'), verbale: G('e118-gcsVerbale'), motoria: G('e118-gcsMotoria'), punteggio: G('e118-gcsPunteggio'), pediatrico: G('e118-gcsPediatrico') },
+    capillare: G('e118-capillare'),
+    cincinnati: { mimica: G('e118-cinMimica'), motorio: G('e118-cinMotorio'), linguaggio: G('e118-cinLinguaggio') },
+    rts: { gcs: G('e118-rtsGcs'), fr: G('e118-rtsFr'), pas: G('e118-rtsPas') },
+    pupille: {
+      dx: { diametro: G('e118-pupDxDiametro'), foto: G('e118-pupDxFoto'), cilio: G('e118-pupDxCilio'), cong: G('e118-pupDxCong') },
+      sx: { diametro: G('e118-pupSxDiametro'), foto: G('e118-pupSxFoto'), cilio: G('e118-pupSxCilio'), cong: G('e118-pupSxCong') }
+    },
+    defibrillazione: { ore: G('e118-defibOre'), scariche: G('e118-defibScariche'), joule: G('e118-defibJoule') },
+    arrestoCardiaco: G('e118-arrestoCardiaco'), rcpMinuti: G('e118-rcpMinuti'),
+    egc: getCheckboxGridValues('e118-egc'),
+    temperatura: G('e118-temperatura'), murmureDx: G('e118-murmureDx'), murmureSx: G('e118-murmureSx'), dispnea: G('e118-dispnea'),
+    espansioneToracica: getCheckboxGridValues('e118-espansioneToracica'),
+    interventiPaziente: getCheckboxGridValues('e118-interventiPaziente'),
+    numeroPazienti: G('e118-numeroPazienti'), mezzoCoinvolto: G('e118-mezzoCoinvolto'), riferito: G('e118-riferito'),
+    dinamicaTrauma: getCheckboxGridValues('e118-dinamicaTrauma'),
+    sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni,
+    anamnesi: G('e118-anamnesi'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
+    rifiuta: document.getElementById('e118-rifiuta').checked,
+    pzImpossibilitatoFirmare: document.getElementById('e118-pzImpossibilitato').checked,
+    motivoImpossibilita: G('e118-motivoImpossibilita'),
+    firmaRifiuto: getFirmaDataUrl118('e118-firmaRifiuto-canvas'),
+    fotoDocumentoDataUrl: scheda118FotoDocumento,
+    pzAffidatoA: G('e118-pzAffidatoA'), diagnosi: G('e118-diagnosi'), constatazioneDecessoOre: G('e118-constatazioneDecessoOre'),
+    esito: getCheckboxGridValues('e118-esito'),
+    annotazioni: G('e118-annotazioni'),
+    firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
+    firmaSoccorritore1: getFirmaDataUrl118('e118-firmaSoccorritore1-canvas'),
+    firmaSoccorritore2: getFirmaDataUrl118('e118-firmaSoccorritore2-canvas')
+  };
+}
+
+async function saveScheda118(event){
+  event.preventDefault();
+  if(!canGestireEccedenza()) return false;
+  const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
+  document.getElementById('e118-id').value = id;
+  const existing = interventi118.find(x=>x.id===id);
+  const data = collectScheda118FormData(id);
+  data.chiuso = existing?.chiuso || false;
+  data.creatoDa = existing?.creatoDa || (currentUser.nome+' '+currentUser.cognome);
+  data.creatoIl = existing?.creatoIl || new Date().toISOString();
+  data.aggiornatoIl = new Date().toISOString();
+  if(existing){ Object.assign(existing, data); } else { interventi118.push(data); }
+  await saveInterventi118();
+  closeScheda118Modal();
+  renderElenco118();
+  return false;
+}
+
+async function chiudiScheda118FromModal(){
+  if(!canChiudereEccedenza()) return;
+  if(!confirm('Confermi la chiusura definitiva della scheda? Dopo la chiusura non sarà più modificabile e verrà aperto il foglio di marcia da compilare.')) return;
+  const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
+  document.getElementById('e118-id').value = id;
+  const existing = interventi118.find(x=>x.id===id);
+  const data = collectScheda118FormData(id);
+  data.chiuso = true;
+  data.creatoDa = existing?.creatoDa || (currentUser.nome+' '+currentUser.cognome);
+  data.creatoIl = existing?.creatoIl || new Date().toISOString();
+  data.aggiornatoIl = new Date().toISOString();
+  if(existing){ Object.assign(existing, data); } else { interventi118.push(data); }
+  await saveInterventi118();
+  closeScheda118Modal();
+  renderElenco118();
+  generaFoglioDaScheda118(id);
+}
+
+function generaFoglioDaScheda118(schedaId){
+  const s = interventi118.find(x=>x.id===schedaId);
+  if(!s) return;
+  switchView('fogli');
+  renderFogliMarcia();
+  openFoglioModal();
+  document.getElementById('fm-paziente').value = ((s.cognome||'')+' '+(s.nome||'')).trim() || 'Paziente scheda 118';
+  document.getElementById('fm-autista').value = s.autista || '';
+  document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
+  document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
+  document.getElementById('fm-numeroScheda118').value = s.numeroScheda || '';
+  document.getElementById('fm-dataScheda118').value = s.data || '';
+  if(document.getElementById('fm-daDove')) document.getElementById('fm-daDove').value = s.comuneIntervento || '';
+  if(document.getElementById('fm-aDove')) document.getElementById('fm-aDove').value = s.prontoSoccorsoDi || '';
+  if(s.kmIniziali) document.getElementById('fm-kmIniziali').value = s.kmIniziali;
+  if(s.kmFinali) document.getElementById('fm-kmFinali').value = s.kmFinali;
+  if(typeof calcolaKmTotale === 'function') calcolaKmTotale();
+  if(s.targaAmbulanza){
+    const mezzoTrovato = mezzi.find(m => (m.targa||'').trim().toLowerCase() === s.targaAmbulanza.trim().toLowerCase());
+    if(mezzoTrovato){
+      document.getElementById('fm-mezzoId').value = mezzoTrovato.id;
+      if(typeof onFoglioMezzoChange === 'function') onFoglioMezzoChange();
+    }
+  }
+}
+
+/* --- Stampa --- */
+function ck118(list, key){ return (list||[]).includes(key) ? '☑' : '☐'; }
+function yn118(val){ return val==='si' ? '☑ Sì &nbsp; ☐ No' : (val==='no' ? '☐ Sì &nbsp; ☑ No' : '☐ Sì &nbsp; ☐ No'); }
+
+function costruisciStampaScheda118(s){
+  const o = s.orari||{}, pv = s.parametriVitali||{}, g = s.gcs||{}, c = s.cincinnati||{}, rts = s.rts||{};
+  const pd = s.pupille?.dx||{}, ps = s.pupille?.sx||{}, def = s.defibrillazione||{};
+  let html = '';
+  html += `<table class="print-118-table"><tr>
+    <td>POSTAZIONE<br><b>${escapeHtml(s.postazione||'—')}</b></td>
+    <td>TARGA AMBULANZA<br><b>${escapeHtml(s.targaAmbulanza||'—')}</b></td>
+    <td>DATA<br><b>${formatDataIt(s.data)}</b></td>
+    <td>SCHEDA INTERVENTO N°<br><b>${escapeHtml(s.numeroScheda||'—')}</b></td>
+  </tr><tr>
+    <td>COGNOME<br><b>${escapeHtml(s.cognome||'—')}</b></td>
+    <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
+    <td>NATO IL<br><b>${formatDataIt(s.natoIl)}</b></td>
+    <td>SESSO<br>${s.sesso==='M'?'☑':'☐'} M &nbsp; ${s.sesso==='F'?'☑':'☐'} F</td>
+  </tr><tr>
+    <td>COMUNE DI INTERVENTO<br><b>${escapeHtml(s.comuneIntervento||'—')}</b></td>
+    <td>VIA<br><b>${escapeHtml(s.via||'—')}</b></td>
+    <td>COMUNE DI RESIDENZA<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
+    <td>ALLERTAMENTO → P.S.<br>${yn118(s.allertamentoPS)}</td>
+  </tr></table>`;
+
+  html += `<table class="print-118-table"><tr>
+    <td>CHIAMATA<br><b>${o.chiamata||'—'}</b></td><td>PARTENZA<br><b>${o.partenza||'—'}</b></td>
+    <td>ARRIVO POSTO<br><b>${o.arrivoPosto||'—'}</b></td><td>PARTENZA POSTO<br><b>${o.partenzaPosto||'—'}</b></td>
+    <td>ARRIVO PS<br><b>${o.arrivoPS||'—'}</b></td><td>LIBERI<br><b>${o.liberi||'—'}</b></td>
+    <td>IN POSTAZIONE<br><b>${o.inPostazione||'—'}</b></td><td>DISPONIBILI<br><b>${o.disponibili||'—'}</b></td>
+  </tr></table>`;
+
+  html += `<table class="print-118-table"><tr>
+    <td>KM INIZIALI<br><b>${escapeHtml(s.kmIniziali||'—')}</b></td><td>KM FINALI<br><b>${escapeHtml(s.kmFinali||'—')}</b></td>
+    <td>AUTISTA<br><b>${escapeHtml(s.autista||'—')}</b></td><td>SOCCORRITORE 1<br><b>${escapeHtml(s.soccorritore1||'—')}</b></td>
+    <td>SOCCORRITORE 2<br><b>${escapeHtml(s.soccorritore2||'—')}</b></td>
+  </tr></table>`;
+
+  html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA RISCONTRATA</div>
+  <table class="print-118-table"><tr><td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join('<br>')}</td>
+  <td>${PATOLOGIA_118.map(([k,l])=>`${ck118(s.patologia,k)} ${l}`).join('<br>')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">PARAMETRI VITALI</div>
+  <table class="print-118-table"><tr>
+    <td>P.A.<br><b>${escapeHtml(pv.pa||'—')}</b></td><td>F.C.<br><b>${escapeHtml(pv.fc||'—')}</b></td>
+    <td>F.R.<br><b>${escapeHtml(pv.fr||'—')}</b></td><td>SpO2<br><b>${escapeHtml(pv.spo2||'—')}</b></td>
+    <td>ETCO2<br><b>${escapeHtml(pv.etco2||'—')}</b></td><td>GLICEMIA<br><b>${escapeHtml(pv.glicemia||'—')}</b></td>
+    <td>Polso centrale<br>${yn118(pv.polsoCentrale)}</td><td>Polso periferico<br>${yn118(pv.polsoPeriferico)}</td>
+  </tr></table>
+  <table class="print-118-table"><tr><td>CUTE: ${CUTE_118.map(([k,l])=>`${ck118(s.cute,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">GCS / CINCINNATI / RTS</div>
+  <table class="print-118-table"><tr>
+    <td>Apertura occhi<br><b>${escapeHtml(g.occhi||'—')}</b></td><td>Risposta verbale<br><b>${escapeHtml(g.verbale||'—')}</b></td>
+    <td>Risposta motoria<br><b>${escapeHtml(g.motoria||'—')}</b></td><td>Punteggio GCS<br><b>${escapeHtml(g.punteggio||'—')}</b></td>
+    <td>Pediatric GCS<br><b>${escapeHtml(g.pediatrico||'—')}</b></td>
+  </tr><tr>
+    <td>Mimica facciale<br>${yn118(c.mimica)}</td><td>Deficit motorio<br>${yn118(c.motorio)}</td><td>Anomalie linguaggio<br>${yn118(c.linguaggio)}</td>
+    <td>RTS (GCS/FR/PAS)<br><b>${escapeHtml(rts.gcs||'—')} / ${escapeHtml(rts.fr||'—')} / ${escapeHtml(rts.pas||'—')}</b></td>
+    <td>Riempimento capillare<br><b>${s.capillare==='lt2'?'< 2 sec.':(s.capillare==='gt2'?'> 2 sec.':'—')}</b></td>
+  </tr></table>
+  <table class="print-118-table"><tr>
+    <td>Pupilla dx: diam. <b>${escapeHtml(pd.diametro||'—')}</b> — fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
+    <td>Pupilla sx: diam. <b>${escapeHtml(ps.diametro||'—')}</b> — fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
+  </tr></table>`;
+
+  html += `<div class="print-118-section-title">DEFIBRILLAZIONE / ARRESTO CARDIACO</div>
+  <table class="print-118-table"><tr>
+    <td>Ore<br><b>${def.ore||'—'}</b></td><td>N. scariche<br><b>${escapeHtml(def.scariche||'—')}</b></td>
+    <td>Joule<br><b>${escapeHtml(def.joule||'—')}</b></td><td>Arresto cardiaco<br>${yn118(s.arrestoCardiaco)}</td>
+    <td>R.C.P.<br><b>${escapeHtml(s.rcpMinuti||'—')}</b></td>
+  </tr><tr><td colspan="5">ECG: ${EGC_118.map(([k,l])=>`${ck118(s.egc,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">TORACE E RESPIRO</div>
+  <table class="print-118-table"><tr>
+    <td>Temperatura<br><b>${escapeHtml(s.temperatura||'—')}</b></td>
+    <td>Murmure dx<br><b>${s.murmureDx==='si'?'Presente':(s.murmureDx==='no'?'Assente':'—')}</b></td>
+    <td>Murmure sx<br><b>${s.murmureSx==='si'?'Presente':(s.murmureSx==='no'?'Assente':'—')}</b></td>
+    <td>Dispnea<br>${yn118(s.dispnea)}</td>
+  </tr><tr><td colspan="4">${ESPANSIONE_TORACICA_118.map(([k,l])=>`${ck118(s.espansioneToracica,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">INTERVENTI SUL PAZIENTE</div>
+  <table class="print-118-table"><tr><td>${INTERVENTI_PAZIENTE_118.map(([k,l])=>`${ck118(s.interventiPaziente,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">DINAMICA DEL TRAUMA</div>
+  <table class="print-118-table"><tr>
+    <td>N. pazienti coinvolti<br><b>${escapeHtml(s.numeroPazienti||'—')}</b></td>
+    <td>Mezzo coinvolto<br><b>${(MEZZO_COINVOLTO_118.find(([k])=>k===s.mezzoCoinvolto)||[null,'—'])[1]}</b></td>
+    <td>Riferito<br>${yn118(s.riferito)}</td>
+  </tr><tr><td colspan="3">${DINAMICA_TRAUMA_118.map(([k,l])=>`${ck118(s.dinamicaTrauma,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  html += `<div class="print-118-section-title">SEDE DEL TRAUMA / USTIONI</div>
+  <table class="print-118-table"><tr>
+    <td style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma)}<div>Trauma</div></td>
+    <td style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeUstioni)}<div>Ustioni</div></td>
+  </tr></table>`;
+
+  html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
+  <table class="print-118-table">
+    <tr><td>Anamnesi, allergie e terapia in atto:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
+    <tr><td>Segni clinici:<br>${escapeHtml(s.segniClinici||'—')}</td></tr>
+    <tr><td>Terapia praticata:<br>${escapeHtml(s.terapiaPraticata||'—')}</td></tr>
+  </table>`;
+
+  html += `<div class="print-118-section-title">ESITO</div>
+  <table class="print-118-table"><tr>
+    <td>Paziente affidato a<br><b>${escapeHtml(s.pzAffidatoA||'—')}</b></td>
+    <td>Diagnosi<br><b>${escapeHtml(s.diagnosi||'—')}</b></td>
+    <td>Constatazione decesso ore<br><b>${s.constatazioneDecessoOre||'—'}</b></td>
+  </tr><tr><td colspan="3">${ESITO_118.map(([k,l])=>`${ck118(s.esito,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+
+  if(s.rifiuta){
+    html += `<div class="print-118-section-title">RIFIUTO SOCCORSO</div>
+    <table class="print-118-table"><tr><td>
+      Paziente impossibilitato a firmare: ${s.pzImpossibilitatoFirmare?'☑':'☐'} ${s.pzImpossibilitatoFirmare?('— Motivo: '+escapeHtml(s.motivoImpossibilita||'—')):''}<br>
+      ${s.firmaRifiuto ? `Firma: <img src="${s.firmaRifiuto}" style="height:50px;">` : 'Firma non presente'}
+      ${s.fotoDocumentoDataUrl ? `<br>Documento allegato:<br><img src="${s.fotoDocumentoDataUrl}" style="max-width:220px;margin-top:6px;">` : ''}
+    </td></tr></table>`;
+  }
+
+  html += `<div class="print-118-section-title">ANNOTAZIONI SUL SERVIZIO</div>
+  <table class="print-118-table"><tr><td>${escapeHtml(s.annotazioni||'—')}</td></tr></table>`;
+
+  html += `<table class="print-118-table"><tr>
+    <td style="text-align:center;">FIRMA AUTISTA<br>${s.firmaAutista?`<img src="${s.firmaAutista}" style="height:40px;">`:'____________________'}</td>
+    <td style="text-align:center;">FIRMA SOCCORRITORE 1<br>${s.firmaSoccorritore1?`<img src="${s.firmaSoccorritore1}" style="height:40px;">`:'____________________'}</td>
+    <td style="text-align:center;">FIRMA SOCCORRITORE 2<br>${s.firmaSoccorritore2?`<img src="${s.firmaSoccorritore2}" style="height:40px;">`:'____________________'}</td>
+  </tr></table>`;
+
+  return html;
+}
+
+function viewStampaScheda118(id){
+  const s = interventi118.find(x=>x.id===id);
+  if(!s) return;
+  const logoImg = document.querySelector('.print-letterhead img');
+  const logo118 = document.getElementById('print-118-logo');
+  if(logo118 && logoImg) logo118.src = logoImg.src;
+  document.getElementById('print-118-content').innerHTML = costruisciStampaScheda118(s);
+  document.getElementById('view-modal-118-backdrop').classList.add('active');
+}
+function closeView118Modal(){
+  document.getElementById('view-modal-118-backdrop').classList.remove('active');
+}
+function stampaScheda118(){
+  const id = document.getElementById('e118-id').value;
+  if(!id){ alert("Salva prima la scheda per poterla stampare."); return; }
+  closeScheda118Modal();
+  viewStampaScheda118(id);
+}
+
 </script>
 </body>
 </html>
