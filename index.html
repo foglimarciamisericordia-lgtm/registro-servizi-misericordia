@@ -4409,10 +4409,10 @@ async function saveService(ev){
       data.cronologia.push({ tipo:'Annullato', chi: nomeUtenteCorrente, quando: adesso });
     }
     if(data.chiuso && !existing.chiuso){
-      data.cronologia.push({ tipo:'Chiuso definitivamente', chi: nomeUtenteCorrente, quando: adesso });
+      data.cronologia.push({ tipo:'Assegnato', chi: nomeUtenteCorrente, quando: adesso });
     }
     if(!data.chiuso && existing.chiuso){
-      data.cronologia.push({ tipo:'Riaperto', chi: nomeUtenteCorrente, quando: adesso });
+      data.cronologia.push({ tipo:'Assegnazione rimossa', chi: nomeUtenteCorrente, quando: adesso });
     }
   }
   const mezzoScelto = mezzi.find(m=>m.id===data.mezzoId);
