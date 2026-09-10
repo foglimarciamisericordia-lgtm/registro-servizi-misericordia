@@ -185,6 +185,7 @@
   .print-118-table td{border:1px solid #999;padding:3px 6px;vertical-align:top;}
   .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:4px 0;font-size:12px;}
   @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} }
+  .e118-fixed-header{background:var(--bg);border-radius:10px;padding:14px 14px 2px;margin-top:12px;}
   .e118-tabs{display:flex;gap:6px;margin:14px 0 18px;border-bottom:1.5px solid var(--border);flex-wrap:wrap;}
   .e118-tab-btn{padding:9px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1.5px;}
   .e118-tab-btn.active{color:var(--navy);border-bottom-color:var(--navy);}
@@ -1202,10 +1203,14 @@
     <p class="modal-sub">Disponibile poi nella scheda servizio</p>
     <form onsubmit="return saveMezzo(event)">
       <div class="field"><label>Tipo di mezzo</label>
-        <select id="mf-tipo"></select>
+        <select id="mf-tipo" onchange="onMfTipoChange()"></select>
       </div>
       <div class="field"><label>Codice mezzo</label><input type="text" id="mf-codice" placeholder="es. M03"></div>
       <div class="field"><label>Targa</label><input type="text" id="mf-targa" required style="text-transform:uppercase;"></div>
+      <div class="field" id="mf-destinato118-wrap" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mf-destinato118"> Ambulanza destinata al 118 (Eccedenza)</label>
+        <p class="map-hint">Solo un'ambulanza alla volta può essere contrassegnata: selezionandola, la eventuale precedente verrà deselezionata.</p>
+      </div>
       <div class="modal-actions">
         <div></div>
         <div style="display:flex;gap:10px;">
@@ -1247,12 +1252,37 @@
   <div class="modal" style="max-width:920px;">
     <button class="close-x" onclick="closeScheda118Modal()">✕</button>
     <h3 id="scheda118-modal-title">Scheda Eccedenza 118</h3>
-    <div class="e118-tabs">
-      <button type="button" class="e118-tab-btn active" data-tab="dati-intervento" onclick="switchTab118('dati-intervento')">Dati Intervento</button>
-      <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Provvisoria</button>
-    </div>
     <form onsubmit="return saveScheda118(event)">
       <input type="hidden" id="e118-id">
+
+      <div class="e118-fixed-header">
+        <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+          <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
+          <div class="field"><label>Targa ambulanza</label><select id="e118-targaAmbulanza"><option value="">—</option></select></div>
+          <div class="field"><label>Data</label><input type="date" id="e118-data" required></div>
+          <div class="field"><label>Chiamata</label><input type="time" id="e118-oChiamata" oninput="onChiamata118Change()"></div>
+        </div>
+        <div class="grid2" style="grid-template-columns:repeat(5,1fr);">
+          <div class="field"><label>Partenza</label><input type="time" id="e118-oPartenza"></div>
+          <div class="field"><label>Arrivo sul posto</label><div style="display:flex;gap:6px;"><input type="time" id="e118-oArrivoPosto" style="flex:1;"><button type="button" class="btn btn-ghost" style="width:auto;padding:0 10px;" onclick="setOraCorrente118('e118-oArrivoPosto')">Ora</button></div></div>
+          <div class="field"><label>Partenza dal posto</label><div style="display:flex;gap:6px;"><input type="time" id="e118-oPartenzaPosto" style="flex:1;"><button type="button" class="btn btn-ghost" style="width:auto;padding:0 10px;" onclick="setOraCorrente118('e118-oPartenzaPosto')">Ora</button></div></div>
+          <div class="field"><label>Arrivo al PS</label><div style="display:flex;gap:6px;"><input type="time" id="e118-oArrivoPS" style="flex:1;"><button type="button" class="btn btn-ghost" style="width:auto;padding:0 10px;" onclick="setOraCorrente118('e118-oArrivoPS')">Ora</button></div></div>
+          <div class="field"><label>Liberi - fine intervento</label><div style="display:flex;gap:6px;"><input type="time" id="e118-oLiberi" style="flex:1;"><button type="button" class="btn btn-ghost" style="width:auto;padding:0 10px;" onclick="setOraCorrente118('e118-oLiberi')">Ora</button></div></div>
+        </div>
+        <div class="grid2" style="grid-template-columns:repeat(6,1fr);">
+          <div class="field"><label>Km iniziali</label><input type="number" id="e118-kmIniziali" oninput="calcolaKmTotale118()"></div>
+          <div class="field"><label>Km finali</label><input type="number" id="e118-kmFinali" oninput="calcolaKmTotale118()"></div>
+          <div class="field"><label>Km totali</label><input type="number" id="e118-kmTotali" readonly></div>
+          <div class="field"><label>Autista</label><select id="e118-autista"></select></div>
+          <div class="field"><label>Soccorritore 1</label><select id="e118-soccorritore1"></select></div>
+          <div class="field"><label>Soccorritore 2</label><select id="e118-soccorritore2"></select></div>
+        </div>
+      </div>
+
+      <div class="e118-tabs">
+        <button type="button" class="e118-tab-btn active" data-tab="dati-intervento" onclick="switchTab118('dati-intervento')">Dati Intervento</button>
+        <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Provvisoria</button>
+      </div>
 
       <div class="e118-tab-pane active" data-tabpane="dati-intervento">
         <div class="grid2">
@@ -1274,9 +1304,6 @@
 
       <div class="section-title">Dati generali</div>
       <div class="grid2">
-        <div class="field"><label>Data</label><input type="date" id="e118-data" required></div>
-        <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
-        <div class="field"><label>Targa ambulanza</label><input type="text" id="e118-targaAmbulanza" style="text-transform:uppercase;"></div>
         <div class="field"><label>Allertamento → P.S.</label>
           <select id="e118-allertamentoPS"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
         </div>
@@ -1296,25 +1323,10 @@
         <div class="field"><label>Pronto Soccorso di</label><input type="text" id="e118-prontoSoccorsoDi"></div>
       </div>
 
-      <div class="section-title">Orari</div>
+      <div class="section-title">Altri orari</div>
       <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-        <div class="field"><label>Chiamata</label><input type="time" id="e118-oChiamata"></div>
-        <div class="field"><label>Partenza</label><input type="time" id="e118-oPartenza"></div>
-        <div class="field"><label>Arrivo sul posto</label><input type="time" id="e118-oArrivoPosto"></div>
-        <div class="field"><label>Partenza dal posto</label><input type="time" id="e118-oPartenzaPosto"></div>
-        <div class="field"><label>Arrivo al PS</label><input type="time" id="e118-oArrivoPS"></div>
-        <div class="field"><label>Liberi</label><input type="time" id="e118-oLiberi"></div>
         <div class="field"><label>In postazione</label><input type="time" id="e118-oInPostazione"></div>
         <div class="field"><label>Disponibili</label><input type="time" id="e118-oDisponibili"></div>
-      </div>
-
-      <div class="section-title">Equipaggio e mezzo</div>
-      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-        <div class="field"><label>Km iniziali</label><input type="number" id="e118-kmIniziali"></div>
-        <div class="field"><label>Km finali</label><input type="number" id="e118-kmFinali"></div>
-        <div class="field"><label>Autista</label><select id="e118-autista"></select></div>
-        <div class="field"><label>Soccorritore 1</label><select id="e118-soccorritore1"></select></div>
-        <div class="field"><label>Soccorritore 2</label><select id="e118-soccorritore2"></select></div>
       </div>
 
       <div class="section-title">Codici</div>
@@ -2555,6 +2567,7 @@ function renderMezzi(){
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
       <div class="un mono">${escapeHtml(m.targa)}</div>
+      ${m.destinato118 ? `<span class="role-chip eccedenza">Ambulanza 118</span>` : ''}
       ${m.archiviato ? `<span class="tag-chiuso">Archiviato il ${m.dataArchiviazione||''}</span>` : ''}
       <div class="row-actions" style="margin-top:10px;">
         ${m.archiviato ? `<button class="action-btn primary" onclick="riattivaMezzo('${m.id}')">↺ Riattiva</button>` : `
@@ -2706,7 +2719,13 @@ function openMezzoModal(id){
   fillTipoMezzoSelect(document.getElementById('mf-tipo'), m ? m.tipo : null);
   document.getElementById('mf-codice').value = m ? (m.codice||'') : '';
   document.getElementById('mf-targa').value = m ? m.targa : '';
+  document.getElementById('mf-destinato118').checked = !!(m && m.destinato118);
+  onMfTipoChange();
   document.getElementById('mezzo-modal-backdrop').classList.add('active');
+}
+function onMfTipoChange(){
+  const tipo = document.getElementById('mf-tipo').value;
+  document.getElementById('mf-destinato118-wrap').style.display = (tipo === 'Ambulanza') ? 'block' : 'none';
 }
 function closeMezzoModal(){ document.getElementById('mezzo-modal-backdrop').classList.remove('active'); editingMezzoId = null; }
 async function saveMezzo(ev){
@@ -2714,12 +2733,21 @@ async function saveMezzo(ev){
   const targa = document.getElementById('mf-targa').value.trim().toUpperCase();
   const duplicato = mezzi.some(m=>m.targa===targa && m.id!==editingMezzoId);
   if(duplicato){ alert('Un mezzo con questa targa è già registrato.'); return false; }
+  const tipo = document.getElementById('mf-tipo').value;
+  const destinato118 = (tipo === 'Ambulanza') && document.getElementById('mf-destinato118').checked;
+  let idAttuale;
   if(editingMezzoId){
     const idx = mezzi.findIndex(m=>m.id===editingMezzoId);
-    mezzi[idx] = { ...mezzi[idx], tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa };
+    mezzi[idx] = { ...mezzi[idx], tipo, codice: document.getElementById('mf-codice').value.trim(), targa, destinato118 };
+    idAttuale = editingMezzoId;
   } else {
     const ordineMax = mezzi.reduce((max,m)=> Math.max(max, m.ordine ?? 0), -1);
-    mezzi.push({ id: 'm-' + Date.now(), tipo: document.getElementById('mf-tipo').value, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false, ordine: ordineMax + 1 });
+    const nuovoMezzo = { id: 'm-' + Date.now(), tipo, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false, ordine: ordineMax + 1, destinato118 };
+    mezzi.push(nuovoMezzo);
+    idAttuale = nuovoMezzo.id;
+  }
+  if(destinato118){
+    mezzi.forEach(m=>{ if(m.id !== idAttuale) m.destinato118 = false; });
   }
   await saveMezzi();
   renderMezzi();
@@ -4914,11 +4942,47 @@ function populateSimpleSelect(selectId, list, selectedValue){
   sel.value = selectedValue || '';
 }
 function fillPersonSelects118(){
-  const attivi = utenti.filter(u=>!u.archiviato);
-  const archiviati = utenti.filter(u=>u.archiviato);
+  const ruoliAmmessi = ['eccedenza','responsabile118','responsabile','amministratore'];
+  const idonei = utenti.filter(u=>ruoliAmmessi.includes(u.ruolo));
+  const attivi = idonei.filter(u=>!u.archiviato);
+  const archiviati = idonei.filter(u=>u.archiviato);
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
   const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['e118-autista','e118-soccorritore1','e118-soccorritore2'].forEach(id=>{ const el = document.getElementById(id); if(el) el.innerHTML = options; });
+}
+function popolaTargaAmbulanza118(selezionata, isNuova){
+  const sel = document.getElementById('e118-targaAmbulanza');
+  if(!sel) return;
+  const ambulanze = mezzi.filter(m=>m.tipo==='Ambulanza' && !m.archiviato);
+  const opt = m => `<option value="${escapeHtml(m.targa)}">${escapeHtml(m.targa)}${m.codice?' — '+escapeHtml(m.codice):''}</option>`;
+  sel.innerHTML = '<option value="">—</option>' + ambulanze.map(opt).join('');
+  if(selezionata && !ambulanze.some(m=>m.targa===selezionata)){
+    sel.innerHTML += `<option value="${escapeHtml(selezionata)}">${escapeHtml(selezionata)}</option>`;
+  }
+  if(selezionata){
+    sel.value = selezionata;
+  } else if(isNuova){
+    const flag = ambulanze.find(m=>m.destinato118);
+    sel.value = flag ? flag.targa : '';
+  } else {
+    sel.value = '';
+  }
+}
+function onChiamata118Change(){
+  const val = document.getElementById('e118-oChiamata').value;
+  if(!val) return;
+  const [h,m] = val.split(':').map(Number);
+  const d = new Date(2000,0,1,h,m+2);
+  document.getElementById('e118-oPartenza').value = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function setOraCorrente118(fieldId){
+  const now = new Date();
+  document.getElementById(fieldId).value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+}
+function calcolaKmTotale118(){
+  const ini = parseFloat(document.getElementById('e118-kmIniziali').value);
+  const fin = parseFloat(document.getElementById('e118-kmFinali').value);
+  document.getElementById('e118-kmTotali').value = (!isNaN(ini) && !isNaN(fin) && fin>=ini) ? (fin-ini) : '';
 }
 
 function calcolaGCS118(){
@@ -5125,12 +5189,12 @@ function openScheda118Modal(id){
   document.getElementById('e118-autista').value = sch?.autista || '';
   document.getElementById('e118-soccorritore1').value = sch?.soccorritore1 || '';
   document.getElementById('e118-soccorritore2').value = sch?.soccorritore2 || '';
+  popolaTargaAmbulanza118(sch?.targaAmbulanza, !sch);
 
   const F = (id2, val) => { const el = document.getElementById(id2); if(el) el.value = (val === undefined || val === null) ? '' : val; };
   F('e118-numeroScheda', sch?.numeroScheda);
   F('e118-data', sch?.data || new Date().toISOString().slice(0,10));
-  F('e118-postazione', sch?.postazione);
-  F('e118-targaAmbulanza', sch?.targaAmbulanza);
+  F('e118-postazione', sch ? sch.postazione : 'Licodia 1');
   F('e118-operatoreCentrale', sch?.operatoreCentrale);
   F('e118-allertamentoPS', sch?.allertamentoPS);
   F('e118-cognome', sch?.cognome);
@@ -5147,7 +5211,13 @@ function openScheda118Modal(id){
   F('e118-oChiamata', o.chiamata); F('e118-oPartenza', o.partenza); F('e118-oArrivoPosto', o.arrivoPosto);
   F('e118-oPartenzaPosto', o.partenzaPosto); F('e118-oArrivoPS', o.arrivoPS); F('e118-oLiberi', o.liberi);
   F('e118-oInPostazione', o.inPostazione); F('e118-oDisponibili', o.disponibili);
+  if(!sch){
+    const now = new Date();
+    document.getElementById('e118-oChiamata').value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    onChiamata118Change();
+  }
   F('e118-kmIniziali', sch?.kmIniziali); F('e118-kmFinali', sch?.kmFinali);
+  calcolaKmTotale118();
   F('e118-codiceScena', sch?.codiceScena); F('e118-codiceRientro', sch?.codiceRientro);
   const pv = sch?.parametriVitali || {};
   F('e118-pa', pv.pa); F('e118-fc', pv.fc); F('e118-fr', pv.fr); F('e118-spo2', pv.spo2); F('e118-etco2', pv.etco2); F('e118-glicemia', pv.glicemia);
@@ -5226,7 +5296,7 @@ function collectScheda118FormData(id){
       partenzaPosto: G('e118-oPartenzaPosto'), arrivoPS: G('e118-oArrivoPS'), liberi: G('e118-oLiberi'),
       inPostazione: G('e118-oInPostazione'), disponibili: G('e118-oDisponibili')
     },
-    kmIniziali: G('e118-kmIniziali'), kmFinali: G('e118-kmFinali'),
+    kmIniziali: G('e118-kmIniziali'), kmFinali: G('e118-kmFinali'), kmTotali: G('e118-kmTotali'),
     autista: G('e118-autista'), soccorritore1: G('e118-soccorritore1'), soccorritore2: G('e118-soccorritore2'),
     codiceInvio: G('e118-codiceInvio'), codiceScena: G('e118-codiceScena'), codiceRientro: G('e118-codiceRientro'),
     forzeOrdine: getCheckboxGridValues('e118-forzeOrdine'),
@@ -5365,6 +5435,7 @@ function costruisciStampaScheda118(s){
 
   html += `<table class="print-118-table"><tr>
     <td>KM INIZIALI<br><b>${escapeHtml(s.kmIniziali||'—')}</b></td><td>KM FINALI<br><b>${escapeHtml(s.kmFinali||'—')}</b></td>
+    <td>KM TOTALI<br><b>${escapeHtml(s.kmTotali||'—')}</b></td>
     <td>AUTISTA<br><b>${escapeHtml(s.autista||'—')}</b></td><td>SOCCORRITORE 1<br><b>${escapeHtml(s.soccorritore1||'—')}</b></td>
     <td>SOCCORRITORE 2<br><b>${escapeHtml(s.soccorritore2||'—')}</b></td>
   </tr></table>`;
