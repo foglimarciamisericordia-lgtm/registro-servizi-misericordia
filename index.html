@@ -1259,7 +1259,7 @@
         <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
           <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
           <div class="field"><label>Targa ambulanza</label><select id="e118-targaAmbulanza"><option value="">—</option></select></div>
-          <div class="field"><label>Data</label><input type="date" id="e118-data" required></div>
+          <div class="field"><label>Data</label><input type="date" id="e118-data" required oninput="aggiornaAnteprimaNumeroScheda118()"></div>
           <div class="field"><label>Chiamata</label><input type="time" id="e118-oChiamata" oninput="onChiamata118Change()"></div>
         </div>
         <div class="grid2" style="grid-template-columns:repeat(5,1fr);">
@@ -1281,22 +1281,43 @@
 
       <div class="e118-tabs">
         <button type="button" class="e118-tab-btn active" data-tab="dati-intervento" onclick="switchTab118('dati-intervento')">Dati Intervento</button>
+        <button type="button" class="e118-tab-btn" data-tab="dati-paziente" onclick="switchTab118('dati-paziente')">Dati Paziente</button>
         <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Provvisoria</button>
       </div>
 
       <div class="e118-tab-pane active" data-tabpane="dati-intervento">
         <div class="grid2">
-          <div class="field"><label>Via e n.</label><input type="text" id="e118-via"></div>
           <div class="field"><label>Città di intervento</label><input type="text" id="e118-comuneIntervento"></div>
+          <div class="field"><label>Via e n.</label><input type="text" id="e118-via"></div>
           <div class="field"><label>Luogo intervento</label><select id="e118-luogoIntervento"><option value="">—</option></select></div>
           <div class="field"><label>Patologia comunicata</label><select id="e118-patologiaComunicata"><option value="">—</option></select></div>
           <div class="field"><label>Operatore di centrale n.</label><input type="text" id="e118-operatoreCentrale"></div>
-          <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale"></div>
+          <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale" oninput="aggiornaAnteprimaNumeroScheda118()">
+            <p class="map-hint" id="e118-numeroScheda-hint"></p>
+          </div>
         </div>
         <div class="field">
           <label>Codice invio</label>
           <div class="codice-invio-buttons" id="e118-codiceInvio-buttons"></div>
           <input type="hidden" id="e118-codiceInvio">
+        </div>
+      </div>
+
+      <div class="e118-tab-pane" data-tabpane="dati-paziente">
+        <div class="grid2">
+          <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
+          <div class="field"><label>Nome</label><input type="text" id="e118-nome"></div>
+          <div class="field"><label>Nato a</label><input type="text" id="e118-comuneNascita"></div>
+          <div class="field"><label>Il</label><input type="date" id="e118-natoIl" oninput="calcolaEta118()"></div>
+          <div class="field"><label>Età</label><input type="number" id="e118-eta" readonly></div>
+          <div class="field"><label>M/F</label>
+            <select id="e118-sesso"><option value="">—</option><option value="M">M</option><option value="F">F</option></select>
+          </div>
+          <div class="field"><label>Codice Fiscale</label><input type="text" id="e118-codiceFiscale" style="text-transform:uppercase;"></div>
+          <div class="field"><label>Residente a</label><input type="text" id="e118-comuneResidenza"></div>
+          <div class="field"><label>in via e n.</label><input type="text" id="e118-viaResidenza"></div>
+          <div class="field"><label>Telefono familiare 1</label><input type="text" id="e118-telefonoFamiliare1"></div>
+          <div class="field"><label>Telefono familiare 2</label><input type="text" id="e118-telefonoFamiliare2"></div>
         </div>
       </div>
 
@@ -1307,16 +1328,6 @@
         <div class="field"><label>Allertamento → P.S.</label>
           <select id="e118-allertamentoPS"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
         </div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
-        <div class="field"><label>Nome</label><input type="text" id="e118-nome"></div>
-        <div class="field"><label>Nato il</label><input type="date" id="e118-natoIl"></div>
-        <div class="field"><label>Sesso</label>
-          <select id="e118-sesso"><option value="">—</option><option value="M">Maschio</option><option value="F">Femmina</option></select>
-        </div>
-        <div class="field"><label>Comune di nascita</label><input type="text" id="e118-comuneNascita"></div>
-        <div class="field"><label>Comune di residenza</label><input type="text" id="e118-comuneResidenza"></div>
         <div class="field"><label>Rianimatore</label>
           <select id="e118-rianimatore"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
         </div>
@@ -4953,17 +4964,15 @@ function fillPersonSelects118(){
 function popolaTargaAmbulanza118(selezionata, isNuova){
   const sel = document.getElementById('e118-targaAmbulanza');
   if(!sel) return;
-  const ambulanze = mezzi.filter(m=>m.tipo==='Ambulanza' && !m.archiviato);
-  const opt = m => `<option value="${escapeHtml(m.targa)}">${escapeHtml(m.targa)}${m.codice?' — '+escapeHtml(m.codice):''}</option>`;
-  sel.innerHTML = '<option value="">—</option>' + ambulanze.map(opt).join('');
-  if(selezionata && !ambulanze.some(m=>m.targa===selezionata)){
+  const ambulanza118 = mezzi.find(m=>m.tipo==='Ambulanza' && m.destinato118 && !m.archiviato);
+  sel.innerHTML = '<option value="">—</option>' + (ambulanza118 ? `<option value="${escapeHtml(ambulanza118.targa)}">${escapeHtml(ambulanza118.targa)}${ambulanza118.codice?' — '+escapeHtml(ambulanza118.codice):''}</option>` : '');
+  if(selezionata && (!ambulanza118 || ambulanza118.targa !== selezionata)){
     sel.innerHTML += `<option value="${escapeHtml(selezionata)}">${escapeHtml(selezionata)}</option>`;
   }
   if(selezionata){
     sel.value = selezionata;
   } else if(isNuova){
-    const flag = ambulanze.find(m=>m.destinato118);
-    sel.value = flag ? flag.targa : '';
+    sel.value = ambulanza118 ? ambulanza118.targa : '';
   } else {
     sel.value = '';
   }
@@ -4990,6 +4999,30 @@ function calcolaGCS118(){
   const v = parseInt(document.getElementById('e118-gcsVerbale').value) || 0;
   const m = parseInt(document.getElementById('e118-gcsMotoria').value) || 0;
   document.getElementById('e118-gcsPunteggio').value = (o && v && m) ? (o+v+m) : '';
+}
+function calcolaEta118(){
+  const val = document.getElementById('e118-natoIl').value;
+  const etaEl = document.getElementById('e118-eta');
+  if(!etaEl) return;
+  if(!val){ etaEl.value = ''; return; }
+  const nascita = new Date(val);
+  const oggi = new Date();
+  let eta = oggi.getFullYear() - nascita.getFullYear();
+  const diffMese = oggi.getMonth() - nascita.getMonth();
+  if(diffMese < 0 || (diffMese === 0 && oggi.getDate() < nascita.getDate())) eta--;
+  etaEl.value = eta >= 0 ? eta : '';
+}
+function aggiornaAnteprimaNumeroScheda118(){
+  const hint = document.getElementById('e118-numeroScheda-hint');
+  if(!hint) return;
+  const numero = document.getElementById('e118-numeroScheda').value.trim();
+  const data = document.getElementById('e118-data').value;
+  hint.textContent = (numero && data) ? ('Formato scheda: ' + numero + '-' + new Date(data).getFullYear()) : '';
+}
+function formattaNumeroScheda118(s){
+  if(!s || !s.numeroScheda) return '—';
+  const anno = s.data ? new Date(s.data).getFullYear() : '';
+  return anno ? (s.numeroScheda + '-' + anno) : s.numeroScheda;
 }
 
 /* --- Linguette --- */
@@ -5142,7 +5175,7 @@ function renderElenco118(){
   let html = '<table class="mini-table"><thead><tr><th>N. scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
     html += `<tr>
-      <td>${escapeHtml(s.numeroScheda||'—')}</td>
+      <td>${escapeHtml(formattaNumeroScheda118(s))}</td>
       <td>${formatDataIt(s.data)}</td>
       <td>${escapeHtml(((s.cognome||'')+' '+(s.nome||'')).trim()||'—')}</td>
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
@@ -5194,6 +5227,7 @@ function openScheda118Modal(id){
   const F = (id2, val) => { const el = document.getElementById(id2); if(el) el.value = (val === undefined || val === null) ? '' : val; };
   F('e118-numeroScheda', sch?.numeroScheda);
   F('e118-data', sch?.data || new Date().toISOString().slice(0,10));
+  aggiornaAnteprimaNumeroScheda118();
   F('e118-postazione', sch ? sch.postazione : 'Licodia 1');
   F('e118-operatoreCentrale', sch?.operatoreCentrale);
   F('e118-allertamentoPS', sch?.allertamentoPS);
@@ -5205,6 +5239,11 @@ function openScheda118Modal(id){
   F('e118-via', sch?.via);
   F('e118-comuneNascita', sch?.comuneNascita);
   F('e118-comuneResidenza', sch?.comuneResidenza);
+  F('e118-viaResidenza', sch?.viaResidenza);
+  F('e118-codiceFiscale', sch?.codiceFiscale);
+  F('e118-telefonoFamiliare1', sch?.telefonoFamiliare1);
+  F('e118-telefonoFamiliare2', sch?.telefonoFamiliare2);
+  calcolaEta118();
   F('e118-rianimatore', sch?.rianimatore);
   F('e118-prontoSoccorsoDi', sch?.prontoSoccorsoDi);
   const o = sch?.orari || {};
@@ -5288,8 +5327,9 @@ function collectScheda118FormData(id){
     id,
     numeroScheda: G('e118-numeroScheda'), data: G('e118-data'), postazione: G('e118-postazione'),
     targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), allertamentoPS: G('e118-allertamentoPS'),
-    cognome: G('e118-cognome'), nome: G('e118-nome'), natoIl: G('e118-natoIl'), sesso: G('e118-sesso'),
-    comuneIntervento: G('e118-comuneIntervento'), via: G('e118-via'), comuneNascita: G('e118-comuneNascita'), comuneResidenza: G('e118-comuneResidenza'),
+    cognome: G('e118-cognome'), nome: G('e118-nome'), natoIl: G('e118-natoIl'), sesso: G('e118-sesso'), eta: G('e118-eta'), codiceFiscale: G('e118-codiceFiscale'),
+    comuneIntervento: G('e118-comuneIntervento'), via: G('e118-via'), comuneNascita: G('e118-comuneNascita'), comuneResidenza: G('e118-comuneResidenza'), viaResidenza: G('e118-viaResidenza'),
+    telefonoFamiliare1: G('e118-telefonoFamiliare1'), telefonoFamiliare2: G('e118-telefonoFamiliare2'),
     rianimatore: G('e118-rianimatore'), prontoSoccorsoDi: G('e118-prontoSoccorsoDi'),
     orari: {
       chiamata: G('e118-oChiamata'), partenza: G('e118-oPartenza'), arrivoPosto: G('e118-oArrivoPosto'),
@@ -5385,7 +5425,7 @@ function generaFoglioDaScheda118(schedaId){
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
-  document.getElementById('fm-numeroScheda118').value = s.numeroScheda || '';
+  document.getElementById('fm-numeroScheda118').value = formattaNumeroScheda118(s);
   document.getElementById('fm-dataScheda118').value = s.data || '';
   if(document.getElementById('fm-daDove')) document.getElementById('fm-daDove').value = s.comuneIntervento || '';
   if(document.getElementById('fm-aDove')) document.getElementById('fm-aDove').value = s.prontoSoccorsoDi || '';
@@ -5413,17 +5453,22 @@ function costruisciStampaScheda118(s){
     <td>POSTAZIONE<br><b>${escapeHtml(s.postazione||'—')}</b></td>
     <td>TARGA AMBULANZA<br><b>${escapeHtml(s.targaAmbulanza||'—')}</b></td>
     <td>DATA<br><b>${formatDataIt(s.data)}</b></td>
-    <td>SCHEDA INTERVENTO N°<br><b>${escapeHtml(s.numeroScheda||'—')}</b></td>
+    <td>SCHEDA INTERVENTO N°<br><b>${escapeHtml(formattaNumeroScheda118(s))}</b></td>
   </tr><tr>
     <td>COGNOME<br><b>${escapeHtml(s.cognome||'—')}</b></td>
     <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
-    <td>NATO IL<br><b>${formatDataIt(s.natoIl)}</b></td>
-    <td>SESSO<br>${s.sesso==='M'?'☑':'☐'} M &nbsp; ${s.sesso==='F'?'☑':'☐'} F</td>
+    <td>NATO A / IL<br><b>${escapeHtml(s.comuneNascita||'—')} — ${formatDataIt(s.natoIl)}</b></td>
+    <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${s.sesso==='M'?'☑':'☐'} M &nbsp; ${s.sesso==='F'?'☑':'☐'} F</td>
+  </tr><tr>
+    <td>CODICE FISCALE<br><b>${escapeHtml(s.codiceFiscale||'—')}</b></td>
+    <td>RESIDENTE A<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
+    <td>IN VIA E N.<br><b>${escapeHtml(s.viaResidenza||'—')}</b></td>
+    <td>TEL. FAMILIARE 1 / 2<br><b>${escapeHtml(s.telefonoFamiliare1||'—')} / ${escapeHtml(s.telefonoFamiliare2||'—')}</b></td>
   </tr><tr>
     <td>COMUNE DI INTERVENTO<br><b>${escapeHtml(s.comuneIntervento||'—')}</b></td>
     <td>VIA<br><b>${escapeHtml(s.via||'—')}</b></td>
-    <td>COMUNE DI RESIDENZA<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
     <td>ALLERTAMENTO → P.S.<br>${yn118(s.allertamentoPS)}</td>
+    <td></td>
   </tr></table>`;
 
   html += `<table class="print-118-table"><tr>
