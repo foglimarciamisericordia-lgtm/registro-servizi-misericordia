@@ -1296,7 +1296,7 @@
       <div class="e118-fixed-header">
         <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
           <div class="field"><label>Postazione</label><input type="text" id="e118-postazione"></div>
-          <div class="field"><label>Targa ambulanza</label><select id="e118-targaAmbulanza"><option value="">—</option></select></div>
+          <div class="field"><label>Targa ambulanza</label><select id="e118-targaAmbulanza" onchange="onTargaAmbulanza118Change()"><option value="">—</option></select></div>
           <div class="field"><label>Data</label><input type="date" id="e118-data" required oninput="aggiornaAnteprimaNumeroScheda118()"></div>
           <div class="field"><label>Chiamata</label><input type="time" id="e118-oChiamata" oninput="onChiamata118Change()"></div>
         </div>
@@ -1457,11 +1457,10 @@
         <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
 
         <div class="section-title" style="margin-top:20px;">Defibrillazione e arresto cardiaco</div>
-        <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>Ore</label><input type="time" id="e118-defibOre"></div>
           <div class="field"><label>N. scariche</label><input type="number" id="e118-defibScariche"></div>
           <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
-          <div class="field"><label>Arresto cardiaco</label><select id="e118-arrestoCardiaco"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
         </div>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
@@ -5132,6 +5131,34 @@ function fillPersonSelects118(){
   const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['e118-autista','e118-soccorritore1','e118-soccorritore2'].forEach(id=>{ const el = document.getElementById(id); if(el) el.innerHTML = options; });
 }
+function ultimoKmFinaleMezzo118(mezzoId){
+  if(!mezzoId) return null;
+  const fogliMezzo = fogliMarcia.filter(f => f.mezzoId === mezzoId && f.kmFinali !== '' && f.kmFinali !== undefined && f.kmFinali !== null);
+  if(!fogliMezzo.length) return null;
+  fogliMezzo.sort((a,b) => {
+    const chiaveA = (a.dataPartenza||'') + ' ' + (a.orarioPartenza||'');
+    const chiaveB = (b.dataPartenza||'') + ' ' + (b.orarioPartenza||'');
+    return chiaveB.localeCompare(chiaveA);
+  });
+  return fogliMezzo[0].kmFinali;
+}
+function aggiornaKmInizialiDaFoglioMarcia118(){
+  const targa = document.getElementById('e118-targaAmbulanza').value;
+  if(!targa) return;
+  const mezzo = mezzi.find(m => m.targa === targa);
+  if(!mezzo) return;
+  const kmFinali = ultimoKmFinaleMezzo118(mezzo.id);
+  if(kmFinali !== null){
+    document.getElementById('e118-kmIniziali').value = kmFinali;
+    calcolaKmTotale118();
+  }
+}
+function onTargaAmbulanza118Change(){
+  const idAttuale = document.getElementById('e118-id').value;
+  const isNuova = !idAttuale || !interventi118.find(x=>x.id===idAttuale);
+  if(!isNuova) return; // non sovrascrivere i km su una scheda già salvata
+  aggiornaKmInizialiDaFoglioMarcia118();
+}
 function popolaTargaAmbulanza118(selezionata, isNuova){
   const sel = document.getElementById('e118-targaAmbulanza');
   if(!sel) return;
@@ -5587,7 +5614,7 @@ function initSignaturePad(canvasId){
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width || 300;
   canvas.height = rect.height || 130;
-  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0F6E56';
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000000';
   let drawing = false;
   const pos = ev => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
   canvas.addEventListener('pointerdown', ev=>{ drawing = true; canvas.dataset.hasInk = '1'; const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); });
@@ -5719,6 +5746,7 @@ function openScheda118Modal(id){
   document.getElementById('e118-soccorritore1').value = sch?.soccorritore1 || '';
   document.getElementById('e118-soccorritore2').value = sch?.soccorritore2 || '';
   popolaTargaAmbulanza118(sch?.targaAmbulanza, !sch);
+  if(!sch) aggiornaKmInizialiDaFoglioMarcia118();
 
   const F = (id2, val) => { const el = document.getElementById(id2); if(el) el.value = (val === undefined || val === null) ? '' : val; };
   F('e118-numeroScheda', sch?.numeroScheda);
@@ -5763,7 +5791,7 @@ function openScheda118Modal(id){
   F('e118-pupSxFoto', ps.foto); F('e118-pupSxCilio', ps.cilio); F('e118-pupSxCong', ps.cong);
   const def = sch?.defibrillazione || {};
   F('e118-defibOre', def.ore); F('e118-defibScariche', def.scariche); F('e118-defibJoule', def.joule);
-  F('e118-arrestoCardiaco', sch?.arrestoCardiaco); F('e118-rcpMinuti', sch?.rcpMinuti);
+  F('e118-rcpMinuti', sch?.rcpMinuti);
   F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
   F('e118-altriPazientiCoinvolti', sch?.altriPazientiCoinvolti); onAltriPazientiToggle118(); F('e118-numeroPazienti', sch?.numeroPazienti);
   F('e118-anamnesi', sch?.anamnesi); F('e118-terapiaInAtto', sch?.terapiaInAtto); F('e118-allergie', sch?.allergie); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
@@ -5872,7 +5900,7 @@ function collectScheda118FormData(id){
       sx: { foto: G('e118-pupSxFoto'), cilio: G('e118-pupSxCilio'), cong: G('e118-pupSxCong') }
     },
     defibrillazione: { ore: G('e118-defibOre'), scariche: G('e118-defibScariche'), joule: G('e118-defibJoule') },
-    arrestoCardiaco: G('e118-arrestoCardiaco'), rcpMinuti: G('e118-rcpMinuti'),
+    rcpMinuti: G('e118-rcpMinuti'),
     egc: getCheckboxGridValues('e118-egc'),
     murmureDx: G('e118-murmureDx'), murmureSx: G('e118-murmureSx'), dispnea: G('e118-dispnea'),
     espansioneToracica: getCheckboxGridValues('e118-espansioneToracica'),
@@ -5939,14 +5967,20 @@ function generaFoglioDaScheda118(schedaId){
   switchView('fogli');
   renderFogliMarcia();
   openFoglioModal();
+  document.getElementById('fm-motivazioneServizio').value = 'Eccedenze 118';
   document.getElementById('fm-paziente').value = ((s.cognome||'')+' '+(s.nome||'')).trim() || 'Paziente scheda 118';
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
   document.getElementById('fm-numeroScheda118').value = formattaNumeroScheda118(s);
   document.getElementById('fm-dataScheda118').value = s.data || '';
-  if(document.getElementById('fm-daDove')) document.getElementById('fm-daDove').value = s.comuneIntervento || '';
   if(document.getElementById('fm-aDove')) document.getElementById('fm-aDove').value = s.prontoSoccorsoDi || '';
+  if(s.data){
+    document.getElementById('fm-dataPartenza').value = s.data;
+    document.getElementById('fm-dataArrivo').value = s.data;
+  }
+  if(s.orari?.partenza) document.getElementById('fm-orarioPartenza').value = s.orari.partenza;
+  if(s.orari?.liberi) document.getElementById('fm-orarioRientro').value = s.orari.liberi;
   if(s.kmIniziali) document.getElementById('fm-kmIniziali').value = s.kmIniziali;
   if(s.kmFinali) document.getElementById('fm-kmFinali').value = s.kmFinali;
   if(typeof calcolaKmTotale === 'function') calcolaKmTotale();
@@ -6059,9 +6093,9 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">DEFIBRILLAZIONE / ARRESTO CARDIACO</div>
   <table class="print-118-table"><tr>
     <td>Ore<br><b>${def.ore||'—'}</b></td><td>N. scariche<br><b>${escapeHtml(def.scariche||'—')}</b></td>
-    <td>Joule<br><b>${escapeHtml(def.joule||'—')}</b></td><td>Arresto cardiaco<br>${yn118(s.arrestoCardiaco)}</td>
+    <td>Joule<br><b>${escapeHtml(def.joule||'—')}</b></td>
     <td>R.C.P.<br><b>${escapeHtml(s.rcpMinuti||'—')}</b></td>
-  </tr><tr><td colspan="5">ECG: ${EGC_118.map(([k,l])=>`${ck118(s.egc,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+  </tr><tr><td colspan="4">ECG: ${EGC_118.map(([k,l])=>`${ck118(s.egc,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
   html += `<div class="print-118-section-title">TORACE E RESPIRO</div>
   <table class="print-118-table"><tr>
