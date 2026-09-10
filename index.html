@@ -107,10 +107,6 @@
 
   .link-piu-altri{font-size:10.5px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:2px;}
   .link-piu-altri:hover{color:var(--teal);}
-  #filigrana-utente{
-    position:absolute;inset:0;pointer-events:none;z-index:-1;overflow:hidden;display:none;
-    background-repeat:repeat;
-  }
 
   .popover-giorno{
     position:fixed;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(10,20,40,.28);
@@ -229,7 +225,6 @@
   .print-cronologia{margin-top:18px;}
   .print-cronologia li{font-size:12px;margin-bottom:3px;}
   @media print{
-    #filigrana-utente{display:none !important;}
     @page{ margin:12mm; }
     body *{visibility:hidden;}
     .printable-area, .printable-area *{visibility:visible;}
@@ -325,8 +320,6 @@
   </div>
 
   <!-- SHELL -->
-  <div id="filigrana-utente"></div>
-
   <div id="shell">
     <div class="mobile-topbar">
       <button onclick="toggleSidebar()" aria-label="Menu">☰</button>
@@ -1327,7 +1320,6 @@ function fermaMonitoraggioInattivita(){
 }
 async function disconnettiPerInattivita(){
   fermaMonitoraggioInattivita();
-  fermaFiligrana();
   try{
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
@@ -1343,7 +1335,6 @@ async function disconnettiPerInattivita(){
 
 function sessioneScaduta(){
   fermaMonitoraggioInattivita();
-  fermaFiligrana();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -1693,7 +1684,6 @@ async function doLogout(){
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
   fermaMonitoraggioInattivita();
-  fermaFiligrana();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -3698,7 +3688,7 @@ function viewPrestitoModal(id){
     <div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
       <div></div>
       <div></div>
-      <div style="text-align:center;font-size:12.5px;">Data e ora riconsegna: __________________</div>
+      <div style="text-align:center;font-size:12.5px;">Data e ora riconsegna : ____________________</div>
     </div>
   `;
   document.getElementById('view-prestito-modal-backdrop').classList.add('active');
@@ -3912,14 +3902,11 @@ function toggleTipoScheda(){
   });
 
   if(modalitaRichiedente) scheduleGeoPreviewEvento();
-
-  aggiornaFiligranaSeAttiva(); // la scheda ha appena cambiato altezza
 }
 function toggleRipetizione(){
   const on = document.getElementById('sf-ripetitivo').checked;
   document.getElementById('ripetizione-dettagli').style.display = on ? 'block' : 'none';
   if(on) toggleFrequenzaGiorni();
-  aggiornaFiligranaSeAttiva();
 }
 function toggleFrequenzaGiorni(){
   const freq = document.getElementById('sf-frequenza').value;
@@ -3959,7 +3946,6 @@ function openServiceModal(id, prefillDate){
   document.getElementById('fieldset-ripetizione').style.display = ripetizioneAllowed ? 'block' : 'none';
 
   document.getElementById('service-modal-backdrop').classList.add('active');
-  avviaFiligrana('#service-modal-backdrop .modal'); // dopo che la scheda è visibile: l'altezza reale va misurata a scheda già renderizzata
 }
 
 function duplicateService(id){
@@ -3975,7 +3961,6 @@ function duplicateService(id){
   document.getElementById('modal-delete-slot').innerHTML = '';
   document.getElementById('fieldset-ripetizione').style.display = 'block';
   document.getElementById('service-modal-backdrop').classList.add('active');
-  avviaFiligrana('#service-modal-backdrop .modal');
 }
 
 /* ============ VISUALIZZA SERVIZIO (scheda di sola lettura) ============ */
@@ -4102,11 +4087,9 @@ function viewServiceModal(id){
   document.getElementById('view-sheet-content').innerHTML = html;
   document.getElementById('btn-stampa-scheda-servizio').style.display = (currentUser.ruolo === 'operatore') ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
-  avviaFiligrana('#view-modal-backdrop .modal'); // dopo che la scheda è visibile: l'altezza reale va misurata a scheda già renderizzata
 }
 function closeViewModal(){
   document.getElementById('view-modal-backdrop').classList.remove('active');
-  fermaFiligrana();
 }
 function modificaDaVisualizzazione(){
   const id = currentViewServiceId;
@@ -4225,7 +4208,6 @@ function closeServiceModal(){
   document.getElementById('service-modal-backdrop').classList.remove('active');
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);
   editingServiceId = null;
-  fermaFiligrana();
 }
 function scheduleGeoPreview(){
   clearTimeout(geoTimer);
@@ -4502,52 +4484,6 @@ function escapeHtml(str){
 // Se un campo obbligatorio non è compilato al momento del salvataggio,
 // lo evidenzia in rosso finché non viene corretto — così un campo
 // dimenticato è impossibile da non notare.
-/* ============ FILIGRANA UTENTE ============ */
-let filigranaTestoCorrente = '';
-function testoFiligrana(){
-  const d = new Date();
-  const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
-  return currentUser.nome + ' ' + currentUser.cognome + ' — ' + `${dd}-${mm}-${yy} ${hh}:${mi}`;
-}
-function escapeXmlFiligrana(str){
-  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function aggiornaFiligranaSeAttiva(){
-  const filigrana = document.getElementById('filigrana-utente');
-  if(filigrana && filigrana.style.display === 'block') aggiornaFiligrana();
-}
-function aggiornaFiligrana(){
-  if(!currentUser) return;
-  const filigrana = document.getElementById('filigrana-utente');
-  if(!filigrana) return;
-  // L'orario resta quello di apertura della scheda (non si aggiorna da solo).
-  const testo = filigranaTestoCorrente || testoFiligrana();
-
-  // Sfondo ripetuto via CSS (piccola immagine SVG con il testo ruotato):
-  // a differenza di generare tanti elementi a mano, il ripetersi dello
-  // sfondo è gestito dal browser stesso, quindi copre sempre in modo
-  // uniforme tutta la scheda, qualunque sia la sua altezza o forma
-  // (schede molto lunghe o molto strette comprese), senza calcoli nostri.
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140">
-    <text x="10" y="95" transform="rotate(-28 130 70)" font-family="sans-serif" font-size="13" fill="rgba(70,70,60,0.28)">${escapeXmlFiligrana(testo)}</text>
-  </svg>`;
-  filigrana.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
-}
-function avviaFiligrana(contenitoreSelector){
-  const filigrana = document.getElementById('filigrana-utente');
-  const contenitore = document.querySelector(contenitoreSelector);
-  if(!contenitore) return;
-  contenitore.appendChild(filigrana); // confina la filigrana dentro la scheda aperta, non su tutto lo schermo
-  filigrana.style.display = 'block';
-  filigranaTestoCorrente = testoFiligrana(); // fissato adesso: non cambia finché la scheda resta aperta
-  aggiornaFiligrana();
-}
-function fermaFiligrana(){
-  const filigrana = document.getElementById('filigrana-utente');
-  filigrana.style.display = 'none';
-  filigrana.style.backgroundImage = 'none';
-}
 
 function abilitaEvidenziazioneObbligatori(idForm){
   const form = document.getElementById(idForm);
