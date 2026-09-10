@@ -186,6 +186,11 @@
   .body-diagram-col-title{font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
   .ustione-zona{transition:fill .1s;}
   .ustione-zona:hover{opacity:.8;}
+  .ustioni-totale-badge{display:inline-block;font-size:18px;font-weight:800;color:#B23A24;background:#FBE1DC;padding:3px 12px;border-radius:8px;margin-left:2px;}
+  .flag-item-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;}
+  .flag-item-row label{display:flex;align-items:center;gap:5px;font-size:12.5px;white-space:nowrap;font-weight:400;}
+  .flag-item-row input[type="checkbox"]{width:14px;height:14px;margin:0;}
+  .flag-item-note{flex:1 1 150px;min-width:120px;font-size:12px;padding:5px 8px;}
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
   .print-118-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
@@ -1363,19 +1368,6 @@
         </div>
         <div class="field"><label>Espansione toracica</label><div class="checkbox-grid" id="e118-espansioneToracica"></div></div>
 
-        <div class="section-title" style="margin-top:26px;">Sede del trauma e delle ustioni</div>
-        <div class="body-diagrams-row">
-          <div class="body-diagram-col">
-            <div class="body-diagram-col-title">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
-            <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
-          </div>
-          <div class="body-diagram-col">
-            <div class="body-diagram-col-title">Sede delle ustioni <span class="map-hint">— totale: <b id="e118-ustioni-totale">0%</b></span></div>
-            <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
-            <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="cancellaUstioni118()">Cancella</button>
-          </div>
-        </div>
-
         <div class="section-title" style="margin-top:26px;">Glasgow Coma Scale (GCS)</div>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
           <div class="field"><label>Apertura occhi</label><select id="e118-gcsOcchi" onchange="calcolaGCS118()"></select></div>
@@ -1423,6 +1415,21 @@
           <div class="field"><label>RTS totale</label><input type="text" id="e118-rtsTotale" readonly></div>
         </div>
         <p class="map-hint">Rif. Valutazione 1 — calcolato dal punteggio GCS totale e da F.R. / P.A. della prima valutazione.</p>
+
+        <div class="section-title" style="margin-top:26px;">Valutazione Trauma</div>
+        <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+          <div class="field"><label>N. pazienti coinvolti</label><input type="number" id="e118-numeroPazienti"></div>
+          <div class="field"><label>Mezzo coinvolto</label><select id="e118-mezzoCoinvolto"><option value="">—</option></select></div>
+          <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
+        </div>
+        <div id="e118-valutazioneTrauma-flags"></div>
+        <div class="body-diagram-col-title" style="margin-top:14px;">Sede del trauma <span class="map-hint">(tocca per segnare, ritocca per rimuovere)</span></div>
+        <div id="e118-diagramma-trauma" class="body-diagram-wrap small"></div>
+
+        <div class="section-title" style="margin-top:26px;">Altre valutazioni</div>
+        <div id="e118-altreValutazioni-flags"></div>
+        <div class="body-diagram-col-title" style="margin-top:14px;">Sede delle ustioni <span class="map-hint">— totale ustionato: <b id="e118-ustioni-totale" class="ustioni-totale-badge">0%</b></span></div>
+        <div id="e118-diagramma-ustioni" class="body-diagram-wrap small"></div>
       </div>
 
       <div class="e118-tab-pane" data-tabpane="provvisoria">
@@ -1466,14 +1473,6 @@
 
       <div class="section-title">Interventi sul paziente</div>
       <div class="checkbox-grid cols3" id="e118-interventiPaziente"></div>
-
-      <div class="section-title">Dinamica del trauma</div>
-      <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-        <div class="field"><label>N. pazienti coinvolti</label><input type="number" id="e118-numeroPazienti"></div>
-        <div class="field"><label>Mezzo coinvolto</label><select id="e118-mezzoCoinvolto"><option value="">—</option></select></div>
-        <div class="field"><label>Riferito</label><select id="e118-riferito"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select></div>
-      </div>
-      <div class="checkbox-grid cols3" id="e118-dinamicaTrauma"></div>
 
       <div class="section-title">Anamnesi, segni clinici, terapia</div>
       <div class="field"><label>Anamnesi, allergie e terapia in atto</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
@@ -4972,7 +4971,28 @@ const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','
 const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
 const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
 const MEZZO_COINVOLTO_118 = [['pedone','Pedone'],['bicicletta','Bicicletta'],['motociclo','Motociclo'],['autovettura','Autovettura'],['camion','Camion'],['autobus','Autobus'],['treno','Treno/Altro']];
-const DINAMICA_TRAUMA_118 = [['investito','Investito'],['caduta','Riferita caduta'],['annegato','Annegato'],['precipitato','Precipitato'],['impiccato','Sosp. impiccato'],['folgorato','Folgorato'],['fumi','Intossicato da fumi'],['violenzaSessuale','Riferita violenza sessuale'],['aggressione','Riferita aggressione'],['schiacciato','Schiacciato'],['contusivo','Trauma contusivo'],['ustionato','Ustionato'],['frattura','Sosp. frattura'],['amputazione','Amputazione'],['laceroContusa','Ferita lacero-contusa'],['armaFuoco','Ferita arma da fuoco'],['taglio','Ferita da taglio']];
+const VALUTAZIONE_TRAUMA_118 = [
+  ['investito','Investito', null],
+  ['caduta','Caduta', null],
+  ['precipitato','Precipitato', null],
+  ['frattura','Sospetta frattura','Dove'],
+  ['amputazione','Amputazione','Cosa'],
+  ['laceroContusa','Ferita lacero contusa','Dove'],
+  ['aggressione','Aggressione', null],
+  ['schiacciato','Schiacciato', null],
+  ['contusivo','Trauma contusivo','Dove'],
+  ['armaFuoco','Ferita da arma da fuoco', null],
+  ['taglio','Ferita da taglio', null]
+];
+const ALTRE_VALUTAZIONI_118 = [
+  ['fumi','Intossicato da fumi'],
+  ['violenzaSessuale','Riferita violenza sessuale'],
+  ['annegato','Annegato'],
+  ['impiccato','Impiccato'],
+  ['folgorato','Folgorato'],
+  ['emorragiaEsterna','Emorragia esterna'],
+  ['ustionato','Ustionato']
+];
 const EGC_118 = [['sinusale','Ritmo sinusale'],['fa','Fibrillazione atriale'],['aritmiaSopra','Aritmia sopraventricolare'],['fibrillazioneVentricolare','Fibrillazione ventricolare'],['pea','PEA'],['asistolia','Asistolia'],['tachicardiaVentricolare','Tachicardia ventricolare s.p.'],['bav','BAV I°-IIa-IIb-III°'],['bbsBbd','BBS-BBD'],['qrsStretto','QRS stretto'],['qrsLargo','QRS largo']];
 const ESPANSIONE_TORACICA_118 = [['simmetrico','Simmetrico'],['asimmetrico','Asimmetrico'],['enfisema','Enfisema sottocutaneo'],['voletCostale','Sospetto volet costale'],['traumaChiuso','Trauma chiuso']];
 const ESITO_118 = [['trasportoPS','Trasporto in PS'],['medicoCurante','Medico curante'],['terapia','Terapia'],['accessoVenoso','Accesso venoso'],['altri','Altri'],['tso','T.S.O.'],['aso','A.S.O.'],['nonTrovato','Non trovato'],['decedutoDuranteTrasporto','Deceduto durante il trasporto'],['trattatoSulPosto','Trattato sul posto']];
@@ -5031,6 +5051,30 @@ function buildCheckboxGrid(containerId, list, selected){
 }
 function getCheckboxGridValues(containerId){
   return Array.from(document.querySelectorAll('#'+containerId+' input[type=checkbox]:checked')).map(el=>el.value);
+}
+function buildFlagListWithNotes(containerId, list, selected, notes){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const sel = selected || [];
+  const noteVals = notes || {};
+  container.innerHTML = list.map(([key,label,notePlaceholder]) => {
+    const checked = sel.includes(key) ? 'checked' : '';
+    const noteHtml = notePlaceholder ? `<input type="text" class="flag-item-note" id="${containerId}-note-${key}" placeholder="${escapeHtml(notePlaceholder)}" value="${escapeHtml(noteVals[key]||'')}">` : '';
+    return `<div class="flag-item-row"><label><input type="checkbox" value="${key}" ${checked}> ${escapeHtml(label)}</label>${noteHtml}</div>`;
+  }).join('');
+}
+function getFlagListValues(containerId){
+  return Array.from(document.querySelectorAll('#'+containerId+' input[type=checkbox]:checked')).map(el=>el.value);
+}
+function getFlagListNotes(containerId, list){
+  const notes = {};
+  list.forEach(([key,,notePlaceholder]) => {
+    if(notePlaceholder){
+      const el = document.getElementById(containerId+'-note-'+key);
+      if(el) notes[key] = el.value;
+    }
+  });
+  return notes;
 }
 function populateSimpleSelect(selectId, list, selectedValue){
   const sel = document.getElementById(selectId);
@@ -5589,7 +5633,8 @@ function openScheda118Modal(id){
   buildCheckboxGrid('e118-egc', EGC_118, sch?.egc);
   buildCheckboxGrid('e118-espansioneToracica', ESPANSIONE_TORACICA_118, sch?.espansioneToracica);
   buildCheckboxGrid('e118-interventiPaziente', INTERVENTI_PAZIENTE_118, sch?.interventiPaziente);
-  buildCheckboxGrid('e118-dinamicaTrauma', DINAMICA_TRAUMA_118, sch?.dinamicaTrauma);
+  buildFlagListWithNotes('e118-valutazioneTrauma-flags', VALUTAZIONE_TRAUMA_118, sch?.dinamicaTrauma, sch?.dinamicaTraumaNote);
+  buildCheckboxGrid('e118-altreValutazioni-flags', ALTRE_VALUTAZIONI_118, sch?.altreValutazioni);
   buildCheckboxGrid('e118-esito', ESITO_118, sch?.esito);
   populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
   populateSimpleSelect('e118-patologiaComunicata', PATOLOGIA_118, sch?.patologiaComunicata);
@@ -5749,7 +5794,8 @@ function collectScheda118FormData(id){
     espansioneToracica: getCheckboxGridValues('e118-espansioneToracica'),
     interventiPaziente: getCheckboxGridValues('e118-interventiPaziente'),
     numeroPazienti: G('e118-numeroPazienti'), mezzoCoinvolto: G('e118-mezzoCoinvolto'), riferito: G('e118-riferito'),
-    dinamicaTrauma: getCheckboxGridValues('e118-dinamicaTrauma'),
+    dinamicaTrauma: getFlagListValues('e118-valutazioneTrauma-flags'), dinamicaTraumaNote: getFlagListNotes('e118-valutazioneTrauma-flags', VALUTAZIONE_TRAUMA_118),
+    altreValutazioni: getCheckboxGridValues('e118-altreValutazioni-flags'),
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
     anamnesi: G('e118-anamnesi'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
     rifiuta: document.getElementById('e118-rifiuta').checked,
@@ -5939,18 +5985,17 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">INTERVENTI SUL PAZIENTE</div>
   <table class="print-118-table"><tr><td>${INTERVENTI_PAZIENTE_118.map(([k,l])=>`${ck118(s.interventiPaziente,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
-  html += `<div class="print-118-section-title">DINAMICA DEL TRAUMA</div>
+  html += `<div class="print-118-section-title">VALUTAZIONE TRAUMA</div>
   <table class="print-118-table"><tr>
     <td>N. pazienti coinvolti<br><b>${escapeHtml(s.numeroPazienti||'—')}</b></td>
     <td>Mezzo coinvolto<br><b>${(MEZZO_COINVOLTO_118.find(([k])=>k===s.mezzoCoinvolto)||[null,'—'])[1]}</b></td>
     <td>Riferito<br>${yn118(s.riferito)}</td>
-  </tr><tr><td colspan="3">${DINAMICA_TRAUMA_118.map(([k,l])=>`${ck118(s.dinamicaTrauma,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+  </tr><tr><td colspan="3">${VALUTAZIONE_TRAUMA_118.map(([k,l,note])=>`${ck118(s.dinamicaTrauma,k)} ${l}${note && s.dinamicaTraumaNote && s.dinamicaTraumaNote[k] ? ' ('+escapeHtml(s.dinamicaTraumaNote[k])+')' : ''}`).join(' &nbsp; ')}</td></tr>
+  <tr><td colspan="3" style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma)}<div>Sede del trauma</div></td></tr></table>`;
 
-  html += `<div class="print-118-section-title">SEDE DEL TRAUMA / USTIONI</div>
-  <table class="print-118-table"><tr>
-    <td style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma)}<div>Trauma</div></td>
-    <td style="text-align:center;">${svgUstioniPair(s.sedeUstioni||[])}<div>Ustioni — totale: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
-  </tr></table>`;
+  html += `<div class="print-118-section-title">ALTRE VALUTAZIONI</div>
+  <table class="print-118-table"><tr><td>${ALTRE_VALUTAZIONI_118.map(([k,l])=>`${ck118(s.altreValutazioni,k)} ${l}`).join(' &nbsp; ')}</td></tr>
+  <tr><td style="text-align:center;">${svgUstioniPair(s.sedeUstioni||[])}<div>Sede delle ustioni — totale: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td></tr></table>`;
 
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
