@@ -1278,6 +1278,7 @@ let ultimoResetInattivita = 0;
 function resettaTimerInattivita(){
   clearTimeout(inattivitaTimer);
   chiudiAvvisoInattivita();
+  ultimoResetInattivita = Date.now();
   if(!currentUser) return; // non collegati: nessun monitoraggio necessario
   inattivitaTimer = setTimeout(mostraAvvisoInattivita, INATTIVITA_LIMITE_MS);
 }
@@ -1291,9 +1292,10 @@ document.addEventListener('click', segnalaAttivita);
 document.addEventListener('keydown', segnalaAttivita);
 document.addEventListener('input', segnalaAttivita);
 
-function mostraAvvisoInattivita(){
+function mostraAvvisoInattivita(secondiGiaTrascorsi){
   if(!currentUser) return;
-  avvisoSecondiRimanenti = AVVISO_DURATA_SECONDI;
+  avvisoSecondiRimanenti = AVVISO_DURATA_SECONDI - (secondiGiaTrascorsi || 0);
+  if(avvisoSecondiRimanenti <= 0){ disconnettiPerInattivita(); return; }
   const backdrop = document.getElementById('avviso-inattivita-backdrop');
   if(backdrop) backdrop.classList.add('active');
   aggiornaTestoAvvisoInattivita();
@@ -1304,6 +1306,30 @@ function mostraAvvisoInattivita(){
       disconnettiPerInattivita();
     }
   }, 1000);
+}
+// Quando la finestra viene ridotta a icona (o l'app va in background su mobile),
+// il browser può rallentare o fermare del tutto i timer: il conto alla rovescia
+// sembra "congelarsi" e poi ripartire da capo alla riapertura. Per evitare che
+// questo prolunghi la sessione oltre il dovuto, al ritorno in primo piano
+// ricalcoliamo tutto sull'orologio reale, non su quanto il timer ha effettivamente
+// contato nel frattempo.
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') ricalcolaInattivitaDopoRipristino();
+});
+function ricalcolaInattivitaDopoRipristino(){
+  if(!currentUser) return;
+  const trascorsiMs = Date.now() - ultimoResetInattivita;
+  const sogliaDisconnessioneMs = INATTIVITA_LIMITE_MS + AVVISO_DURATA_SECONDI * 1000;
+  clearTimeout(inattivitaTimer);
+  chiudiAvvisoInattivita();
+  if(trascorsiMs >= sogliaDisconnessioneMs){
+    disconnettiPerInattivita();
+  } else if(trascorsiMs >= INATTIVITA_LIMITE_MS){
+    const secondiGiaTrascorsi = Math.floor((trascorsiMs - INATTIVITA_LIMITE_MS) / 1000);
+    mostraAvvisoInattivita(secondiGiaTrascorsi);
+  } else {
+    inattivitaTimer = setTimeout(mostraAvvisoInattivita, INATTIVITA_LIMITE_MS - trascorsiMs);
+  }
 }
 function aggiornaTestoAvvisoInattivita(){
   const el = document.getElementById('avviso-inattivita-secondi');
