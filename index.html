@@ -5757,8 +5757,8 @@ function apriRifiutoSoccorsoModal(){
   document.getElementById('rif-docScadenza').value = d.docScadenza || '';
   rifiutoFotoFronte = d.fotoFronte || null;
   rifiutoFotoRetro = d.fotoRetro || null;
-  document.getElementById('rif-fotoFronte-preview').innerHTML = rifiutoFotoFronte ? `<img src="${rifiutoFotoFronte}" style="max-width:140px;border-radius:6px;">` : '';
-  document.getElementById('rif-fotoRetro-preview').innerHTML = rifiutoFotoRetro ? `<img src="${rifiutoFotoRetro}" style="max-width:140px;border-radius:6px;">` : '';
+  aggiornaAnteprimaFotoRifiuto118('rif-fotoFronte-preview', rifiutoFotoFronte);
+  aggiornaAnteprimaFotoRifiuto118('rif-fotoRetro-preview', rifiutoFotoRetro);
   onRifFirmatarioChange();
   document.getElementById('rifiuto-soccorso-modal-backdrop').classList.add('active');
   setTimeout(()=>{
@@ -5766,22 +5766,62 @@ function apriRifiutoSoccorsoModal(){
     if(d.firma) drawFirmaFromDataUrl('rif-firma-canvas', d.firma);
   }, 60);
 }
+function aggiornaAnteprimaFotoRifiuto118(previewId, valore){
+  const previewEl = document.getElementById(previewId);
+  if(!valore){ previewEl.innerHTML = ''; return; }
+  if(valore.startsWith('drive:')){
+    previewEl.innerHTML = '<span class="map-hint">Foto salvata su Drive…</span>';
+    scaricaFotoDaWorker(valore.slice(6)).then(dataUrl => {
+      previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`;
+    }).catch(()=>{ previewEl.innerHTML = '<span class="map-hint">Foto non disponibile (offline?).</span>'; });
+  } else {
+    previewEl.innerHTML = `<img src="${valore}" style="max-width:140px;border-radius:6px;">`;
+  }
+}
 function onRifFirmatarioChange(){
   const val = document.getElementById('rif-firmatario').value;
   document.getElementById('rif-rapporto-wrap').style.display = (val === 'rappresentante') ? 'block' : 'none';
   document.getElementById('rif-rappresentante-fields').style.display = (val === 'rappresentante') ? 'block' : 'none';
   document.getElementById('rif-documento-fields').style.display = val ? 'block' : 'none';
 }
+function comprimiFotoDocumento118(file, callback){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLato = 1200;
+      let w = img.width, h = img.height;
+      if(w > maxLato || h > maxLato){
+        if(w >= h){ h = Math.round(h * maxLato / w); w = maxLato; }
+        else { w = Math.round(w * maxLato / h); h = maxLato; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 function onRifFotoChange(event, lato){
   const file = event.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    if(lato==='fronte'){ rifiutoFotoFronte = dataUrl; document.getElementById('rif-fotoFronte-preview').innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`; }
-    else { rifiutoFotoRetro = dataUrl; document.getElementById('rif-fotoRetro-preview').innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`; }
-  };
-  reader.readAsDataURL(file);
+  const previewEl = document.getElementById(lato==='fronte' ? 'rif-fotoFronte-preview' : 'rif-fotoRetro-preview');
+  previewEl.innerHTML = '<span class="map-hint">Caricamento in corso…</span>';
+  comprimiFotoDocumento118(file, async dataUrl => {
+    previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`;
+    const idScheda = document.getElementById('e118-id').value || 'nuova';
+    const nomeFile = 'rifiuto_' + idScheda + '_' + lato + '_' + Date.now() + '.jpg';
+    try {
+      const fileId = await caricaFotoSuWorker(dataUrl, nomeFile);
+      const riferimento = 'drive:' + fileId;
+      if(lato==='fronte') rifiutoFotoFronte = riferimento; else rifiutoFotoRetro = riferimento;
+    } catch(e){
+      previewEl.innerHTML += '<div class="map-hint" style="color:#B23A24;">Caricamento su Drive non riuscito (offline?) — la foto resta salvata nella scheda.</div>';
+      if(lato==='fronte') rifiutoFotoFronte = dataUrl; else rifiutoFotoRetro = dataUrl;
+    }
+  });
 }
 function annullaRifiutoSoccorsoModal(){
   document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
@@ -5837,7 +5877,7 @@ function testoDichiarazioneRifiuto118(s){
     const natoAPaz = (dp.comuneNascita||'').toUpperCase(), ilPaz = formatDataIt(dp.natoIl);
     const residenteAPaz = (dp.comuneResidenza||'').toUpperCase(), inViaPaz = (dp.viaResidenza||'').toUpperCase();
     const cfPaz = (dp.codiceFiscale||'').toUpperCase();
-    return `Io sottoscritto ${nomeRapp} ${cognomeRapp}, nato a ${natoARapp} il ${ilRapp}, residente a ${residenteARapp}, in via ${inViaRapp}, ${docBlocco}, nella qualità di ${rapporto}, pienamente informato dai soccorritori presenti sulle condizioni di salute di ${nomePaz} ${cognomePaz}, nato a ${natoAPaz}, il ${ilPaz}, residente a ${residenteAPaz}, in via ${inViaPaz}, ${cfPaz}, manifeste, sulla necessità di ricevere cure/accertamenti e sulle possibili conseguenze negative (incluso il rischio di peggioramento o compromissione vitale) derivanti dalla mia decisione, si rifiuta il trasporto in ospedale del succitato paziente. Esonero l'equipaggio di soccorso, da qualsiasi responsabilità civile o penale per le conseguenze fisiche e patologiche che potrebbero derivare da tale rifiuto. Data ${dataStr} ora ${oraStr}.`;
+    return `Io sottoscritto ${nomeRapp} ${cognomeRapp}, nato a ${natoARapp} il ${ilRapp}, residente a ${residenteARapp}, in via ${inViaRapp}, ${docBlocco}, nella qualità di ${rapporto}, pienamente informato dai soccorritori presenti sulle condizioni di salute manifeste di ${nomePaz} ${cognomePaz}, nato a ${natoAPaz}, il ${ilPaz}, residente a ${residenteAPaz}, in via ${inViaPaz}, ${cfPaz}, sulla necessità di ricevere cure/accertamenti e sulle possibili conseguenze negative (incluso il rischio di peggioramento o compromissione vitale) derivanti dalla mia decisione, si rifiuta il trasporto in ospedale del succitato paziente. Esonero l'equipaggio di soccorso, da qualsiasi responsabilità civile o penale per le conseguenze fisiche e patologiche che potrebbero derivare da tale rifiuto. Data ${dataStr} ora ${oraStr}.`;
   }
 }
 
@@ -6314,13 +6354,52 @@ function costruisciStampaScheda118(s){
   return html;
 }
 
-function viewStampaScheda118(id){
+const FOTO_UPLOAD_ENDPOINT = 'https://backup-worker-misericordia.foglimarciamisericordia.workers.dev/api/foto-rifiuto';
+const FOTO_UPLOAD_TOKEN = 'r25hAWxrIsT1JJ1Wate4wNInwNXi0MNjadJxTgtA65Q';
+async function caricaFotoSuWorker(dataUrl, nomeFile){
+  const risposta = await fetch(FOTO_UPLOAD_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN },
+    body: JSON.stringify({ dataUrl, nomeFile })
+  });
+  if(!risposta.ok) throw new Error('upload fallito');
+  const dati = await risposta.json();
+  if(!dati.fileId) throw new Error('risposta senza fileId');
+  return dati.fileId;
+}
+async function scaricaFotoDaWorker(fileId){
+  const risposta = await fetch(FOTO_UPLOAD_ENDPOINT + '/' + fileId, {
+    headers: { 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN }
+  });
+  if(!risposta.ok) throw new Error('download fallito');
+  const blob = await risposta.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+async function risolviFotoPerStampa118(valore){
+  if(!valore) return valore;
+  if(valore.startsWith('drive:')){
+    try { return await scaricaFotoDaWorker(valore.slice(6)); }
+    catch(e){ return null; }
+  }
+  return valore;
+}
+async function viewStampaScheda118(id){
   const s = interventi118.find(x=>x.id===id);
   if(!s) return;
   const logoImg = document.querySelector('.print-letterhead img');
   const logo118 = document.getElementById('print-118-logo');
   if(logo118 && logoImg) logo118.src = logoImg.src;
-  document.getElementById('print-118-content').innerHTML = costruisciStampaScheda118(s);
+  const sPerStampa = JSON.parse(JSON.stringify(s));
+  if(sPerStampa.rifiutoDati){
+    sPerStampa.rifiutoDati.fotoFronte = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoFronte);
+    sPerStampa.rifiutoDati.fotoRetro = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoRetro);
+  }
+  document.getElementById('print-118-content').innerHTML = costruisciStampaScheda118(sPerStampa);
   document.getElementById('view-modal-118-backdrop').classList.add('active');
 }
 function closeView118Modal(){
