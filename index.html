@@ -6218,21 +6218,18 @@ function costruisciStampaScheda118(s){
     <td>TARGA AMBULANZA<br><b>${escapeHtml(s.targaAmbulanza||'—')}</b></td>
     <td>DATA<br><b>${formatDataIt(s.data)}</b></td>
     <td>SCHEDA MISSIONE N.<br><b>${escapeHtml(formattaNumeroScheda118(s))}</b></td>
-  </tr><tr>
+    <td>OP. CENTRALE N.<br><b>${escapeHtml(s.operatoreCentrale||'—')}</b></td>
     <td>COGNOME<br><b>${escapeHtml(s.cognome||'—')}</b></td>
     <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
     <td>NATO A / IL<br><b>${escapeHtml(s.comuneNascita||'—')} — ${formatDataIt(s.natoIl)}</b></td>
-    <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${s.sesso==='M'?'☑':'☐'} M &nbsp; ${s.sesso==='F'?'☑':'☐'} F</td>
   </tr><tr>
+    <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${s.sesso==='M'?'☑':'☐'} M ${s.sesso==='F'?'☑':'☐'} F</td>
     <td>CODICE FISCALE<br><b>${escapeHtml(s.codiceFiscale||'—')}</b></td>
     <td>RESIDENTE A<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
     <td>IN VIA E N.<br><b>${escapeHtml(s.viaResidenza||'—')}</b></td>
-    <td>TEL. FAMILIARE 1 / 2<br><b>${escapeHtml(s.telefonoFamiliare1||'—')} / ${escapeHtml(s.telefonoFamiliare2||'—')}</b></td>
-  </tr><tr>
+    <td>TEL. FAMILIARE 1/2<br><b>${escapeHtml(s.telefonoFamiliare1||'—')} / ${escapeHtml(s.telefonoFamiliare2||'—')}</b></td>
     <td>COMUNE DI INTERVENTO<br><b>${escapeHtml(s.comuneIntervento||'—')}</b></td>
     <td>VIA<br><b>${escapeHtml(s.via||'—')}</b></td>
-    <td></td>
-    <td></td>
   </tr></table>`;
 
   html += `<table class="print-118-table"><tr>
@@ -6249,7 +6246,6 @@ function costruisciStampaScheda118(s){
   </tr></table>`;
 
   html += `<table class="print-118-table"><tr>
-    <td>OPERATORE DI CENTRALE N.<br><b>${escapeHtml(s.operatoreCentrale||'—')}</b></td>
     <td>CODICE INVIO<br>${renderCodiceInvioPrint(s.codiceInvio)}</td>
     <td>CODICE SCENA<br>${renderCodiceScenaPrint(s.codiceScena)}</td>
     <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}${s.codiceRientro==='bianco' && s.codiceRientroNote && s.codiceRientroNote.length ? ('<br>'+CODICE_RIENTRO_NOTE_118.filter(([k])=>s.codiceRientroNote.includes(k)).map(([,l])=>l).join(', ')) : ''}</td>
@@ -6359,9 +6355,9 @@ function costruisciStampaScheda118(s){
   <table class="print-118-table"><tr><td>${escapeHtml(s.annotazioni||'—')}</td></tr></table>`;
 
   html += `<table class="print-118-table"><tr>
-    <td style="text-align:center;">FIRMA AUTISTA<br>${s.firmaAutista?`<img src="${s.firmaAutista}" style="height:40px;">`:'____________________'}</td>
-    <td style="text-align:center;">FIRMA SOCCORRITORE 1<br>${s.firmaSoccorritore1?`<img src="${s.firmaSoccorritore1}" style="height:40px;">`:'____________________'}</td>
-    <td style="text-align:center;">FIRMA SOCCORRITORE 2<br>${s.firmaSoccorritore2?`<img src="${s.firmaSoccorritore2}" style="height:40px;">`:'____________________'}</td>
+    <td style="text-align:center;">FIRMA AUTISTA<br>${s.firmaAutista?`<img src="${s.firmaAutista}" style="height:20px;max-width:90px;object-fit:contain;">`:'____________________'}</td>
+    <td style="text-align:center;">FIRMA SOCCORRITORE 1<br>${s.firmaSoccorritore1?`<img src="${s.firmaSoccorritore1}" style="height:20px;max-width:90px;object-fit:contain;">`:'____________________'}</td>
+    <td style="text-align:center;">FIRMA SOCCORRITORE 2<br>${s.firmaSoccorritore2?`<img src="${s.firmaSoccorritore2}" style="height:20px;max-width:90px;object-fit:contain;">`:'____________________'}</td>
   </tr></table>`;
 
   if(s.rifiuta && s.rifiutoDati && s.rifiutoDati.firmatario){
@@ -6370,7 +6366,7 @@ function costruisciStampaScheda118(s){
     <h3>Rifiuto del trasporto sanitario</h3>
     <p style="font-size:12px;line-height:1.6;text-align:justify;">${testoDichiarazioneRifiuto118(s)}</p>
     <table class="print-118-table"><tr>
-      <td style="text-align:center;">FIRMA<br>${rd.firma?`<img src="${rd.firma}" style="height:50px;">`:'____________________'}</td>
+      <td style="text-align:center;">FIRMA<br>${rd.firma?`<img src="${rd.firma}" style="height:24px;max-width:120px;object-fit:contain;">`:'____________________'}</td>
     </tr></table>
     <table class="print-118-table"><tr>
       <td style="text-align:center;">DOCUMENTO — FRONTE<br>${rd.fotoFronte?`<img src="${rd.fotoFronte}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
