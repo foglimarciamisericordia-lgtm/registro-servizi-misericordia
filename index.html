@@ -5543,7 +5543,7 @@ function renderCodiceRientroPrint(key){
   const found = CODICE_RIENTRO_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,borderColor] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:16px;background:#fff;color:#000;border:2.5px solid ${borderColor};border-radius:5px;font-weight:900;font-size:11px;">${label}</span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:16px;background:#fff;color:#000;border:2.5px solid ${borderColor};border-radius:5px;font-weight:900;font-size:11px;vertical-align:middle;">${label}</span>`;
 }
 
 /* --- Diagrammi corpo cliccabili --- */
@@ -6251,7 +6251,7 @@ function costruisciStampaScheda118(s){
   html += `<table class="print-118-table"><tr>
     <td>CODICE INVIO<br>${renderCodiceInvioPrint(s.codiceInvio)}</td>
     <td>CODICE SCENA<br>${renderCodiceScenaPrint(s.codiceScena)}</td>
-    <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}${s.codiceRientro==='bianco' && s.codiceRientroNote && s.codiceRientroNote.length ? ('<br>'+CODICE_RIENTRO_NOTE_118.filter(([k])=>s.codiceRientroNote.includes(k)).map(([,l])=>l).join(', ')) : ''}</td>
+    <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}${s.codiceRientro==='bianco' && s.codiceRientroNote && s.codiceRientroNote.length ? (' '+CODICE_RIENTRO_NOTE_118.filter(([k])=>s.codiceRientroNote.includes(k)).map(([,l])=>l).join(', ')) : ''}</td>
     <td style="width:34%;">FORZE DELL'ORDINE/ALTRI INTERVENUTI<br>${FORZE_ORDINE_118.map(([k,l])=>`${ck118(s.forzeOrdine,k)} ${l}`).join(' ')}</td>
     <td style="width:18%;">ALTRI PAZIENTI COINVOLTI<br>${yn118(s.altriPazientiCoinvolti)}${s.altriPazientiCoinvolti==='si' ? (' — Quanti: <b>'+escapeHtml(s.numeroPazienti||'—')+'</b>') : ''}</td>
   </tr></table>`;
@@ -6463,11 +6463,21 @@ async function scaricaPdfScheda118(id){
   if(!id){ alert('Salva prima la scheda per poterla scaricare in PDF.'); return; }
   const s = interventi118.find(x=>x.id===id);
   if(!s) return;
+  if(typeof html2pdf === 'undefined'){
+    alert('La libreria di generazione PDF non si è caricata (serve connessione internet). Riprova.');
+    return;
+  }
   const sPerStampa = await preparaDatiStampa118(s);
   const logoImg = document.querySelector('.print-letterhead img');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pdf-export-118-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:15px;color:#333;';
+  overlay.textContent = 'Generazione PDF in corso…';
+
   const wrapper = document.createElement('div');
   wrapper.id = 'pdf-export-118-tmp';
-  wrapper.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;width:190mm;background:#fff;font-size:9.5px;padding:2mm;overflow:visible;';
+  wrapper.style.cssText = 'position:fixed;top:0;left:0;z-index:999998;width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
   wrapper.innerHTML = `
     <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
       <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
@@ -6480,11 +6490,9 @@ async function scaricaPdfScheda118(id){
     ${costruisciStampaScheda118(sPerStampa)}
   `;
   document.body.appendChild(wrapper);
+  document.body.appendChild(overlay);
+  await new Promise(r => setTimeout(r, 50));
   try {
-    if(typeof html2pdf === 'undefined'){
-      alert('La libreria di generazione PDF non si è caricata (serve connessione internet la prima volta). Riprova, o usa "Chiudi" e la stampa normale del browser.');
-      return;
-    }
     await html2pdf().set({
       margin: 6,
       filename: nomeFilePdf118(s),
@@ -6497,6 +6505,7 @@ async function scaricaPdfScheda118(id){
     alert('Generazione PDF non riuscita: ' + errore.message);
   } finally {
     document.body.removeChild(wrapper);
+    document.body.removeChild(overlay);
   }
 }
 
