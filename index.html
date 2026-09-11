@@ -196,7 +196,7 @@
   .flag-item-note{flex:0 1 110px;min-width:80px;max-width:140px;font-size:12px;padding:5px 7px;}
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
-  .print-118-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px;}
+  .print-118-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px;break-inside:avoid;page-break-inside:avoid;}
   .print-118-table td{border:1px solid #999;padding:1.5px 4px;vertical-align:top;line-height:1.15;}
   .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:2px 0;font-size:10px;}
   @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} #print-area-118{font-size:9.5px;} }
@@ -283,7 +283,7 @@
   .print-cronologia{margin-top:18px;}
   .print-cronologia li{font-size:12px;margin-bottom:3px;}
   @media print{
-    @page{ margin:12mm; }
+    @page{ margin:6mm; }
     body *{visibility:hidden;}
     .printable-area, .printable-area *{visibility:visible;}
     .printable-area{position:absolute;left:0;top:0;width:100%;padding:0;}
@@ -1525,7 +1525,7 @@
         <div id="e118-stato-label" class="map-hint"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Annulla</button>
-          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="stampaScheda118()">Stampa scheda</button>
+          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Scarica PDF</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="apriFirmaSchedaModal()">Firma scheda</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
         </div>
@@ -1662,12 +1662,13 @@
       <div></div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeView118Modal()">Chiudi</button>
-        <button type="button" class="btn btn-primary" style="width:auto;" onclick="window.print()">Stampa</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="scaricaPdfScheda118(scheda118PreviewId)">Scarica PDF</button>
       </div>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /* ============ STATO GLOBALE ============ */
 let currentUser = null;
@@ -1704,6 +1705,7 @@ let scheda118FotoDocumento = null;
 let rifiutoFotoFronte = null;
 let rifiutoFotoRetro = null;
 let scheda118RifiutoDati = null;
+let scheda118PreviewId = null;
 let scheda118Valutazioni = [];
 let editingScheda118ReadOnly = false;
 let editingPresidioId = null;
@@ -5923,7 +5925,7 @@ function renderElenco118(){
       <td>${s.chiuso ? '<span class="role-chip responsabile">Chiusa</span>' : '<span class="role-chip operatore">Aperta</span>'}</td>
       <td><div class="row-actions">
         <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(s.chiuso && currentUser.ruolo!=='amministratore')?'👁 Apri':'✏️ Modifica'}</button>
-        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">🖨 Stampa</button>
+        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima</button>
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}')">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
@@ -6349,11 +6351,13 @@ function costruisciStampaScheda118(s){
     <td style="width:15%;text-align:center;">${svgUstioniPair(s.sedeUstioni||[], 24, 47)}<div style="font-size:7px;">Ustioni — tot: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
   </tr></table>`;
 
-  html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
+  html += `<div style="break-inside:avoid;page-break-inside:avoid;">
+  <div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
     <tr><td>Anamnesi e descrizione:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
     <tr><td>Segni clinici:<br>${escapeHtml(s.segniClinici||'—')}</td></tr>
   </table>
+  </div>
   <table class="print-118-table"><tr>
     <td style="width:33.3%;">Terapia in atto:<br>${escapeHtml(s.terapiaInAtto||'—')}</td>
     <td style="width:33.3%;">Allergie riferite:<br>${escapeHtml(s.allergie||'—')}</td>
@@ -6430,28 +6434,70 @@ async function risolviFotoPerStampa118(valore){
   }
   return valore;
 }
-async function viewStampaScheda118(id){
-  const s = interventi118.find(x=>x.id===id);
-  if(!s) return;
-  const logoImg = document.querySelector('.print-letterhead img');
-  const logo118 = document.getElementById('print-118-logo');
-  if(logo118 && logoImg) logo118.src = logoImg.src;
+async function preparaDatiStampa118(s){
   const sPerStampa = JSON.parse(JSON.stringify(s));
   if(sPerStampa.rifiutoDati){
     sPerStampa.rifiutoDati.fotoFronte = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoFronte);
     sPerStampa.rifiutoDati.fotoRetro = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoRetro);
   }
+  return sPerStampa;
+}
+async function viewStampaScheda118(id){
+  const s = interventi118.find(x=>x.id===id);
+  if(!s) return;
+  scheda118PreviewId = id;
+  const logoImg = document.querySelector('.print-letterhead img');
+  const logo118 = document.getElementById('print-118-logo');
+  if(logo118 && logoImg) logo118.src = logoImg.src;
+  const sPerStampa = await preparaDatiStampa118(s);
   document.getElementById('print-118-content').innerHTML = costruisciStampaScheda118(sPerStampa);
   document.getElementById('view-modal-118-backdrop').classList.add('active');
 }
 function closeView118Modal(){
   document.getElementById('view-modal-118-backdrop').classList.remove('active');
 }
-function stampaScheda118(){
-  const id = document.getElementById('e118-id').value;
-  if(!id){ alert("Salva prima la scheda per poterla stampare."); return; }
-  closeScheda118Modal();
-  viewStampaScheda118(id);
+function nomeFilePdf118(s){
+  const base = formattaNumeroScheda118(s).replace(/[^a-zA-Z0-9-]/g,'_');
+  let dataParte = '';
+  if(s.data){
+    const d = new Date(s.data);
+    dataParte = '_' + String(d.getDate()).padStart(2,'0') + '_' + String(d.getMonth()+1).padStart(2,'0') + '_' + d.getFullYear();
+  }
+  return base + dataParte + '.pdf';
+}
+async function scaricaPdfScheda118(id){
+  if(!id){ alert('Salva prima la scheda per poterla scaricare in PDF.'); return; }
+  const s = interventi118.find(x=>x.id===id);
+  if(!s) return;
+  const sPerStampa = await preparaDatiStampa118(s);
+  const logoImg = document.querySelector('.print-letterhead img');
+  const wrapper = document.createElement('div');
+  wrapper.id = 'pdf-export-118-tmp';
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
+  wrapper.innerHTML = `
+    <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
+      <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
+      <div>
+        <div class="plh-org" style="font-size:12px;">Fraternita di Misericordia di S.M. di Licodia ODV</div>
+        <div class="plh-sub" style="font-size:9px;margin-top:1px;">Scheda intervento Soccorso 118 — documento generato dal sistema</div>
+      </div>
+    </div>
+    <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
+    ${costruisciStampaScheda118(sPerStampa)}
+  `;
+  document.body.appendChild(wrapper);
+  try {
+    await html2pdf().set({
+      margin: 6,
+      filename: nomeFilePdf118(s),
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    }).from(wrapper).save();
+  } finally {
+    document.body.removeChild(wrapper);
+  }
 }
 
 </script>
