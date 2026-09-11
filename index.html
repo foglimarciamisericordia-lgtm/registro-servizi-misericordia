@@ -197,7 +197,7 @@
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
   .print-118-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px;}
-  .print-118-table td{border:1px solid #999;padding:2px 4px;vertical-align:top;line-height:1.25;}
+  .print-118-table td{border:1px solid #999;padding:1.5px 4px;vertical-align:top;line-height:1.15;}
   .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:2px 0;font-size:10px;}
   @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} #print-area-118{font-size:9.5px;} }
   .e118-fixed-header{background:var(--bg);border-radius:10px;padding:14px 14px 2px;margin-top:12px;}
@@ -6222,12 +6222,13 @@ function costruisciStampaScheda118(s){
     <td>DATA<br><b>${formatDataIt(s.data)}</b></td>
     <td>SCHEDA MISSIONE N.<br><b>${escapeHtml(formattaNumeroScheda118(s))}</b></td>
     <td>OP. CENTRALE N.<br><b>${escapeHtml(s.operatoreCentrale||'—')}</b></td>
+  </tr><tr>
     <td>COGNOME<br><b>${escapeHtml(s.cognome||'—')}</b></td>
     <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
     <td>NATO A / IL<br><b>${escapeHtml(s.comuneNascita||'—')} — ${formatDataIt(s.natoIl)}</b></td>
-  </tr><tr>
     <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${simboloFlag118(s.sesso==='M')} M ${simboloFlag118(s.sesso==='F')} F</td>
     <td>CODICE FISCALE<br><b>${escapeHtml(s.codiceFiscale||'—')}</b></td>
+  </tr><tr>
     <td>RESIDENTE A<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
     <td>IN VIA E N.<br><b>${escapeHtml(s.viaResidenza||'—')}</b></td>
     <td>TEL. FAMILIARE 1/2<br><b>${escapeHtml(s.telefonoFamiliare1||'—')} / ${escapeHtml(s.telefonoFamiliare2||'—')}</b></td>
@@ -6279,24 +6280,27 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>`;
   {
     const listaVal = (s.valutazioni && s.valutazioni.length) ? s.valutazioni : [{}];
-    const parametri = [
-      ['P.A.', v=>v.pa],
-      ['F.C.', v=>v.fc],
-      ['F.R.', v=>v.fr],
-      ['SpO2', v=>v.spo2],
-      ['ETCO2', v=>v.etco2],
-      ['HGT', v=>v.hgt],
-      ['T°', v=>v.temperatura],
-      ['Polso c./p.', v=>(v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—')) + '/' + (v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—'))],
-      ['Cute', v=> (CUTE_118.filter(([k])=>(v.cute||[]).includes(k)).map(([,l])=>l).join(', ') || '—')]
-    ];
-    const larghezzaEtichetta = 60;
-    const larghezzaColonna = Math.floor((100 - (larghezzaEtichetta/7)) / listaVal.length);
-    const intestazioneColonne = listaVal.map((v,idx)=>`<td style="width:${larghezzaColonna}%;text-align:center;font-weight:700;">Valutazione ${idx+1}${v.parametriAssenti ? '<br><span style="color:#B23A24;font-size:8px;">PARAMETRI ASSENTI</span>' : ''}<br><span style="font-weight:400;">Ora: ${v.ora||'—'}</span></td>`).join('');
-    let corpo = `<tr><td style="width:${larghezzaEtichetta}px;"></td>${intestazioneColonne}</tr>`;
-    parametri.forEach(([nome,getter])=>{
-      corpo += `<tr><td style="font-weight:700;">${nome}</td>${listaVal.map(v=>`<td style="text-align:center;"><b>${escapeHtml(String(getter(v)||'—'))}</b></td>`).join('')}</tr>`;
-    });
+    const romano = n => (['I','II','III','IV','V','VI','VII','VIII'][n-1] || String(n));
+    const valori = getter => listaVal.length <= 1
+      ? escapeHtml(String(getter(listaVal[0]||{})||'—'))
+      : listaVal.map((v,i)=>`${romano(i+1)}: ${escapeHtml(String(getter(v)||'—'))}`).join(' &nbsp; ');
+    let corpo = '';
+    if(listaVal.length > 1){
+      corpo += `<tr><td colspan="4" style="font-weight:700;">${listaVal.map((v,i)=>`${romano(i+1)} — Ora: ${v.ora||'—'}${v.parametriAssenti ? ' <span style="color:#B23A24;">(PARAMETRI ASSENTI)</span>' : ''}`).join(' &nbsp;|&nbsp; ')}</td></tr>`;
+    }
+    corpo += `<tr>
+      <td>P.A.<br><b>${valori(v=>v.pa)}</b></td>
+      <td>F.C.<br><b>${valori(v=>v.fc)}</b></td>
+      <td>F.R.<br><b>${valori(v=>v.fr)}</b></td>
+      <td>SpO2<br><b>${valori(v=>v.spo2)}</b></td>
+    </tr><tr>
+      <td>ETCO2<br><b>${valori(v=>v.etco2)}</b></td>
+      <td>HGT<br><b>${valori(v=>v.hgt)}</b></td>
+      <td>T°<br><b>${valori(v=>v.temperatura)}</b></td>
+      <td>Polso c./p.<br><b>${valori(v=>(v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—'))+'/'+(v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—')))}</b></td>
+    </tr><tr><td colspan="4">CUTE: ${listaVal.length > 1
+      ? listaVal.map((v,i)=>`${romano(i+1)}: ${CUTE_118.filter(([k])=>(v.cute||[]).includes(k)).map(([,l])=>l).join(', ')||'—'}`).join(' &nbsp;|&nbsp; ')
+      : CUTE_118.map(([k,l])=>`${ck118((listaVal[0]||{}).cute,k)} ${l}`).join(' &nbsp; ')}</td></tr>`;
     html += `<table class="print-118-table">${corpo}</table>`;
   }
 
