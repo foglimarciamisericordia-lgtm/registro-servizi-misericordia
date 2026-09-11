@@ -298,6 +298,7 @@
     .print-letterhead .plh-sub{font-size:11.5px;color:var(--ink-soft);margin-top:3px;letter-spacing:.3px;text-transform:uppercase;}
     .printable-area h3{font-size:17px;margin:0 0 3px;color:var(--navy);}
     #print-area-118{ font-size:9.5px; }
+    #print-area-118 *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
     #print-area-118 .print-letterhead{ margin-bottom:6px; padding:4px 0 6px; gap:8px; }
     #print-area-118 .print-letterhead img{ width:34px; height:34px; }
     #print-area-118 .print-letterhead .plh-org{ font-size:12px; }
@@ -5119,10 +5120,11 @@ const PUPILLE_VALUTAZIONE_118 = [
   ['midriasi','Midriasi','Dilatazione eccessiva (carenza di ossigeno, intossicazione da alcol o shock)'],
   ['anisocoria','Anisocoria','Dimensioni diverse (danno cerebrale, TCE, ictus)']
 ];
-function svgPupillaTipo(tipo){
+function svgPupillaTipo(tipo, larghezza, altezza){
   const cfg = { isocoria:[5,5], miosi:[2.5,2.5], midriasi:[8,8], anisocoria:[3,8] };
   const [rL,rR] = cfg[tipo] || [5,5];
-  return `<svg viewBox="0 0 80 40" width="64" height="32" style="display:block;margin:0 auto;">
+  const w = larghezza || 64, h = altezza || 32;
+  return `<svg viewBox="0 0 80 40" width="${w}" height="${h}" style="display:inline-block;vertical-align:middle;">
     <ellipse cx="20" cy="20" rx="18" ry="11" fill="#fff" stroke="#8a8f98" stroke-width="1.5"/>
     <circle cx="20" cy="20" r="${rL}" fill="#1a1a2e"/>
     <ellipse cx="60" cy="20" rx="18" ry="11" fill="#fff" stroke="#8a8f98" stroke-width="1.5"/>
@@ -6205,9 +6207,10 @@ function generaFoglioDaScheda118(schedaId){
 }
 
 /* --- Stampa --- */
-function ck118(list, key){ return (list||[]).includes(key) ? '☑' : '☐'; }
-function yn118(val){ return val==='si' ? '☑ Sì &nbsp; ☐ No' : (val==='no' ? '☐ Sì &nbsp; ☑ No' : '☐ Sì &nbsp; ☐ No'); }
-function normAnorm118(val){ return val==='normale' ? '☑ Normale &nbsp; ☐ Anormale' : (val==='anormale' ? '☐ Normale &nbsp; ☑ Anormale' : '☐ Normale &nbsp; ☐ Anormale'); }
+function simboloFlag118(checked){ return `<span style="font-weight:900;font-size:12.5px;">${checked?'☑':'☐'}</span>`; }
+function ck118(list, key){ return simboloFlag118((list||[]).includes(key)); }
+function yn118(val){ return val==='si' ? (simboloFlag118(true)+' Sì &nbsp; '+simboloFlag118(false)+' No') : (val==='no' ? (simboloFlag118(false)+' Sì &nbsp; '+simboloFlag118(true)+' No') : (simboloFlag118(false)+' Sì &nbsp; '+simboloFlag118(false)+' No')); }
+function normAnorm118(val){ return val==='normale' ? (simboloFlag118(true)+' Normale &nbsp; '+simboloFlag118(false)+' Anormale') : (val==='anormale' ? (simboloFlag118(false)+' Normale &nbsp; '+simboloFlag118(true)+' Anormale') : (simboloFlag118(false)+' Normale &nbsp; '+simboloFlag118(false)+' Anormale')); }
 
 function costruisciStampaScheda118(s){
   const o = s.orari||{}, g = s.gcs||{}, c = s.cincinnati||{}, rts = s.rts||{};
@@ -6223,7 +6226,7 @@ function costruisciStampaScheda118(s){
     <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
     <td>NATO A / IL<br><b>${escapeHtml(s.comuneNascita||'—')} — ${formatDataIt(s.natoIl)}</b></td>
   </tr><tr>
-    <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${s.sesso==='M'?'☑':'☐'} M ${s.sesso==='F'?'☑':'☐'} F</td>
+    <td>ETÀ / SESSO<br><b>${escapeHtml(s.eta||'—')}</b> — ${simboloFlag118(s.sesso==='M')} M ${simboloFlag118(s.sesso==='F')} F</td>
     <td>CODICE FISCALE<br><b>${escapeHtml(s.codiceFiscale||'—')}</b></td>
     <td>RESIDENTE A<br><b>${escapeHtml(s.comuneResidenza||'—')}</b></td>
     <td>IN VIA E N.<br><b>${escapeHtml(s.viaResidenza||'—')}</b></td>
@@ -6260,7 +6263,7 @@ function costruisciStampaScheda118(s){
   {
     const patColA = PATOLOGIA_118.slice(0,7), patColB = PATOLOGIA_118.slice(7,14), patColC = PATOLOGIA_118.slice(14,17);
     const righe = Math.max(LUOGO_118.length, patColA.length, patColB.length, patColC.length);
-    const cella = (voce, valoreScelto) => voce ? `${valoreScelto===voce[0]?'☑':'☐'} ${voce[1]}` : '';
+    const cella = (voce, valoreScelto) => voce ? `${simboloFlag118(valoreScelto===voce[0])} ${voce[1]}` : '';
     let corpo = '';
     for(let i=0;i<righe;i++){
       corpo += `<tr>
@@ -6274,18 +6277,28 @@ function costruisciStampaScheda118(s){
   }
 
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>`;
-  (s.valutazioni && s.valutazioni.length ? s.valutazioni : [{}]).forEach((v,idx)=>{
-    const assentiTag = v.parametriAssenti ? ` — <span style="color:#B23A24;font-weight:700;">PARAMETRI ASSENTI</span>` : '';
-    html += `<table class="print-118-table"><tr><td colspan="4" style="font-weight:700;">Valutazione ${idx+1} — Ora: ${v.ora||'—'}${assentiTag}</td></tr>
-    <tr>
-      <td>P.A.<br><b>${escapeHtml(v.pa||'—')}</b></td><td>F.C.<br><b>${escapeHtml(v.fc||'—')}</b></td>
-      <td>F.R.<br><b>${escapeHtml(v.fr||'—')}</b></td><td>SpO2<br><b>${escapeHtml(v.spo2||'—')}</b></td>
-    </tr><tr>
-      <td>ETCO2<br><b>${escapeHtml(v.etco2||'—')}</b></td><td>HGT<br><b>${escapeHtml(v.hgt||'—')}</b></td>
-      <td>T°<br><b>${escapeHtml(v.temperatura||'—')}</b></td>
-      <td>Polso c. / p.<br><b>${v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—')} / ${v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—')}</b></td>
-    </tr><tr><td colspan="4">CUTE: ${CUTE_118.map(([k,l])=>`${ck118(v.cute,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
-  });
+  {
+    const listaVal = (s.valutazioni && s.valutazioni.length) ? s.valutazioni : [{}];
+    const orariRow = listaVal.map((v,idx)=>`Valutazione ${idx+1} — Ora: ${v.ora||'—'}${v.parametriAssenti ? ' <span style="color:#B23A24;font-weight:700;">(PARAMETRI ASSENTI)</span>' : ''}`).join(' &nbsp; | &nbsp; ');
+    html += `<table class="print-118-table"><tr><td style="font-weight:700;">${orariRow}</td></tr></table>`;
+    const parametri = [
+      ['P.A.', v=>v.pa],
+      ['F.C.', v=>v.fc],
+      ['F.R.', v=>v.fr],
+      ['SpO2', v=>v.spo2],
+      ['ETCO2', v=>v.etco2],
+      ['HGT', v=>v.hgt],
+      ['T°', v=>v.temperatura],
+      ['Polso c./p.', v=>(v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—')) + '/' + (v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—'))],
+      ['Cute', v=> (CUTE_118.filter(([k])=>(v.cute||[]).includes(k)).map(([,l])=>l).join(', ') || '—')]
+    ];
+    const intestazioneColonne = listaVal.map((v,idx)=>`<td style="text-align:center;font-weight:700;">${idx+1}</td>`).join('');
+    let corpo = `<tr><td style="width:60px;"></td>${intestazioneColonne}</tr>`;
+    parametri.forEach(([nome,getter])=>{
+      corpo += `<tr><td style="font-weight:700;">${nome}</td>${listaVal.map(v=>`<td><b>${escapeHtml(String(getter(v)||'—'))}</b></td>`).join('')}</tr>`;
+    });
+    html += `<table class="print-118-table">${corpo}</table>`;
+  }
 
   html += `<div class="print-118-section-title">GCS / AVPU / CINCINNATI PREHOSPITAL STROKE SCALE (CPSS) / RTS</div>
   <table class="print-118-table"><tr>
@@ -6301,7 +6314,7 @@ function costruisciStampaScheda118(s){
     <td>RTS tot. (rif. Val. 1)<br><b>${escapeHtml(rts.totale||'—')}</b> (${escapeHtml(rts.gcs||'—')}/${escapeHtml(rts.fr||'—')}/${escapeHtml(rts.pas||'—')})</td>
   </tr></table>
   <table class="print-118-table"><tr>
-    <td>Pupille<br><b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
+    <td>Pupille<br>${svgPupillaTipo(s.pupille?.valutazione||'isocoria', 30, 15)} <b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
     <td>Dx: fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
     <td>Sx: fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
   </tr></table>`;
@@ -6345,7 +6358,7 @@ function costruisciStampaScheda118(s){
   <table class="print-118-table"><tr>
     <td>Ospedalizzato presso PS di<br><b>${escapeHtml(s.prontoSoccorsoDi||'—')}</b></td>
     <td>Paziente affidato a<br><b>${escapeHtml(s.pzAffidatoA||'—')}</b></td>
-    <td>Allertamento → P.S.<br>${s.allertamentoPS?'☑':'☐'} Sì</td>
+    <td>Allertamento → P.S.<br>${simboloFlag118(!!s.allertamentoPS)} Sì</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">ALTRE ANNOTAZIONI/ALTRE INFORMAZIONI</div>
