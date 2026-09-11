@@ -196,10 +196,10 @@
   .flag-item-note{flex:0 1 110px;min-width:80px;max-width:140px;font-size:12px;padding:5px 7px;}
   .signature-pad-wrap{border:1.5px dashed var(--ink-soft);border-radius:8px;background:#fff;}
   .signature-canvas{width:100%;height:130px;display:block;touch-action:none;}
-  .print-118-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
-  .print-118-table td{border:1px solid #999;padding:3px 6px;vertical-align:top;}
-  .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:4px 0;font-size:12px;}
-  @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} }
+  .print-118-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px;}
+  .print-118-table td{border:1px solid #999;padding:2px 4px;vertical-align:top;line-height:1.25;}
+  .print-118-section-title{font-weight:700;border-bottom:1px solid #333;margin:2px 0;font-size:10px;}
+  @media print{ #print-area-118, #print-area-118 *{visibility:visible;} #print-area-118{position:absolute;left:0;top:0;width:100%;padding:0;} #print-area-118{font-size:9.5px;} }
   .e118-fixed-header{background:var(--bg);border-radius:10px;padding:14px 14px 2px;margin-top:12px;}
   .e118-tabs{display:flex;gap:6px;margin:14px 0 18px;border-bottom:1.5px solid var(--border);flex-wrap:wrap;}
   .e118-tab-btn{padding:9px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1.5px;}
@@ -297,6 +297,12 @@
     .print-letterhead .plh-org{font-size:16px;font-weight:700;color:var(--navy);line-height:1.3;}
     .print-letterhead .plh-sub{font-size:11.5px;color:var(--ink-soft);margin-top:3px;letter-spacing:.3px;text-transform:uppercase;}
     .printable-area h3{font-size:17px;margin:0 0 3px;color:var(--navy);}
+    #print-area-118{ font-size:9.5px; }
+    #print-area-118 .print-letterhead{ margin-bottom:6px; padding:4px 0 6px; gap:8px; }
+    #print-area-118 .print-letterhead img{ width:34px; height:34px; }
+    #print-area-118 .print-letterhead .plh-org{ font-size:12px; }
+    #print-area-118 .print-letterhead .plh-sub{ font-size:9px; margin-top:1px; }
+    #print-area-118 h3{ font-size:13px; margin:0 0 4px; }
     .view-sheet h4{font-size:12px;color:var(--navy);background:var(--bg);border-bottom:1.5px solid var(--navy);margin:0 0 7px;padding:4px 7px;border-radius:3px 3px 0 0;}
     .view-grid{gap:5px 12px;}
     .view-item{font-size:11px;padding:2px 0;border-bottom:1px dotted var(--line-soft);}
@@ -1483,6 +1489,9 @@
       <input type="hidden" id="e118-codiceRientro">
       <div id="e118-codiceRientroNote-wrap" style="display:none;margin-top:8px;">
         <div class="checkbox-grid" id="e118-codiceRientroNote"></div>
+        <div id="e118-rifiuto-stato" class="map-hint" style="display:none;margin-top:4px;">
+          Modulo di rifiuto compilato. <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="apriRifiutoSoccorsoModal()">Rivedi/modifica</button>
+        </div>
       </div>
 
       <div class="section-title">Esito</div>
@@ -1493,12 +1502,6 @@
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <input type="checkbox" id="e118-allertamentoPS"> Allertamento → P.S.
       </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <input type="checkbox" id="e118-rifiuta" onchange="onRifiutaCheckboxChange()"> Il paziente rifiuta il soccorso
-      </label>
-      <div id="e118-rifiuto-stato" class="map-hint" style="display:none;margin-bottom:10px;">
-        Modulo di rifiuto compilato. <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="apriRifiutoSoccorsoModal()">Rivedi/modifica</button>
-      </div>
 
       <div class="section-title">Forze dell'ordine/altri intervenuti</div>
       <div class="checkbox-grid" id="e118-forzeOrdine"></div>
@@ -5578,11 +5581,12 @@ function renderBodyDiagram(containerId, dataArray){
     svg.appendChild(c);
   });
 }
-function renderBodyDiagramSvgStatic(points){
+function renderBodyDiagramSvgStatic(points, larghezza, altezza, incolonnati){
+  const w = larghezza || 34, h = altezza || 68;
   const svgFor = (view) => {
     const pts = (points||[]).filter(p=>p.view===view);
     const circles = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="#c0392b"/>`).join('');
-    return `<svg width="34" height="68" viewBox="0 0 120 236" style="display:inline-block;">${corpoSilhouetteSvgInner()}${circles}</svg>`;
+    return `<svg width="${w}" height="${h}" viewBox="0 0 120 236" style="display:${incolonnati?'block':'inline-block'};margin:0 auto;">${corpoSilhouetteSvgInner()}${circles}</svg>`;
   };
   return svgFor('front') + svgFor('back');
 }
@@ -5637,11 +5641,12 @@ function ustioneShapeToSvg(r, selezionate){
     ? `<ellipse cx="${r.shape.cx}" cy="${r.shape.cy}" rx="${r.shape.rx}" ry="${r.shape.ry}" ${common}/>`
     : `<rect x="${r.shape.x}" y="${r.shape.y}" width="${r.shape.w}" height="${r.shape.h}" rx="${r.shape.rx}" ${common}/>`;
 }
-function svgUstioniPair(selezionate){
+function svgUstioniPair(selezionate, larghezza, altezza){
+  const w = larghezza || 62, h = altezza || 122;
   const front = USTIONI_REGIONI_118.filter(r=>r.view==='front').map(r=>ustioneShapeToSvg(r, selezionate)).join('');
   const back = USTIONI_REGIONI_118.filter(r=>r.view==='back').map(r=>ustioneShapeToSvg(r, selezionate)).join('');
-  return `<div style="text-align:center;"><svg data-view="front" viewBox="0 0 120 236" width="62" height="122">${front}</svg><div class="map-hint">Fronte</div></div>
-  <div style="text-align:center;"><svg data-view="back" viewBox="0 0 120 236" width="62" height="122">${back}</svg><div class="map-hint">Retro</div></div>`;
+  return `<div style="display:inline-block;text-align:center;vertical-align:top;"><svg data-view="front" viewBox="0 0 120 236" width="${w}" height="${h}">${front}</svg><div class="map-hint" style="font-size:8px;">Fronte</div></div>
+  <div style="display:inline-block;text-align:center;vertical-align:top;"><svg data-view="back" viewBox="0 0 120 236" width="${w}" height="${h}">${back}</svg><div class="map-hint" style="font-size:8px;">Retro</div></div>`;
 }
 function calcolaTotaleUstioni118(){
   return scheda118SedeUstioni.reduce((sum,rid)=>{
@@ -5727,8 +5732,15 @@ function onAltriPazientiToggle118(){
 }
 /* --- Rifiuto soccorso --- */
 const RIFIUTO_RAPPORTO_118 = ['Esercente la responsabilità genitoriale','Tutore','Amministratore di sostegno','Parente titolato'];
+function collegaCheckboxRifiutoSoccorso118(){
+  const cb = document.getElementById('e118-codiceRientroNote').querySelector('input[value="rifiutoSoccorso"]');
+  if(cb) cb.onchange = onRifiutaCheckboxChange;
+  aggiornaStatoRifiuto118();
+}
 function onRifiutaCheckboxChange(){
-  if(document.getElementById('e118-rifiuta').checked){
+  const cb = document.getElementById('e118-codiceRientroNote').querySelector('input[value="rifiutoSoccorso"]');
+  if(!cb) return;
+  if(cb.checked){
     apriRifiutoSoccorsoModal();
   } else {
     scheda118RifiutoDati = null;
@@ -5738,6 +5750,8 @@ function onRifiutaCheckboxChange(){
 function aggiornaStatoRifiuto118(){
   const compilato = !!(scheda118RifiutoDati && scheda118RifiutoDati.firmatario);
   document.getElementById('e118-rifiuto-stato').style.display = compilato ? 'block' : 'none';
+  const cb = document.getElementById('e118-codiceRientroNote').querySelector('input[value="rifiutoSoccorso"]');
+  if(cb) cb.checked = compilato;
 }
 function apriRifiutoSoccorsoModal(){
   const d = scheda118RifiutoDati || {};
@@ -5825,7 +5839,7 @@ function onRifFotoChange(event, lato){
 }
 function annullaRifiutoSoccorsoModal(){
   document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
-  if(!scheda118RifiutoDati){ document.getElementById('e118-rifiuta').checked = false; }
+  if(!scheda118RifiutoDati){ aggiornaStatoRifiuto118(); }
 }
 function closeRifiutoSoccorsoModal(){ annullaRifiutoSoccorsoModal(); }
 function confermaRifiutoSoccorso(){
@@ -5851,7 +5865,6 @@ function confermaRifiutoSoccorso(){
     fotoFronte: rifiutoFotoFronte,
     fotoRetro: rifiutoFotoRetro
   };
-  document.getElementById('e118-rifiuta').checked = true;
   aggiornaStatoRifiuto118();
   document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
 }
@@ -5936,6 +5949,7 @@ function openScheda118Modal(id){
   buildCheckboxGrid('e118-altreValutazioni-flags', ALTRE_VALUTAZIONI_118, sch?.altreValutazioni);
   buildCheckboxGrid('e118-altreInformazioni', ALTRE_INFORMAZIONI_118, sch?.altreInformazioni);
   buildCheckboxGrid('e118-codiceRientroNote', CODICE_RIENTRO_NOTE_118, sch?.codiceRientroNote);
+  collegaCheckboxRifiutoSoccorso118();
   populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
   populateSimpleSelect('e118-patologiaComunicata', PATOLOGIA_118, sch?.patologiaComunicata);
   buildCheckboxGrid('e118-mezziCoinvolti', MEZZO_COINVOLTO_118, sch?.mezziCoinvolti);
@@ -6005,7 +6019,6 @@ function openScheda118Modal(id){
   F('e118-annotazioni', sch?.annotazioni);
 
   scheda118RifiutoDati = sch?.rifiutoDati ? JSON.parse(JSON.stringify(sch.rifiutoDati)) : null;
-  document.getElementById('e118-rifiuta').checked = !!scheda118RifiutoDati;
   aggiornaStatoRifiuto118();
 
   scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
@@ -6108,7 +6121,7 @@ function collectScheda118FormData(id){
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
     anamnesi: G('e118-anamnesi'), terapiaInAtto: G('e118-terapiaInAtto'), allergie: G('e118-allergie'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
     pzAffidatoA: G('e118-pzAffidatoA'),
-    rifiuta: document.getElementById('e118-rifiuta').checked, rifiutoDati: scheda118RifiutoDati,
+    rifiuta: !!scheda118RifiutoDati, rifiutoDati: scheda118RifiutoDati,
     altreInformazioni: getCheckboxGridValues('e118-altreInformazioni'), codiceRientroNote: getCheckboxGridValues('e118-codiceRientroNote'),
     annotazioni: G('e118-annotazioni'),
     firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
@@ -6244,8 +6257,8 @@ function costruisciStampaScheda118(s){
 
   html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA COMUNICATA</div>
   <table class="print-118-table"><tr>
-  <td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join('<br>')}</td>
-  <td>${PATOLOGIA_118.map(([k,l])=>`${s.patologiaComunicata===k?'☑':'☐'} ${l}`).join('<br>')}</td>
+  <td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join(' &nbsp; ')}</td>
+  <td>${PATOLOGIA_118.map(([k,l])=>`${s.patologiaComunicata===k?'☑':'☐'} ${l}`).join(' &nbsp; ')}</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>`;
@@ -6302,12 +6315,16 @@ function costruisciStampaScheda118(s){
   <table class="print-118-table"><tr><td>${INTERVENTI_PAZIENTE_118.map(([k,l])=>`${ck118(s.interventiPaziente,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
   html += `<div class="print-118-section-title">VALUTAZIONE TRAUMA</div>
-  <table class="print-118-table"><tr><td colspan="3">${VALUTAZIONE_TRAUMA_118.map(([k,l,note])=>`${ck118(s.dinamicaTrauma,k)} ${l}${note && s.dinamicaTraumaNote && s.dinamicaTraumaNote[k] ? ' ('+escapeHtml(s.dinamicaTraumaNote[k])+')' : ''}`).join(' &nbsp; ')}</td></tr>
-  <tr><td colspan="3" style="text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma)}<div>Sede del trauma</div></td></tr></table>`;
+  <table class="print-118-table"><tr>
+    <td style="width:82%;">${VALUTAZIONE_TRAUMA_118.map(([k,l,note])=>`${ck118(s.dinamicaTrauma,k)} ${l}${note && s.dinamicaTraumaNote && s.dinamicaTraumaNote[k] ? ' ('+escapeHtml(s.dinamicaTraumaNote[k])+')' : ''}`).join(' &nbsp; ')}</td>
+    <td style="width:18%;text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma, 22, 44, true)}<div style="font-size:8px;">Sede trauma</div></td>
+  </tr></table>`;
 
   html += `<div class="print-118-section-title">ALTRE VALUTAZIONI</div>
-  <table class="print-118-table"><tr><td>${ALTRE_VALUTAZIONI_118.map(([k,l])=>`${ck118(s.altreValutazioni,k)} ${l}`).join(' &nbsp; ')}</td></tr>
-  <tr><td style="text-align:center;">${svgUstioniPair(s.sedeUstioni||[])}<div>Sede delle ustioni — totale: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td></tr></table>`;
+  <table class="print-118-table"><tr>
+    <td style="width:68%;">${ALTRE_VALUTAZIONI_118.map(([k,l])=>`${ck118(s.altreValutazioni,k)} ${l}`).join(' &nbsp; ')}</td>
+    <td style="width:32%;text-align:center;">${svgUstioniPair(s.sedeUstioni||[], 28, 55)}<div style="font-size:8px;">Ustioni — tot: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
+  </tr></table>`;
 
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
