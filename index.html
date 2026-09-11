@@ -1490,7 +1490,7 @@
       <div id="e118-codiceRientroNote-wrap" style="display:none;margin-top:8px;">
         <div class="checkbox-grid" id="e118-codiceRientroNote"></div>
         <div id="e118-rifiuto-stato" class="map-hint" style="display:none;margin-top:4px;">
-          Modulo di rifiuto compilato. <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="apriRifiutoSoccorsoModal()">Rivedi/modifica</button>
+          Modulo di rifiuto compilato. <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="apriRifiutoSoccorsoModal()">Rivedi/modifica</button> <button type="button" class="action-btn danger" style="width:auto;" onclick="eliminaRifiutoSoccorso118()">🗑 Elimina</button>
         </div>
       </div>
 
@@ -5079,7 +5079,7 @@ const CODICE_INVIO_118 = [['rosso','R','#D64545','#fff'],['giallo','G','#F2C744'
 const CODICE_SCENA_118 = [['rosso','R3','#D64545','#fff'],['giallo','G2','#F2C744','#000'],['verde','V1','#3FA34D','#fff'],['bianco','B0','#FFFFFF','#000'],['nero','N4','#1a1a1a','#fff']];
 const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
 const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
-const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
+const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['rcp','RCP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
 const MEZZO_COINVOLTO_118 = [['pedone','Pedone'],['bicicletta','Bicicletta'],['motociclo','Motociclo'],['autovettura','Autovettura'],['camion','Camion'],['autobus','Autobus'],['treno','Treno/Altro']];
 const VALUTAZIONE_TRAUMA_118 = [
   ['investito','Investito', null],
@@ -5747,6 +5747,11 @@ function onRifiutaCheckboxChange(){
     aggiornaStatoRifiuto118();
   }
 }
+function eliminaRifiutoSoccorso118(){
+  if(!confirm('Eliminare il modulo di rifiuto soccorso compilato?')) return;
+  scheda118RifiutoDati = null;
+  aggiornaStatoRifiuto118();
+}
 function aggiornaStatoRifiuto118(){
   const compilato = !!(scheda118RifiutoDati && scheda118RifiutoDati.firmatario);
   document.getElementById('e118-rifiuto-stato').style.display = compilato ? 'block' : 'none';
@@ -6255,11 +6260,22 @@ function costruisciStampaScheda118(s){
     <td colspan="2">MEZZI COINVOLTI<br>${MEZZO_COINVOLTO_118.map(([k,l])=>`${ck118(s.mezziCoinvolti,k)} ${l}`).join(' &nbsp; ')}</td>
   </tr></table>`;
 
-  html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA COMUNICATA</div>
-  <table class="print-118-table"><tr>
-  <td style="width:25%;">${LUOGO_118.map(([k,l])=>`${s.luogoIntervento===k?'☑':'☐'} ${l}`).join(' &nbsp; ')}</td>
-  <td>${PATOLOGIA_118.map(([k,l])=>`${s.patologiaComunicata===k?'☑':'☐'} ${l}`).join(' &nbsp; ')}</td>
-  </tr></table>`;
+  html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA COMUNICATA</div>`;
+  {
+    const patColA = PATOLOGIA_118.slice(0,7), patColB = PATOLOGIA_118.slice(7,14), patColC = PATOLOGIA_118.slice(14,17);
+    const righe = Math.max(LUOGO_118.length, patColA.length, patColB.length, patColC.length);
+    const cella = (voce, valoreScelto) => voce ? `${valoreScelto===voce[0]?'☑':'☐'} ${voce[1]}` : '';
+    let corpo = '';
+    for(let i=0;i<righe;i++){
+      corpo += `<tr>
+        <td style="width:22%;">${cella(LUOGO_118[i], s.luogoIntervento)}</td>
+        <td>${cella(patColA[i], s.patologiaComunicata)}</td>
+        <td>${cella(patColB[i], s.patologiaComunicata)}</td>
+        <td>${cella(patColC[i], s.patologiaComunicata)}</td>
+      </tr>`;
+    }
+    html += `<table class="print-118-table">${corpo}</table>`;
+  }
 
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>`;
   (s.valutazioni && s.valutazioni.length ? s.valutazioni : [{}]).forEach((v,idx)=>{
@@ -6280,20 +6296,18 @@ function costruisciStampaScheda118(s){
     <td>Apertura occhi${g.pediatrica?' (ped.)':''}<br><b>${((g.pediatrica?GCS_OCCHI_PED_118:GCS_OCCHI_118).find(([k])=>k===g.occhi)||[null,'—'])[1]}</b></td>
     <td>Risposta verbale${g.pediatrica?' (ped.)':''}<br><b>${((g.pediatrica?GCS_VERBALE_PED_118:GCS_VERBALE_118).find(([k])=>k===g.verbale)||[null,'—'])[1]}</b></td>
     <td>Risposta motoria${g.pediatrica?' (ped.)':''}<br><b>${((g.pediatrica?GCS_MOTORIA_PED_118:GCS_MOTORIA_118).find(([k])=>k===g.motoria)||[null,'—'])[1]}</b></td>
-    <td>Punteggio GCS totale<br><b>${escapeHtml(g.punteggio||'—')}</b>${g.punteggio ? (' ('+infoColoreGCS118(g.punteggio).label+')') : ''}</td>
-  </tr><tr>
+    <td>GCS tot.<br><b>${escapeHtml(g.punteggio||'—')}</b>${g.punteggio ? (' ('+infoColoreGCS118(g.punteggio).label+')') : ''}</td>
     <td>AVPU<br><b>${escapeHtml(s.avpu||'—')}</b></td>
-    <td>Riempimento capillare (CRT)<br><b>${s.capillare==='lt2'?'< 2 sec.':(s.capillare==='gt2'?'> 2 sec.':'—')}</b></td>
-    <td></td>
-  </tr><tr>
-    <td>Mimica facciale<br>${normAnorm118(c.mimica)}</td><td>Spostamento braccia<br>${normAnorm118(c.motorio)}</td><td>Linguaggio<br>${normAnorm118(c.linguaggio)}</td>
-    <td>RTS totale (rif. Val. 1)<br><b>${escapeHtml(rts.totale||'—')}</b> (GCS ${escapeHtml(rts.gcs||'—')} / FR ${escapeHtml(rts.fr||'—')} / PA ${escapeHtml(rts.pas||'—')})</td>
+    <td>CRT<br><b>${s.capillare==='lt2'?'< 2 sec.':(s.capillare==='gt2'?'> 2 sec.':'—')}</b></td>
+    <td>Mimica<br>${normAnorm118(c.mimica)}</td>
+    <td>Braccia<br>${normAnorm118(c.motorio)}</td>
+    <td>Linguaggio<br>${normAnorm118(c.linguaggio)}</td>
+    <td>RTS tot. (rif. Val. 1)<br><b>${escapeHtml(rts.totale||'—')}</b> (${escapeHtml(rts.gcs||'—')}/${escapeHtml(rts.fr||'—')}/${escapeHtml(rts.pas||'—')})</td>
   </tr></table>
   <table class="print-118-table"><tr>
-    <td colspan="2">Valutazione pupille: ${svgPupillaTipo(s.pupille?.valutazione||'isocoria')} <b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
-  </tr><tr>
-    <td>Pupilla dx: fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
-    <td>Pupilla sx: fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
+    <td>Pupille<br><b>${(PUPILLE_VALUTAZIONE_118.find(([k])=>k===s.pupille?.valutazione)||[null,'—'])[1]}</b></td>
+    <td>Dx: fotomotore ${yn118(pd.foto)} — ciliospinale ${yn118(pd.cilio)} — cong.pallide ${yn118(pd.cong)}</td>
+    <td>Sx: fotomotore ${yn118(ps.foto)} — ciliospinale ${yn118(ps.cilio)} — cong.pallide ${yn118(ps.cong)}</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">DEFIBRILLAZIONE / ARRESTO CARDIACO</div>
@@ -6314,16 +6328,12 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">INTERVENTI SUL PAZIENTE</div>
   <table class="print-118-table"><tr><td>${INTERVENTI_PAZIENTE_118.map(([k,l])=>`${ck118(s.interventiPaziente,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
-  html += `<div class="print-118-section-title">VALUTAZIONE TRAUMA</div>
+  html += `<div class="print-118-section-title">VALUTAZIONE TRAUMA / ALTRE VALUTAZIONI</div>
   <table class="print-118-table"><tr>
-    <td style="width:82%;">${VALUTAZIONE_TRAUMA_118.map(([k,l,note])=>`${ck118(s.dinamicaTrauma,k)} ${l}${note && s.dinamicaTraumaNote && s.dinamicaTraumaNote[k] ? ' ('+escapeHtml(s.dinamicaTraumaNote[k])+')' : ''}`).join(' &nbsp; ')}</td>
-    <td style="width:18%;text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma, 22, 44, true)}<div style="font-size:8px;">Sede trauma</div></td>
-  </tr></table>`;
-
-  html += `<div class="print-118-section-title">ALTRE VALUTAZIONI</div>
-  <table class="print-118-table"><tr>
-    <td style="width:68%;">${ALTRE_VALUTAZIONI_118.map(([k,l])=>`${ck118(s.altreValutazioni,k)} ${l}`).join(' &nbsp; ')}</td>
-    <td style="width:32%;text-align:center;">${svgUstioniPair(s.sedeUstioni||[], 28, 55)}<div style="font-size:8px;">Ustioni — tot: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
+    <td style="width:39%;">${VALUTAZIONE_TRAUMA_118.map(([k,l,note])=>`${ck118(s.dinamicaTrauma,k)} ${l}${note && s.dinamicaTraumaNote && s.dinamicaTraumaNote[k] ? ' ('+escapeHtml(s.dinamicaTraumaNote[k])+')' : ''}`).join(' &nbsp; ')}</td>
+    <td style="width:11%;text-align:center;">${renderBodyDiagramSvgStatic(s.sedeTrauma, 20, 40)}<div style="font-size:7px;">Sede trauma</div></td>
+    <td style="width:35%;">${ALTRE_VALUTAZIONI_118.map(([k,l])=>`${ck118(s.altreValutazioni,k)} ${l}`).join(' &nbsp; ')}</td>
+    <td style="width:15%;text-align:center;">${svgUstioniPair(s.sedeUstioni||[], 24, 47)}<div style="font-size:7px;">Ustioni — tot: <b>${s.sedeUstioniTotale!==undefined ? (Math.round(s.sedeUstioniTotale*10)/10+'%') : '—'}</b></div></td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
