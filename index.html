@@ -802,6 +802,7 @@
             <h2>Cestino</h2>
             <p>Gli elementi eliminati restano qui 7 giorni prima di essere rimossi automaticamente. Servizi e fogli di marcia mostrati si riferiscono all'anno attualmente selezionato.</p>
           </div>
+          <button class="btn btn-ghost" style="width:auto;" onclick="riparaServiziSenzaId()">🔧 Ripara servizi con dati mancanti</button>
         </div>
         <div id="cestino-container"></div>
       </div>
@@ -3560,6 +3561,35 @@ async function eliminaServizioDefinitivoECestino(id, anno){
   if(!confirm('Eliminare definitivamente questo servizio? L\'azione non è reversibile.')) return;
   await eliminaUnServizio(id, anno);
   renderCestino();
+}
+async function riparaServiziSenzaId(){
+  if(currentUser.ruolo !== 'amministratore') return;
+  if(!confirm('Cercare e riparare i servizi con ID o dati mancanti, in tutti gli anni disponibili? Dopo la riparazione potrai modificarli o eliminarli normalmente.')) return;
+  let totaleRiparati = 0;
+  for(const anno of anniDisponibiliServizi){
+    const lista = await fetchServiziAnno(anno);
+    let modificato = false;
+    lista.forEach(s=>{
+      if(!s.id){
+        s.id = 's-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+        modificato = true;
+        totaleRiparati++;
+      }
+      if(!s.numeroAnno){
+        s.numeroAnno = anno;
+        modificato = true;
+      }
+    });
+    if(modificato){
+      await kvSet('servizi-' + anno, lista);
+      if(anno === annoCorrenteServizi) servizi = lista;
+    }
+  }
+  alert(totaleRiparati > 0
+    ? `Riparati ${totaleRiparati} servizio${totaleRiparati===1?'':'i'} senza ID. Ora puoi modificarli o eliminarli normalmente.`
+    : 'Nessun servizio con dati mancanti trovato.');
+  renderCestino();
+  renderElenco();
 }
 async function renderCestino(){
   if(currentUser.ruolo !== 'amministratore') return;
