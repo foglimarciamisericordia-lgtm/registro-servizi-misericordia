@@ -1524,7 +1524,7 @@
         <div id="e118-stato-label" class="map-hint"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Annulla</button>
-          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Scarica PDF</button>
+          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Stampa / Salva PDF</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="apriFirmaSchedaModal()">Firma scheda</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
         </div>
@@ -1661,13 +1661,12 @@
       <div></div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeView118Modal()">Chiudi</button>
-        <button type="button" class="btn btn-primary" style="width:auto;" onclick="scaricaPdfScheda118(scheda118PreviewId)">Scarica PDF</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="scaricaPdfScheda118(scheda118PreviewId)">Stampa / Salva PDF</button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /* ============ STATO GLOBALE ============ */
 let currentUser = null;
@@ -6459,54 +6458,26 @@ function nomeFilePdf118(s){
   }
   return base + dataParte + '.pdf';
 }
+let scheda118TitoloOriginale = null;
+function ripristinaTitoloDopoStampa118(){
+  if(scheda118TitoloOriginale !== null){
+    document.title = scheda118TitoloOriginale;
+    scheda118TitoloOriginale = null;
+  }
+  window.removeEventListener('afterprint', ripristinaTitoloDopoStampa118);
+}
 async function scaricaPdfScheda118(id){
   if(!id){ alert('Salva prima la scheda per poterla scaricare in PDF.'); return; }
   const s = interventi118.find(x=>x.id===id);
   if(!s) return;
-  if(typeof html2pdf === 'undefined'){
-    alert('La libreria di generazione PDF non si è caricata (serve connessione internet). Riprova.');
-    return;
-  }
-  const sPerStampa = await preparaDatiStampa118(s);
-  const logoImg = document.querySelector('.print-letterhead img');
-
-  const overlay = document.createElement('div');
-  overlay.id = 'pdf-export-118-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:15px;color:#333;';
-  overlay.textContent = 'Generazione PDF in corso…';
-
-  const wrapper = document.createElement('div');
-  wrapper.id = 'pdf-export-118-tmp';
-  wrapper.style.cssText = 'position:fixed;top:0;left:0;z-index:999998;width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
-  wrapper.innerHTML = `
-    <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
-      <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
-      <div>
-        <div class="plh-org" style="font-size:12px;">Fraternita di Misericordia di S.M. di Licodia ODV</div>
-        <div class="plh-sub" style="font-size:9px;margin-top:1px;">Scheda intervento Soccorso 118 — documento generato dal sistema</div>
-      </div>
-    </div>
-    <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
-    ${costruisciStampaScheda118(sPerStampa)}
-  `;
-  document.body.appendChild(wrapper);
-  document.body.appendChild(overlay);
-  await new Promise(r => setTimeout(r, 50));
-  try {
-    await html2pdf().set({
-      margin: 6,
-      filename: nomeFilePdf118(s),
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    }).from(wrapper).save();
-  } catch(errore){
-    alert('Generazione PDF non riuscita: ' + errore.message);
-  } finally {
-    document.body.removeChild(wrapper);
-    document.body.removeChild(overlay);
-  }
+  await viewStampaScheda118(id);
+  scheda118TitoloOriginale = document.title;
+  document.title = nomeFilePdf118(s).replace(/\.pdf$/i, '');
+  window.addEventListener('afterprint', ripristinaTitoloDopoStampa118);
+  setTimeout(()=>{
+    window.print();
+    setTimeout(ripristinaTitoloDopoStampa118, 2000);
+  }, 80);
 }
 
 </script>
