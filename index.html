@@ -209,9 +209,11 @@
   .codice-invio-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
   .codice-invio-btn{position:relative;width:56px;height:56px;border-radius:10px;border:2px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;user-select:none;}
   .codice-invio-btn.selected{border-color:#000;box-shadow:0 0 0 2px #000;}
-  .codice-invio-btn.selected::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;}
+  .civ-x-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#000;pointer-events:none;z-index:1;}
+  .civ-label{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:inherit;}
   .codice-invio-btn.small{width:38px;height:38px;font-size:9.5px;border-radius:8px;}
-  .codice-invio-btn.small.selected::after{font-size:28px;}
+  .codice-invio-btn.small .civ-x-layer{font-size:28px;}
+  .codice-invio-btn.small .civ-label{width:20px;height:20px;}
   .valutazione-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;background:var(--bg);}
   .valutazione-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
   .gcs-total-box{display:inline-block;padding:8px 18px;border-radius:8px;font-weight:800;font-size:16px;background:#E3E9F5;color:var(--navy);}
@@ -1322,7 +1324,7 @@
         <button type="button" class="e118-tab-btn" data-tab="dati-paziente" onclick="switchTab118('dati-paziente')">Dati Paziente</button>
         <button type="button" class="e118-tab-btn" data-tab="valutazione-paziente" onclick="switchTab118('valutazione-paziente')">Valutazione Paziente</button>
         <button type="button" class="e118-tab-btn" data-tab="anamnesi-interventi" onclick="switchTab118('anamnesi-interventi')">Anamnesi/Interventi</button>
-        <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Altro</button>
+        <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Chiusura intervento</button>
       </div>
 
       <div class="e118-tab-pane active" data-tabpane="dati-intervento">
@@ -1463,7 +1465,7 @@
           <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
         </div>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-          <div class="field"><label>R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
+          <div class="field"><label>Durata R.C.P. (min.)</label><input type="text" id="e118-rcpMinuti" placeholder="10' / 20' / 30'"></div>
         </div>
 
         <div class="section-title" style="margin-top:20px;">Anamnesi, segni clinici, terapia</div>
@@ -1479,6 +1481,18 @@
       <div class="section-title">Codice rientro</div>
       <div class="codice-invio-buttons" id="e118-codiceRientro-buttons"></div>
       <input type="hidden" id="e118-codiceRientro">
+      <div id="e118-codiceRientroNote-wrap" style="display:none;margin-top:8px;">
+        <div class="checkbox-grid" id="e118-codiceRientroNote"></div>
+      </div>
+
+      <div class="section-title">Esito</div>
+      <div class="grid2">
+        <div class="field"><label>Ospedalizzato presso PS di</label><input type="text" id="e118-prontoSoccorsoDi"></div>
+        <div class="field"><label>Paziente affidato a</label><input type="text" id="e118-pzAffidatoA"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <input type="checkbox" id="e118-allertamentoPS"> Allertamento → P.S.
+      </label>
 
       <div class="section-title">Forze dell'ordine/altri intervenuti</div>
       <div class="checkbox-grid" id="e118-forzeOrdine"></div>
@@ -1491,43 +1505,9 @@
       </div>
       <div class="field"><label>Mezzi coinvolti</label><div class="checkbox-grid" id="e118-mezziCoinvolti"></div></div>
 
-      <div class="section-title">Esito</div>
-      <div class="grid2">
-        <div class="field"><label>Allertamento → P.S.</label>
-          <select id="e118-allertamentoPS"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
-        </div>
-        <div class="field"><label>Ospedalizzato presso PS di</label><input type="text" id="e118-prontoSoccorsoDi"></div>
-        <div class="field"><label>Paziente affidato a</label><input type="text" id="e118-pzAffidatoA"></div>
-      </div>
-      <div class="checkbox-grid cols3" id="e118-esito"></div>
-
-      <div class="section-title">Rifiuto soccorso</div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <input type="checkbox" id="e118-rifiuta" onchange="onRifiutaToggle118()"> Il paziente rifiuta il soccorso
-      </label>
-      <div id="e118-rifiuto-box" style="display:none;">
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <input type="checkbox" id="e118-pzImpossibilitato" onchange="onImpossibilitatoToggle118()"> Paziente impossibilitato a firmare
-        </label>
-        <div class="field" id="e118-motivoImpossibilita-wrap" style="display:none;">
-          <label>Motivo</label><input type="text" id="e118-motivoImpossibilita">
-        </div>
-        <div id="e118-firma-rifiuto-wrap">
-          <label class="map-hint" style="display:block;margin-bottom:6px;">Firma del paziente per il rifiuto</label>
-          <div class="signature-pad-wrap">
-            <canvas id="e118-firmaRifiuto-canvas" class="signature-canvas"></canvas>
-          </div>
-          <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('e118-firmaRifiuto-canvas')">Cancella firma</button>
-        </div>
-        <div class="field" style="margin-top:10px;">
-          <label>Foto documento d'identità (facoltativa)</label>
-          <input type="file" accept="image/*" capture="environment" id="e118-fotoDocumento-input" onchange="onFotoDocumento118Change(event)">
-          <div id="e118-fotoDocumento-preview" style="margin-top:8px;"></div>
-        </div>
-      </div>
-
-      <div class="section-title">Annotazioni</div>
+      <div class="section-title">Altre annotazioni/Altre informazioni</div>
       <div class="field"><label>Annotazioni sul servizio</label><textarea id="e118-annotazioni" rows="2"></textarea></div>
+      <div class="checkbox-grid" id="e118-altreInformazioni"></div>
 
       </div>
 
@@ -5035,7 +5015,7 @@ const ALTRE_VALUTAZIONI_118 = [
 ];
 const EGC_118 = [['sinusale','Ritmo sinusale'],['fa','Fibrillazione atriale'],['aritmiaSopra','Aritmia sopraventricolare'],['fibrillazioneVentricolare','Fibrillazione ventricolare'],['pea','PEA'],['asistolia','Asistolia'],['tachicardiaVentricolare','Tachicardia ventricolare s.p.'],['bav','BAV I°-IIa-IIb-III°'],['bbsBbd','BBS-BBD'],['qrsStretto','QRS stretto'],['qrsLargo','QRS largo']];
 const ESPANSIONE_TORACICA_118 = [['simmetrico','Simmetrico'],['asimmetrico','Asimmetrico'],['assente','Assente'],['enfisema','Enfisema sottocutaneo'],['voletCostale','Sospetto volet costale'],['traumaChiuso','Trauma chiuso']];
-const ESITO_118 = [['trasportoPS','Trasporto in PS'],['medicoCurante','Medico curante'],['terapia','Terapia'],['accessoVenoso','Accesso venoso'],['altri','Altri'],['tso','T.S.O.'],['aso','A.S.O.'],['nonTrovato','Non trovato'],['deceduto','Deceduto'],['decedutoDuranteTrasporto','Deceduto durante il trasporto'],['trattatoSulPosto','Trattato sul posto']];
+const ALTRE_INFORMAZIONI_118 = [['tso','T.S.O.'],['aso','A.S.O.'],['medicoCurante','Medico curante sul posto'],['decedutoDuranteTrasporto','Deceduto durante trasporto'],['trattatoSulPosto','Trattato sul posto']];
 const GCS_OCCHI_118 = [['4','4 - Spontanea'],['3','3 - Al suono'],['2','2 - Al dolore/pressione'],['1','1 - Nessuna']];
 const GCS_VERBALE_118 = [['5','5 - Orientato'],['4','4 - Confuso'],['3','3 - Parole inappropriate'],['2','2 - Suoni incomprensibili'],['1','1 - Nessuna']];
 const GCS_MOTORIA_118 = [['6','6 - Obbedisce ai comandi'],['5','5 - Localizza il dolore'],['4','4 - Flessione normale'],['3','3 - Flessione anomala'],['2','2 - Estensione'],['1','1 - Nessuna']];
@@ -5325,7 +5305,7 @@ function templateValutazione118(v, idx, readOnly){
       </div>
     </div>
     <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
-      <div class="field"><label>P.A.</label><input type="text" id="e118-val-pa-${v.id}" value="${escapeHtml(v.pa||'')}" placeholder="120/80" oninput="onValutazionePAFRChange()" ${dis}></div>
+      <div class="field"><label>P.A.</label><input type="text" id="e118-val-pa-${v.id}" value="${escapeHtml(v.pa||'')}" oninput="onValutazionePAFRChange()" ${dis}></div>
       <div class="field"><label>F.C.</label><input type="text" id="e118-val-fc-${v.id}" value="${escapeHtml(v.fc||'')}" ${dis}></div>
       <div class="field"><label>F.R.</label><input type="text" id="e118-val-fr-${v.id}" value="${escapeHtml(v.fr||'')}" oninput="onValutazionePAFRChange()" ${dis}></div>
       <div class="field"><label>SpO2</label><input type="text" id="e118-val-spo2-${v.id}" value="${escapeHtml(v.spo2||'')}" ${dis}></div>
@@ -5407,7 +5387,7 @@ function buildCodiceInvioButtons(selected){
   const container = document.getElementById('e118-codiceInvio-buttons');
   document.getElementById('e118-codiceInvio').value = selected || '';
   container.innerHTML = CODICE_INVIO_118.map(([key,label,bg,fg]) =>
-    `<div class="codice-invio-btn ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceInvio118('${key}')">${label}</div>`
+    `<div class="codice-invio-btn ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceInvio118('${key}')">${selected===key?'<span class="civ-x-layer">✕</span>':''}<span class="civ-label">${label}</span></div>`
   ).join('');
 }
 function selezionaCodiceInvio118(key){
@@ -5415,22 +5395,20 @@ function selezionaCodiceInvio118(key){
   if(hidden.disabled) return;
   const nuovo = hidden.value === key ? '' : key;
   hidden.value = nuovo;
-  document.querySelectorAll('#e118-codiceInvio-buttons .codice-invio-btn').forEach(el=>{
-    el.classList.toggle('selected', el.dataset.key === nuovo);
-  });
+  buildCodiceInvioButtons(nuovo);
 }
 function renderCodiceInvioPrint(key){
   const found = CODICE_INVIO_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,bg,fg] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;position:relative;">${label}<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#000;">✕</span></span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${bg};color:${fg};">${label}</span></span>`;
 }
 /* --- Codice scena (pulsanti colorati, versione piccola) --- */
 function buildCodiceScenaButtons(selected){
   const container = document.getElementById('e118-codiceScena-buttons');
   document.getElementById('e118-codiceScena').value = selected || '';
   container.innerHTML = CODICE_SCENA_118.map(([key,label,bg,fg]) =>
-    `<div class="codice-invio-btn small ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceScena118('${key}')">${label}</div>`
+    `<div class="codice-invio-btn small ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceScena118('${key}')">${selected===key?'<span class="civ-x-layer">✕</span>':''}<span class="civ-label">${label}</span></div>`
   ).join('');
 }
 function selezionaCodiceScena118(key){
@@ -5438,34 +5416,43 @@ function selezionaCodiceScena118(key){
   if(hidden.disabled) return;
   const nuovo = hidden.value === key ? '' : key;
   hidden.value = nuovo;
-  document.querySelectorAll('#e118-codiceScena-buttons .codice-invio-btn').forEach(el=>{
-    el.classList.toggle('selected', el.dataset.key === nuovo);
-  });
+  buildCodiceScenaButtons(nuovo);
 }
 function renderCodiceScenaPrint(key){
   const found = CODICE_SCENA_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,bg,fg] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;font-size:10px;position:relative;">${label}<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000;">✕</span></span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;font-size:10px;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${bg};color:${fg};">${label}</span></span>`;
 }
 /* --- Codice rientro (stessi pulsanti del codice scena) --- */
+const CODICE_RIENTRO_118 = [['rosso','3','#D64545'],['giallo','2','#F2C744'],['verde','1','#3FA34D'],['bianco','0','#1a1a1a'],['nero','4','#1a1a1a']];
+const CODICE_RIENTRO_NOTE_118 = [['revocato','Revocato'],['nonReperito','Non reperito'],['rifiutoSoccorso','Rifiuto soccorso']];
 function buildCodiceRientroButtons(selected){
   const container = document.getElementById('e118-codiceRientro-buttons');
   document.getElementById('e118-codiceRientro').value = selected || '';
-  container.innerHTML = CODICE_SCENA_118.map(([key,label,bg,fg]) =>
-    `<div class="codice-invio-btn small ${selected===key?'selected':''}" data-key="${key}" style="background:${bg};color:${fg};" onclick="selezionaCodiceRientro118('${key}')">${label}</div>`
+  container.innerHTML = CODICE_RIENTRO_118.map(([key,label,borderColor]) =>
+    `<div class="codice-invio-btn small ${selected===key?'selected':''}" data-key="${key}" style="background:#fff;color:#000;border-color:${borderColor};border-width:3px;" onclick="selezionaCodiceRientro118('${key}')">${selected===key?'<span class="civ-x-layer">✕</span>':''}<span class="civ-label">${label}</span></div>`
   ).join('');
+  aggiornaCodiceRientroNoteVisibilita118();
 }
 function selezionaCodiceRientro118(key){
   const hidden = document.getElementById('e118-codiceRientro');
   if(hidden.disabled) return;
   const nuovo = hidden.value === key ? '' : key;
   hidden.value = nuovo;
-  document.querySelectorAll('#e118-codiceRientro-buttons .codice-invio-btn').forEach(el=>{
-    el.classList.toggle('selected', el.dataset.key === nuovo);
-  });
+  buildCodiceRientroButtons(nuovo);
+  aggiornaCodiceRientroNoteVisibilita118();
 }
-function renderCodiceRientroPrint(key){ return renderCodiceScenaPrint(key); }
+function aggiornaCodiceRientroNoteVisibilita118(){
+  const val = document.getElementById('e118-codiceRientro').value;
+  document.getElementById('e118-codiceRientroNote-wrap').style.display = (val === 'bianco') ? 'block' : 'none';
+}
+function renderCodiceRientroPrint(key){
+  const found = CODICE_RIENTRO_118.find(([k])=>k===key);
+  if(!found) return '—';
+  const [,label,borderColor] = found;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#fff;color:#000;border:3px solid ${borderColor};border-radius:6px;font-weight:900;font-size:14px;">${label}</span>`;
+}
 
 /* --- Diagrammi corpo cliccabili --- */
 function corpoSilhouetteSvgInner(){
@@ -5729,7 +5716,8 @@ function openScheda118Modal(id){
   buildCheckboxGrid('e118-interventiPaziente', INTERVENTI_PAZIENTE_118, sch?.interventiPaziente);
   buildFlagListWithNotes('e118-valutazioneTrauma-flags', VALUTAZIONE_TRAUMA_118, sch?.dinamicaTrauma, sch?.dinamicaTraumaNote);
   buildCheckboxGrid('e118-altreValutazioni-flags', ALTRE_VALUTAZIONI_118, sch?.altreValutazioni);
-  buildCheckboxGrid('e118-esito', ESITO_118, sch?.esito);
+  buildCheckboxGrid('e118-altreInformazioni', ALTRE_INFORMAZIONI_118, sch?.altreInformazioni);
+  buildCheckboxGrid('e118-codiceRientroNote', CODICE_RIENTRO_NOTE_118, sch?.codiceRientroNote);
   populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
   populateSimpleSelect('e118-patologiaComunicata', PATOLOGIA_118, sch?.patologiaComunicata);
   buildCheckboxGrid('e118-mezziCoinvolti', MEZZO_COINVOLTO_118, sch?.mezziCoinvolti);
@@ -5753,7 +5741,7 @@ function openScheda118Modal(id){
   aggiornaAnteprimaNumeroScheda118();
   F('e118-postazione', sch ? sch.postazione : 'Licodia 1');
   F('e118-operatoreCentrale', sch?.operatoreCentrale);
-  F('e118-allertamentoPS', sch?.allertamentoPS);
+  document.getElementById('e118-allertamentoPS').checked = (sch?.allertamentoPS === 'si' || sch?.allertamentoPS === true);
   F('e118-cognome', sch?.cognome);
   F('e118-nome', sch?.nome);
   F('e118-natoIl', sch?.natoIl);
@@ -5798,15 +5786,6 @@ function openScheda118Modal(id){
   F('e118-pzAffidatoA', sch?.pzAffidatoA);
   F('e118-annotazioni', sch?.annotazioni);
 
-  document.getElementById('e118-rifiuta').checked = !!sch?.rifiuta;
-  document.getElementById('e118-pzImpossibilitato').checked = !!sch?.pzImpossibilitatoFirmare;
-  F('e118-motivoImpossibilita', sch?.motivoImpossibilita);
-  onRifiutaToggle118();
-  onImpossibilitatoToggle118();
-  scheda118FotoDocumento = sch?.fotoDocumentoDataUrl || null;
-  document.getElementById('e118-fotoDocumento-preview').innerHTML = scheda118FotoDocumento ? `<img src="${scheda118FotoDocumento}" style="max-width:160px;border-radius:6px;">` : '';
-  const inpFoto = document.getElementById('e118-fotoDocumento-input'); if(inpFoto) inpFoto.value = '';
-
   scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
   const ustioniSalvate = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
   scheda118SedeUstioni = ustioniSalvate.filter(v => typeof v === 'string' && USTIONI_REGIONI_118.some(r=>r.id===v));
@@ -5834,10 +5813,6 @@ function openScheda118Modal(id){
   document.getElementById('e118-diagramma-ustioni').style.opacity = readOnly ? '0.6' : '1';
 
   document.getElementById('scheda118-modal-backdrop').classList.add('active');
-  setTimeout(()=>{
-    initSignaturePad('e118-firmaRifiuto-canvas');
-    if(sch?.firmaRifiuto) drawFirmaFromDataUrl('e118-firmaRifiuto-canvas', sch.firmaRifiuto);
-  }, 60);
 }
 function firmaSalvataUtentePerNome(nomeCompleto){
   if(!nomeCompleto) return null;
@@ -5873,7 +5848,7 @@ function collectScheda118FormData(id){
   return {
     id,
     numeroScheda: G('e118-numeroScheda'), data: G('e118-data'), postazione: G('e118-postazione'),
-    targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), allertamentoPS: G('e118-allertamentoPS'),
+    targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), allertamentoPS: document.getElementById('e118-allertamentoPS').checked,
     cognome: G('e118-cognome'), nome: G('e118-nome'), natoIl: G('e118-natoIl'), sesso: G('e118-sesso'), eta: G('e118-eta'), codiceFiscale: G('e118-codiceFiscale'),
     comuneIntervento: G('e118-comuneIntervento'), via: G('e118-via'), comuneNascita: G('e118-comuneNascita'), comuneResidenza: G('e118-comuneResidenza'), viaResidenza: G('e118-viaResidenza'),
     telefonoFamiliare1: G('e118-telefonoFamiliare1'), telefonoFamiliare2: G('e118-telefonoFamiliare2'),
@@ -5910,13 +5885,8 @@ function collectScheda118FormData(id){
     altreValutazioni: getCheckboxGridValues('e118-altreValutazioni-flags'),
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
     anamnesi: G('e118-anamnesi'), terapiaInAtto: G('e118-terapiaInAtto'), allergie: G('e118-allergie'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
-    rifiuta: document.getElementById('e118-rifiuta').checked,
-    pzImpossibilitatoFirmare: document.getElementById('e118-pzImpossibilitato').checked,
-    motivoImpossibilita: G('e118-motivoImpossibilita'),
-    firmaRifiuto: getFirmaDataUrl118('e118-firmaRifiuto-canvas'),
-    fotoDocumentoDataUrl: scheda118FotoDocumento,
     pzAffidatoA: G('e118-pzAffidatoA'),
-    esito: getCheckboxGridValues('e118-esito'),
+    altreInformazioni: getCheckboxGridValues('e118-altreInformazioni'), codiceRientroNote: getCheckboxGridValues('e118-codiceRientroNote'),
     annotazioni: G('e118-annotazioni'),
     firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
     firmaSoccorritore1: getFirmaDataUrl118('e118-firmaSoccorritore1-canvas'),
@@ -6041,7 +6011,7 @@ function costruisciStampaScheda118(s){
     <td>OPERATORE DI CENTRALE N.<br><b>${escapeHtml(s.operatoreCentrale||'—')}</b></td>
     <td>CODICE INVIO<br>${renderCodiceInvioPrint(s.codiceInvio)}</td>
     <td>CODICE SCENA<br>${renderCodiceScenaPrint(s.codiceScena)}</td>
-    <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}</td>
+    <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}${s.codiceRientro==='bianco' && s.codiceRientroNote && s.codiceRientroNote.length ? ('<br>'+CODICE_RIENTRO_NOTE_118.filter(([k])=>s.codiceRientroNote.includes(k)).map(([,l])=>l).join(', ')) : ''}</td>
     <td>FORZE DELL'ORDINE/ALTRI INTERVENUTI<br>${FORZE_ORDINE_118.map(([k,l])=>`${ck118(s.forzeOrdine,k)} ${l}`).join(' ')}</td>
   </tr></table>
   <table class="print-118-table"><tr>
@@ -6094,7 +6064,7 @@ function costruisciStampaScheda118(s){
   <table class="print-118-table"><tr>
     <td>Ore<br><b>${def.ore||'—'}</b></td><td>N. scariche<br><b>${escapeHtml(def.scariche||'—')}</b></td>
     <td>Joule<br><b>${escapeHtml(def.joule||'—')}</b></td>
-    <td>R.C.P.<br><b>${escapeHtml(s.rcpMinuti||'—')}</b></td>
+    <td>Durata R.C.P.<br><b>${escapeHtml(s.rcpMinuti||'—')}</b></td>
   </tr><tr><td colspan="4">ECG: ${EGC_118.map(([k,l])=>`${ck118(s.egc,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
   html += `<div class="print-118-section-title">TORACE E RESPIRO</div>
@@ -6127,19 +6097,13 @@ function costruisciStampaScheda118(s){
 
   html += `<div class="print-118-section-title">ESITO</div>
   <table class="print-118-table"><tr>
-    <td>Allertamento → P.S.<br>${yn118(s.allertamentoPS)}</td>
     <td>Ospedalizzato presso PS di<br><b>${escapeHtml(s.prontoSoccorsoDi||'—')}</b></td>
     <td>Paziente affidato a<br><b>${escapeHtml(s.pzAffidatoA||'—')}</b></td>
-  </tr><tr><td colspan="3">${ESITO_118.map(([k,l])=>`${ck118(s.esito,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+    <td>Allertamento → P.S.<br>${s.allertamentoPS?'☑':'☐'} Sì</td>
+  </tr></table>`;
 
-  if(s.rifiuta){
-    html += `<div class="print-118-section-title">RIFIUTO SOCCORSO</div>
-    <table class="print-118-table"><tr><td>
-      Paziente impossibilitato a firmare: ${s.pzImpossibilitatoFirmare?'☑':'☐'} ${s.pzImpossibilitatoFirmare?('— Motivo: '+escapeHtml(s.motivoImpossibilita||'—')):''}<br>
-      ${s.firmaRifiuto ? `Firma: <img src="${s.firmaRifiuto}" style="height:50px;">` : 'Firma non presente'}
-      ${s.fotoDocumentoDataUrl ? `<br>Documento allegato:<br><img src="${s.fotoDocumentoDataUrl}" style="max-width:220px;margin-top:6px;">` : ''}
-    </td></tr></table>`;
-  }
+  html += `<div class="print-118-section-title">ALTRE ANNOTAZIONI/ALTRE INFORMAZIONI</div>
+  <table class="print-118-table"><tr><td colspan="3">${ALTRE_INFORMAZIONI_118.map(([k,l])=>`${ck118(s.altreInformazioni,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
   html += `<div class="print-118-section-title">ANNOTAZIONI SUL SERVIZIO</div>
   <table class="print-118-table"><tr><td>${escapeHtml(s.annotazioni||'—')}</td></tr></table>`;
