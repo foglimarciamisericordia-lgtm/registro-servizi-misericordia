@@ -6352,11 +6352,13 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
     <tr><td>Anamnesi e descrizione:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
-    <tr><td>Terapia in atto:<br>${escapeHtml(s.terapiaInAtto||'—')}</td></tr>
-    <tr><td>Allergie riferite:<br>${escapeHtml(s.allergie||'—')}</td></tr>
     <tr><td>Segni clinici:<br>${escapeHtml(s.segniClinici||'—')}</td></tr>
-    <tr><td>Terapia praticata:<br>${escapeHtml(s.terapiaPraticata||'—')}</td></tr>
-  </table>`;
+  </table>
+  <table class="print-118-table"><tr>
+    <td style="width:33.3%;">Terapia in atto:<br>${escapeHtml(s.terapiaInAtto||'—')}</td>
+    <td style="width:33.3%;">Allergie riferite:<br>${escapeHtml(s.allergie||'—')}</td>
+    <td style="width:33.3%;">Terapia praticata:<br>${escapeHtml(s.terapiaPraticata||'—')}</td>
+  </tr></table>`;
 
   html += `<div class="print-118-section-title">ESITO</div>
   <table class="print-118-table"><tr>
