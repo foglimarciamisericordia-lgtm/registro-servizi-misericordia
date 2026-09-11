@@ -1517,7 +1517,6 @@
         </div>
         <div class="field" id="e118-numeroPazienti-wrap" style="display:none;"><label>Quanti</label><input type="number" id="e118-numeroPazienti"></div>
       </div>
-      <div class="field"><label>Mezzi coinvolti</label><div class="checkbox-grid" id="e118-mezziCoinvolti"></div></div>
 
       </div>
 
@@ -5083,7 +5082,6 @@ const CODICE_SCENA_118 = [['rosso','R3','#D64545','#fff'],['giallo','G2','#F2C74
 const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
 const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
 const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['rcp','RCP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
-const MEZZO_COINVOLTO_118 = [['pedone','Pedone'],['bicicletta','Bicicletta'],['motociclo','Motociclo'],['autovettura','Autovettura'],['camion','Camion'],['autobus','Autobus'],['treno','Treno/Altro']];
 const VALUTAZIONE_TRAUMA_118 = [
   ['investito','Investito', null],
   ['caduta','Caduta', null],
@@ -5495,7 +5493,7 @@ function renderCodiceInvioPrint(key){
   const found = CODICE_INVIO_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,bg,fg] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${bg};color:${fg};">${label}</span></span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:18px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:5px;font-weight:900;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:${bg};color:${fg};font-size:9px;">${label}</span></span>`;
 }
 /* --- Codice scena (pulsanti colorati, versione piccola) --- */
 function buildCodiceScenaButtons(selected){
@@ -5516,7 +5514,7 @@ function renderCodiceScenaPrint(key){
   const found = CODICE_SCENA_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,bg,fg] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:6px;font-weight:900;font-size:10px;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${bg};color:${fg};">${label}</span></span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:16px;background:${bg};color:${fg};border:1.5px solid #333;border-radius:5px;font-weight:900;font-size:10px;position:relative;"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#000;">✕</span><span style="position:relative;display:flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:${bg};color:${fg};font-size:8px;">${label}</span></span>`;
 }
 /* --- Codice rientro (stessi pulsanti del codice scena) --- */
 const CODICE_RIENTRO_118 = [['rosso','3','#D64545'],['giallo','2','#F2C744'],['verde','1','#3FA34D'],['bianco','0','#1a1a1a'],['nero','4','#1a1a1a']];
@@ -5545,7 +5543,7 @@ function renderCodiceRientroPrint(key){
   const found = CODICE_RIENTRO_118.find(([k])=>k===key);
   if(!found) return '—';
   const [,label,borderColor] = found;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#fff;color:#000;border:3px solid ${borderColor};border-radius:6px;font-weight:900;font-size:14px;">${label}</span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:16px;background:#fff;color:#000;border:2.5px solid ${borderColor};border-radius:5px;font-weight:900;font-size:11px;">${label}</span>`;
 }
 
 /* --- Diagrammi corpo cliccabili --- */
@@ -5961,7 +5959,6 @@ function openScheda118Modal(id){
   collegaCheckboxRifiutoSoccorso118();
   populateSimpleSelect('e118-luogoIntervento', LUOGO_118, sch?.luogoIntervento);
   populateSimpleSelect('e118-patologiaComunicata', PATOLOGIA_118, sch?.patologiaComunicata);
-  buildCheckboxGrid('e118-mezziCoinvolti', MEZZO_COINVOLTO_118, sch?.mezziCoinvolti);
   populateSimpleSelect('e118-gcsOcchi', GCS_OCCHI_118, sch?.gcs?.occhi);
   populateSimpleSelect('e118-gcsVerbale', GCS_VERBALE_118, sch?.gcs?.verbale);
   populateSimpleSelect('e118-gcsMotoria', GCS_MOTORIA_118, sch?.gcs?.motoria);
@@ -6124,7 +6121,7 @@ function collectScheda118FormData(id){
     murmureDx: G('e118-murmureDx'), murmureSx: G('e118-murmureSx'), dispnea: G('e118-dispnea'),
     espansioneToracica: getCheckboxGridValues('e118-espansioneToracica'),
     interventiPaziente: getCheckboxGridValues('e118-interventiPaziente'),
-    altriPazientiCoinvolti: G('e118-altriPazientiCoinvolti'), numeroPazienti: G('e118-numeroPazienti'), mezziCoinvolti: getCheckboxGridValues('e118-mezziCoinvolti'),
+    altriPazientiCoinvolti: G('e118-altriPazientiCoinvolti'), numeroPazienti: G('e118-numeroPazienti'),
     dinamicaTrauma: getFlagListValues('e118-valutazioneTrauma-flags'), dinamicaTraumaNote: getFlagListNotes('e118-valutazioneTrauma-flags', VALUTAZIONE_TRAUMA_118),
     altreValutazioni: getCheckboxGridValues('e118-altreValutazioni-flags'),
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
@@ -6255,11 +6252,8 @@ function costruisciStampaScheda118(s){
     <td>CODICE INVIO<br>${renderCodiceInvioPrint(s.codiceInvio)}</td>
     <td>CODICE SCENA<br>${renderCodiceScenaPrint(s.codiceScena)}</td>
     <td>CODICE RIENTRO<br>${renderCodiceRientroPrint(s.codiceRientro)}${s.codiceRientro==='bianco' && s.codiceRientroNote && s.codiceRientroNote.length ? ('<br>'+CODICE_RIENTRO_NOTE_118.filter(([k])=>s.codiceRientroNote.includes(k)).map(([,l])=>l).join(', ')) : ''}</td>
-    <td>FORZE DELL'ORDINE/ALTRI INTERVENUTI<br>${FORZE_ORDINE_118.map(([k,l])=>`${ck118(s.forzeOrdine,k)} ${l}`).join(' ')}</td>
-  </tr></table>
-  <table class="print-118-table"><tr>
-    <td>ALTRI PAZIENTI COINVOLTI<br>${yn118(s.altriPazientiCoinvolti)}${s.altriPazientiCoinvolti==='si' ? (' — Quanti: <b>'+escapeHtml(s.numeroPazienti||'—')+'</b>') : ''}</td>
-    <td colspan="2">MEZZI COINVOLTI<br>${MEZZO_COINVOLTO_118.map(([k,l])=>`${ck118(s.mezziCoinvolti,k)} ${l}`).join(' &nbsp; ')}</td>
+    <td style="width:34%;">FORZE DELL'ORDINE/ALTRI INTERVENUTI<br>${FORZE_ORDINE_118.map(([k,l])=>`${ck118(s.forzeOrdine,k)} ${l}`).join(' ')}</td>
+    <td style="width:18%;">ALTRI PAZIENTI COINVOLTI<br>${yn118(s.altriPazientiCoinvolti)}${s.altriPazientiCoinvolti==='si' ? (' — Quanti: <b>'+escapeHtml(s.numeroPazienti||'—')+'</b>') : ''}</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">LUOGO DI INTERVENTO / PATOLOGIA COMUNICATA</div>`;
@@ -6354,21 +6348,21 @@ function costruisciStampaScheda118(s){
   html += `<div style="break-inside:avoid;page-break-inside:avoid;">
   <div class="print-118-section-title">ANAMNESI, SEGNI CLINICI, TERAPIA</div>
   <table class="print-118-table">
-    <tr><td>Anamnesi e descrizione:<br>${escapeHtml(s.anamnesi||'—')}</td></tr>
-    <tr><td>Segni clinici:<br>${escapeHtml(s.segniClinici||'—')}</td></tr>
+    <tr><td><b>Anamnesi e descrizione:</b> ${escapeHtml(s.anamnesi||'—')}</td></tr>
+    <tr><td><b>Segni clinici:</b> ${escapeHtml(s.segniClinici||'—')}</td></tr>
   </table>
   </div>
   <table class="print-118-table"><tr>
-    <td style="width:33.3%;">Terapia in atto:<br>${escapeHtml(s.terapiaInAtto||'—')}</td>
-    <td style="width:33.3%;">Allergie riferite:<br>${escapeHtml(s.allergie||'—')}</td>
-    <td style="width:33.3%;">Terapia praticata:<br>${escapeHtml(s.terapiaPraticata||'—')}</td>
+    <td style="width:33.3%;"><b>Terapia in atto:</b> ${escapeHtml(s.terapiaInAtto||'—')}</td>
+    <td style="width:33.3%;"><b>Allergie riferite:</b> ${escapeHtml(s.allergie||'—')}</td>
+    <td style="width:33.3%;"><b>Terapia praticata:</b> ${escapeHtml(s.terapiaPraticata||'—')}</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">ESITO</div>
   <table class="print-118-table"><tr>
-    <td>Ospedalizzato presso PS di<br><b>${escapeHtml(s.prontoSoccorsoDi||'—')}</b></td>
-    <td>Paziente affidato a<br><b>${escapeHtml(s.pzAffidatoA||'—')}</b></td>
-    <td>Allertamento → P.S.<br>${simboloFlag118(!!s.allertamentoPS)} Sì</td>
+    <td><b>Ospedalizzato presso PS di:</b> ${escapeHtml(s.prontoSoccorsoDi||'—')}</td>
+    <td><b>Paziente affidato a:</b> ${escapeHtml(s.pzAffidatoA||'—')}</td>
+    <td><b>Allertamento → P.S.:</b> ${simboloFlag118(!!s.allertamentoPS)} Sì</td>
   </tr></table>`;
 
   html += `<div class="print-118-section-title">ALTRE ANNOTAZIONI/ALTRE INFORMAZIONI</div>
@@ -6473,7 +6467,7 @@ async function scaricaPdfScheda118(id){
   const logoImg = document.querySelector('.print-letterhead img');
   const wrapper = document.createElement('div');
   wrapper.id = 'pdf-export-118-tmp';
-  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
+  wrapper.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;width:190mm;background:#fff;font-size:9.5px;padding:2mm;overflow:visible;';
   wrapper.innerHTML = `
     <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
       <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
@@ -6487,14 +6481,20 @@ async function scaricaPdfScheda118(id){
   `;
   document.body.appendChild(wrapper);
   try {
+    if(typeof html2pdf === 'undefined'){
+      alert('La libreria di generazione PDF non si è caricata (serve connessione internet la prima volta). Riprova, o usa "Chiudi" e la stampa normale del browser.');
+      return;
+    }
     await html2pdf().set({
       margin: 6,
       filename: nomeFilePdf118(s),
       image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     }).from(wrapper).save();
+  } catch(errore){
+    alert('Generazione PDF non riuscita: ' + errore.message);
   } finally {
     document.body.removeChild(wrapper);
   }
