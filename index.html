@@ -1667,6 +1667,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 /* ============ STATO GLOBALE ============ */
 let currentUser = null;
@@ -6169,7 +6171,93 @@ async function chiudiScheda118FromModal(){
   closeFirmaSchedaModal();
   closeScheda118Modal();
   renderElenco118();
+  salvaPdfSchedaSuDriveInBackground118(id); // non bloccante: se fallisce, non impedisce la chiusura
   generaFoglioDaScheda118(id);
+}
+async function generaCanvasScheda118(s){
+  const sPerStampa = await preparaDatiStampa118(s);
+  const logoImg = document.querySelector('.print-letterhead img');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;';
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
+  wrapper.innerHTML = `
+    <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
+      <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
+      <div>
+        <div class="plh-org" style="font-size:12px;">Fraternita di Misericordia di S.M. di Licodia ODV</div>
+        <div class="plh-sub" style="font-size:9px;margin-top:1px;">Scheda intervento Soccorso 118 — documento generato dal sistema</div>
+      </div>
+    </div>
+    <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
+    ${costruisciStampaScheda118(sPerStampa)}
+  `;
+  document.body.appendChild(overlay);
+  document.body.appendChild(wrapper);
+  await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+  let canvas;
+  try {
+    canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+  } finally {
+    document.body.removeChild(wrapper);
+    document.body.removeChild(overlay);
+  }
+  return canvas;
+}
+function canvasSembraVuoto118(canvas){
+  if(!canvas || !canvas.width || !canvas.height) return true;
+  const ctx = canvas.getContext('2d');
+  const campioni = 40;
+  let nonBianchi = 0;
+  for(let i=0;i<campioni;i++){
+    const x = Math.floor(Math.random()*canvas.width);
+    const y = Math.floor(Math.random()*canvas.height);
+    const px = ctx.getImageData(x, y, 1, 1).data;
+    if(px[0] < 250 || px[1] < 250 || px[2] < 250) nonBianchi++;
+  }
+  return nonBianchi === 0;
+}
+async function generaPdfDaCanvas118(canvas){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const larghezzaPagina = 210 - 12, altezzaPagina = 297 - 12;
+  const larghezzaImg = larghezzaPagina;
+  const altezzaImg = (canvas.height * larghezzaImg) / canvas.width;
+  const datiImg = canvas.toDataURL('image/jpeg', 0.92);
+  let restante = altezzaImg, offsetY = 0, primaPagina = true;
+  while(restante > 0){
+    if(!primaPagina) pdf.addPage();
+    pdf.addImage(datiImg, 'JPEG', 6, 6 - offsetY, larghezzaImg, altezzaImg);
+    restante -= altezzaPagina;
+    offsetY += altezzaPagina;
+    primaPagina = false;
+  }
+  return pdf;
+}
+async function salvaPdfSchedaSuDriveInBackground118(id){
+  try {
+    const s = interventi118.find(x=>x.id===id);
+    if(!s) return;
+    const canvas = await generaCanvasScheda118(s);
+    if(canvasSembraVuoto118(canvas)){
+      console.warn('PDF scheda 118: cattura risultata vuota, salvataggio su Drive saltato per sicurezza.');
+      return;
+    }
+    const pdf = await generaPdfDaCanvas118(canvas);
+    const pdfBlob = pdf.output('blob');
+    const pdfDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+    const nomeFile = nomeFilePdf118(s);
+    const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile);
+    s.pdfDriveFileId = fileId;
+    await saveInterventi118();
+  } catch(errore){
+    console.warn('Salvataggio automatico PDF su Drive non riuscito:', errore);
+  }
 }
 
 function generaFoglioDaScheda118(schedaId){
