@@ -1524,7 +1524,7 @@
         <div id="e118-stato-label" class="map-hint"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Annulla</button>
-          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Stampa / Salva PDF</button>
+          <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Scarica PDF</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="apriFirmaSchedaModal()">Firma scheda</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
         </div>
@@ -1661,7 +1661,7 @@
       <div></div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeView118Modal()">Chiudi</button>
-        <button type="button" class="btn btn-primary" style="width:auto;" onclick="scaricaPdfScheda118(scheda118PreviewId)">Stampa / Salva PDF</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="scaricaPdfScheda118(scheda118PreviewId)">Scarica PDF</button>
       </div>
     </div>
   </div>
@@ -5836,7 +5836,7 @@ function onRifFotoChange(event, lato){
     const idScheda = document.getElementById('e118-id').value || 'nuova';
     const nomeFile = 'rifiuto_' + idScheda + '_' + lato + '_' + Date.now() + '.jpg';
     try {
-      const fileId = await caricaFotoSuWorker(dataUrl, nomeFile);
+      const fileId = await caricaFotoSuWorker(dataUrl, nomeFile, 'documenti');
       const riferimento = 'drive:' + fileId;
       if(lato==='fronte') rifiutoFotoFronte = riferimento; else rifiutoFotoRetro = riferimento;
     } catch(e){
@@ -6252,7 +6252,7 @@ async function salvaPdfSchedaSuDriveInBackground118(id){
       reader.readAsDataURL(pdfBlob);
     });
     const nomeFile = nomeFilePdf118(s);
-    const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile);
+    const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile, 'schede');
     s.pdfDriveFileId = fileId;
     await saveInterventi118();
   } catch(errore){
@@ -6483,11 +6483,11 @@ function costruisciStampaScheda118(s){
 
 const FOTO_UPLOAD_ENDPOINT = 'https://backup-worker-misericordia.foglimarciamisericordia.workers.dev/api/foto-rifiuto';
 const FOTO_UPLOAD_TOKEN = 'r25hAWxrIsT1JJ1Wate4wNInwNXi0MNjadJxTgtA65Q';
-async function caricaFotoSuWorker(dataUrl, nomeFile){
+async function caricaFotoSuWorker(dataUrl, nomeFile, cartella){
   const risposta = await fetch(FOTO_UPLOAD_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN },
-    body: JSON.stringify({ dataUrl, nomeFile })
+    body: JSON.stringify({ dataUrl, nomeFile, cartella })
   });
   if(!risposta.ok) throw new Error('upload fallito');
   const dati = await risposta.json();
@@ -6558,6 +6558,17 @@ async function scaricaPdfScheda118(id){
   if(!id){ alert('Salva prima la scheda per poterla scaricare in PDF.'); return; }
   const s = interventi118.find(x=>x.id===id);
   if(!s) return;
+  try {
+    const canvas = await generaCanvasScheda118(s);
+    if(canvasSembraVuoto118(canvas)) throw new Error('cattura risultata vuota');
+    const pdf = await generaPdfDaCanvas118(canvas);
+    pdf.save(nomeFilePdf118(s));
+  } catch(errore){
+    console.warn('Download PDF diretto non riuscito, uso la stampa del browser come alternativa:', errore);
+    await avviaStampaConNomeFile118(id, s);
+  }
+}
+async function avviaStampaConNomeFile118(id, s){
   await viewStampaScheda118(id);
   scheda118TitoloOriginale = document.title;
   document.title = nomeFilePdf118(s).replace(/\.pdf$/i, '');
