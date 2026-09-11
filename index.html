@@ -1334,7 +1334,7 @@
           <div class="field"><label>Luogo intervento</label><select id="e118-luogoIntervento"><option value="">—</option></select></div>
           <div class="field"><label>Patologia comunicata</label><select id="e118-patologiaComunicata"><option value="">—</option></select></div>
           <div class="field"><label>Operatore di centrale n.</label><input type="text" id="e118-operatoreCentrale"></div>
-          <div class="field"><label>N. Scheda intervento</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale" oninput="aggiornaAnteprimaNumeroScheda118()">
+          <div class="field"><label>Scheda missione n.</label><input type="text" id="e118-numeroScheda" placeholder="Numero manuale" oninput="aggiornaAnteprimaNumeroScheda118()">
             <p class="map-hint" id="e118-numeroScheda-hint"></p>
           </div>
         </div>
@@ -1493,9 +1493,19 @@
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <input type="checkbox" id="e118-allertamentoPS"> Allertamento → P.S.
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <input type="checkbox" id="e118-rifiuta" onchange="onRifiutaCheckboxChange()"> Il paziente rifiuta il soccorso
+      </label>
+      <div id="e118-rifiuto-stato" class="map-hint" style="display:none;margin-bottom:10px;">
+        Modulo di rifiuto compilato. <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="apriRifiutoSoccorsoModal()">Rivedi/modifica</button>
+      </div>
 
       <div class="section-title">Forze dell'ordine/altri intervenuti</div>
       <div class="checkbox-grid" id="e118-forzeOrdine"></div>
+
+      <div class="section-title">Altre annotazioni/Altre informazioni</div>
+      <div class="field"><label>Annotazioni sul servizio</label><textarea id="e118-annotazioni" rows="2"></textarea></div>
+      <div class="checkbox-grid" id="e118-altreInformazioni"></div>
 
       <div class="grid2" style="grid-template-columns:repeat(2,1fr);margin-top:10px;">
         <div class="field"><label>Altri pazienti coinvolti</label>
@@ -1504,10 +1514,6 @@
         <div class="field" id="e118-numeroPazienti-wrap" style="display:none;"><label>Quanti</label><input type="number" id="e118-numeroPazienti"></div>
       </div>
       <div class="field"><label>Mezzi coinvolti</label><div class="checkbox-grid" id="e118-mezziCoinvolti"></div></div>
-
-      <div class="section-title">Altre annotazioni/Altre informazioni</div>
-      <div class="field"><label>Annotazioni sul servizio</label><textarea id="e118-annotazioni" rows="2"></textarea></div>
-      <div class="checkbox-grid" id="e118-altreInformazioni"></div>
 
       </div>
 
@@ -1554,7 +1560,85 @@
   </div>
 </div>
 
+<!-- MODAL RIFIUTO SOCCORSO -->
+<div class="modal-backdrop" id="rifiuto-soccorso-modal-backdrop">
+  <div class="modal" style="max-width:640px;">
+    <button class="close-x" onclick="closeRifiutoSoccorsoModal()">✕</button>
+    <h3>Rifiuto soccorso</h3>
+    <input type="hidden" id="rif-dataOra">
+
+    <div class="field"><label>Chi firma il rifiuto?</label>
+      <select id="rif-firmatario" onchange="onRifFirmatarioChange()">
+        <option value="">—</option>
+        <option value="paziente">Paziente</option>
+        <option value="rappresentante">Esercente la responsabilità genitoriale / Tutore / Amministratore di sostegno del paziente / Parente titolato</option>
+      </select>
+    </div>
+
+    <div class="field" id="rif-rapporto-wrap" style="display:none;">
+      <label>Rapporto con il paziente</label>
+      <select id="rif-rapporto">
+        <option value="">—</option>
+        <option>Esercente la responsabilità genitoriale</option>
+        <option>Tutore</option>
+        <option>Amministratore di sostegno</option>
+        <option>Parente titolato</option>
+      </select>
+    </div>
+
+    <div id="rif-rappresentante-fields" style="display:none;">
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Nome</label><input type="text" id="rif-nome"></div>
+        <div class="field"><label>Cognome</label><input type="text" id="rif-cognome"></div>
+        <div class="field"><label>Residente a</label><input type="text" id="rif-residenteA"></div>
+        <div class="field"><label>In via</label><input type="text" id="rif-inVia"></div>
+        <div class="field"><label>Luogo di nascita</label><input type="text" id="rif-luogoNascita"></div>
+        <div class="field"><label>Data di nascita</label><input type="date" id="rif-dataNascita"></div>
+      </div>
+    </div>
+
+    <div id="rif-documento-fields" style="display:none;">
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Tipo Documento</label>
+          <select id="rif-docTipo"><option value="">—</option><option>Carta d'identità</option><option>Patente</option><option>Passaporto</option><option>Altro</option></select>
+        </div>
+        <div class="field"><label>N. documento</label><input type="text" id="rif-docNumero"></div>
+        <div class="field"><label>Rilasciato da</label><input type="text" id="rif-docRilasciatoDa"></div>
+        <div class="field"><label>Il</label><input type="date" id="rif-docIl"></div>
+        <div class="field"><label>Scadenza il</label><input type="date" id="rif-docScadenza"></div>
+      </div>
+
+      <div class="field"><label>Firma</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firma-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firma-canvas')">Cancella firma</button>
+      </div>
+
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field">
+          <label>Foto documento — fronte</label>
+          <input type="file" accept="image/*" capture="environment" id="rif-fotoFronte-input" onchange="onRifFotoChange(event,'fronte')">
+          <div id="rif-fotoFronte-preview" style="margin-top:8px;"></div>
+        </div>
+        <div class="field">
+          <label>Foto documento — retro</label>
+          <input type="file" accept="image/*" capture="environment" id="rif-fotoRetro-input" onchange="onRifFotoChange(event,'retro')">
+          <div id="rif-fotoRetro-preview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost" onclick="annullaRifiutoSoccorsoModal()">Annulla</button>
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="confermaRifiutoSoccorso()">Conferma rifiuto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL VISUALIZZA/STAMPA SCHEDA 118 -->
+
 
 <div class="modal-backdrop" id="view-modal-118-backdrop">
   <div class="modal" style="max-width:820px;">
@@ -1613,6 +1697,9 @@ let editingScheda118Id = null;
 let scheda118SedeTrauma = [];
 let scheda118SedeUstioni = [];
 let scheda118FotoDocumento = null;
+let rifiutoFotoFronte = null;
+let rifiutoFotoRetro = null;
+let scheda118RifiutoDati = null;
 let scheda118Valutazioni = [];
 let editingScheda118ReadOnly = false;
 let editingPresidioId = null;
@@ -5426,7 +5513,7 @@ function renderCodiceScenaPrint(key){
 }
 /* --- Codice rientro (stessi pulsanti del codice scena) --- */
 const CODICE_RIENTRO_118 = [['rosso','3','#D64545'],['giallo','2','#F2C744'],['verde','1','#3FA34D'],['bianco','0','#1a1a1a'],['nero','4','#1a1a1a']];
-const CODICE_RIENTRO_NOTE_118 = [['revocato','Revocato'],['nonReperito','Non reperito'],['rifiutoSoccorso','Rifiuto soccorso']];
+const CODICE_RIENTRO_NOTE_118 = [['revocato','Revocato'],['nonReperito','Non reperito'],['rifiutoSoccorso','Rifiuto soccorso'],['affidatoAltraUnita','Affidato ad altra unità']];
 function buildCodiceRientroButtons(selected){
   const container = document.getElementById('e118-codiceRientro-buttons');
   document.getElementById('e118-codiceRientro').value = selected || '';
@@ -5638,29 +5725,120 @@ function onAltriPazientiToggle118(){
   const val = document.getElementById('e118-altriPazientiCoinvolti').value;
   document.getElementById('e118-numeroPazienti-wrap').style.display = (val === 'si') ? 'block' : 'none';
 }
-function onRifiutaToggle118(){
-  document.getElementById('e118-rifiuto-box').style.display = document.getElementById('e118-rifiuta').checked ? 'block' : 'none';
+/* --- Rifiuto soccorso --- */
+const RIFIUTO_RAPPORTO_118 = ['Esercente la responsabilità genitoriale','Tutore','Amministratore di sostegno','Parente titolato'];
+function onRifiutaCheckboxChange(){
+  if(document.getElementById('e118-rifiuta').checked){
+    apriRifiutoSoccorsoModal();
+  } else {
+    scheda118RifiutoDati = null;
+    aggiornaStatoRifiuto118();
+  }
 }
-function onImpossibilitatoToggle118(){
-  const on = document.getElementById('e118-pzImpossibilitato').checked;
-  document.getElementById('e118-motivoImpossibilita-wrap').style.display = on ? 'block' : 'none';
-  document.getElementById('e118-firma-rifiuto-wrap').style.display = on ? 'none' : 'block';
+function aggiornaStatoRifiuto118(){
+  const compilato = !!(scheda118RifiutoDati && scheda118RifiutoDati.firmatario);
+  document.getElementById('e118-rifiuto-stato').style.display = compilato ? 'block' : 'none';
 }
-function onFotoDocumento118Change(event){
+function apriRifiutoSoccorsoModal(){
+  const d = scheda118RifiutoDati || {};
+  document.getElementById('rif-dataOra').value = d.dataOra || new Date().toISOString();
+  document.getElementById('rif-firmatario').value = d.firmatario || '';
+  document.getElementById('rif-rapporto').value = d.rapporto || '';
+  document.getElementById('rif-nome').value = d.nome || '';
+  document.getElementById('rif-cognome').value = d.cognome || '';
+  document.getElementById('rif-residenteA').value = d.residenteA || '';
+  document.getElementById('rif-inVia').value = d.inVia || '';
+  document.getElementById('rif-luogoNascita').value = d.luogoNascita || '';
+  document.getElementById('rif-dataNascita').value = d.dataNascita || '';
+  document.getElementById('rif-docTipo').value = d.docTipo || '';
+  document.getElementById('rif-docNumero').value = d.docNumero || '';
+  document.getElementById('rif-docRilasciatoDa').value = d.docRilasciatoDa || '';
+  document.getElementById('rif-docIl').value = d.docIl || '';
+  document.getElementById('rif-docScadenza').value = d.docScadenza || '';
+  rifiutoFotoFronte = d.fotoFronte || null;
+  rifiutoFotoRetro = d.fotoRetro || null;
+  document.getElementById('rif-fotoFronte-preview').innerHTML = rifiutoFotoFronte ? `<img src="${rifiutoFotoFronte}" style="max-width:140px;border-radius:6px;">` : '';
+  document.getElementById('rif-fotoRetro-preview').innerHTML = rifiutoFotoRetro ? `<img src="${rifiutoFotoRetro}" style="max-width:140px;border-radius:6px;">` : '';
+  onRifFirmatarioChange();
+  document.getElementById('rifiuto-soccorso-modal-backdrop').classList.add('active');
+  setTimeout(()=>{
+    initSignaturePad('rif-firma-canvas');
+    if(d.firma) drawFirmaFromDataUrl('rif-firma-canvas', d.firma);
+  }, 60);
+}
+function onRifFirmatarioChange(){
+  const val = document.getElementById('rif-firmatario').value;
+  document.getElementById('rif-rapporto-wrap').style.display = (val === 'rappresentante') ? 'block' : 'none';
+  document.getElementById('rif-rappresentante-fields').style.display = (val === 'rappresentante') ? 'block' : 'none';
+  document.getElementById('rif-documento-fields').style.display = val ? 'block' : 'none';
+}
+function onRifFotoChange(event, lato){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    scheda118FotoDocumento = e.target.result;
-    document.getElementById('e118-fotoDocumento-preview').innerHTML = `<img src="${scheda118FotoDocumento}" style="max-width:160px;border-radius:6px;"> <button type="button" class="btn btn-ghost" style="width:auto;margin-left:8px;" onclick="rimuoviFotoDocumento118()">Rimuovi</button>`;
+    const dataUrl = e.target.result;
+    if(lato==='fronte'){ rifiutoFotoFronte = dataUrl; document.getElementById('rif-fotoFronte-preview').innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`; }
+    else { rifiutoFotoRetro = dataUrl; document.getElementById('rif-fotoRetro-preview').innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;">`; }
   };
   reader.readAsDataURL(file);
 }
-function rimuoviFotoDocumento118(){
-  scheda118FotoDocumento = null;
-  document.getElementById('e118-fotoDocumento-preview').innerHTML = '';
-  const inp = document.getElementById('e118-fotoDocumento-input');
-  if(inp) inp.value = '';
+function annullaRifiutoSoccorsoModal(){
+  document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
+  if(!scheda118RifiutoDati){ document.getElementById('e118-rifiuta').checked = false; }
+}
+function closeRifiutoSoccorsoModal(){ annullaRifiutoSoccorsoModal(); }
+function confermaRifiutoSoccorso(){
+  const firmatario = document.getElementById('rif-firmatario').value;
+  if(!firmatario){ alert('Seleziona chi firma il rifiuto.'); return; }
+  if(firmatario === 'rappresentante' && !document.getElementById('rif-rapporto').value){ alert('Seleziona il rapporto con il paziente.'); return; }
+  scheda118RifiutoDati = {
+    dataOra: document.getElementById('rif-dataOra').value,
+    firmatario,
+    rapporto: document.getElementById('rif-rapporto').value,
+    nome: document.getElementById('rif-nome').value,
+    cognome: document.getElementById('rif-cognome').value,
+    residenteA: document.getElementById('rif-residenteA').value,
+    inVia: document.getElementById('rif-inVia').value,
+    luogoNascita: document.getElementById('rif-luogoNascita').value,
+    dataNascita: document.getElementById('rif-dataNascita').value,
+    docTipo: document.getElementById('rif-docTipo').value,
+    docNumero: document.getElementById('rif-docNumero').value,
+    docRilasciatoDa: document.getElementById('rif-docRilasciatoDa').value,
+    docIl: document.getElementById('rif-docIl').value,
+    docScadenza: document.getElementById('rif-docScadenza').value,
+    firma: getFirmaDataUrl118('rif-firma-canvas'),
+    fotoFronte: rifiutoFotoFronte,
+    fotoRetro: rifiutoFotoRetro
+  };
+  document.getElementById('e118-rifiuta').checked = true;
+  aggiornaStatoRifiuto118();
+  document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
+}
+function testoDichiarazioneRifiuto118(s){
+  const d = s.rifiutoDati || {};
+  const dp = s || {};
+  const dataOra = d.dataOra ? new Date(d.dataOra) : new Date();
+  const dataStr = formatDataIt(dataOra.toISOString().slice(0,10));
+  const oraStr = String(dataOra.getHours()).padStart(2,'0')+':'+String(dataOra.getMinutes()).padStart(2,'0');
+  const docBlocco = `Tipo Documento ${escapeHtml(d.docTipo||'—')}, N. documento ${escapeHtml(d.docNumero||'—')}, rilasciato da ${escapeHtml(d.docRilasciatoDa||'—')}, il ${formatDataIt(d.docIl)}, scadenza il ${formatDataIt(d.docScadenza)}`;
+  if(d.firmatario === 'paziente'){
+    const nome = (dp.nome||'').toUpperCase(), cognome = (dp.cognome||'').toUpperCase();
+    const natoA = (dp.comuneNascita||'').toUpperCase(), il = formatDataIt(dp.natoIl);
+    const residenteA = (dp.comuneResidenza||'').toUpperCase(), inVia = (dp.viaResidenza||'').toUpperCase();
+    const cf = (dp.codiceFiscale||'').toUpperCase();
+    return `Io sottoscritto ${nome} ${cognome}, nato a ${natoA}, il ${il}, residente a ${residenteA}, in via ${inVia}, ${cf}, ${docBlocco}, pienamente informato dai soccorritori presenti sulle mie condizioni di salute manifeste, sulla necessità di ricevere cure/accertamenti e sulle possibili conseguenze negative (incluso il rischio di peggioramento o compromissione vitale) derivanti dalla mia decisione, rifiuto il trasporto in ospedale. Esonero l'equipaggio di soccorso, da qualsiasi responsabilità civile o penale per le conseguenze fisiche e patologiche che potrebbero derivare da tale rifiuto. Data ${dataStr} ora ${oraStr}.`;
+  } else {
+    const nomeRapp = escapeHtml(d.nome||'—'), cognomeRapp = escapeHtml(d.cognome||'—');
+    const natoARapp = escapeHtml(d.luogoNascita||'—'), ilRapp = formatDataIt(d.dataNascita);
+    const residenteARapp = escapeHtml(d.residenteA||'—'), inViaRapp = escapeHtml(d.inVia||'—');
+    const rapporto = escapeHtml(d.rapporto||'—');
+    const nomePaz = (dp.nome||'').toUpperCase(), cognomePaz = (dp.cognome||'').toUpperCase();
+    const natoAPaz = (dp.comuneNascita||'').toUpperCase(), ilPaz = formatDataIt(dp.natoIl);
+    const residenteAPaz = (dp.comuneResidenza||'').toUpperCase(), inViaPaz = (dp.viaResidenza||'').toUpperCase();
+    const cfPaz = (dp.codiceFiscale||'').toUpperCase();
+    return `Io sottoscritto ${nomeRapp} ${cognomeRapp}, nato a ${natoARapp} il ${ilRapp}, residente a ${residenteARapp}, in via ${inViaRapp}, ${docBlocco}, nella qualità di ${rapporto}, pienamente informato dai soccorritori presenti sulle condizioni di salute di ${nomePaz} ${cognomePaz}, nato a ${natoAPaz}, il ${ilPaz}, residente a ${residenteAPaz}, in via ${inViaPaz}, ${cfPaz}, manifeste, sulla necessità di ricevere cure/accertamenti e sulle possibili conseguenze negative (incluso il rischio di peggioramento o compromissione vitale) derivanti dalla mia decisione, si rifiuta il trasporto in ospedale del succitato paziente. Esonero l'equipaggio di soccorso, da qualsiasi responsabilità civile o penale per le conseguenze fisiche e patologiche che potrebbero derivare da tale rifiuto. Data ${dataStr} ora ${oraStr}.`;
+  }
 }
 
 /* --- Elenco --- */
@@ -5675,7 +5853,7 @@ function renderElenco118(){
   const container = document.getElementById('e118-container');
   if(!container) return;
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
-  let html = '<table class="mini-table"><thead><tr><th>N. scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
     html += `<tr>
       <td>${escapeHtml(formattaNumeroScheda118(s))}</td>
@@ -5786,6 +5964,10 @@ function openScheda118Modal(id){
   F('e118-pzAffidatoA', sch?.pzAffidatoA);
   F('e118-annotazioni', sch?.annotazioni);
 
+  scheda118RifiutoDati = sch?.rifiutoDati ? JSON.parse(JSON.stringify(sch.rifiutoDati)) : null;
+  document.getElementById('e118-rifiuta').checked = !!scheda118RifiutoDati;
+  aggiornaStatoRifiuto118();
+
   scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
   const ustioniSalvate = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
   scheda118SedeUstioni = ustioniSalvate.filter(v => typeof v === 'string' && USTIONI_REGIONI_118.some(r=>r.id===v));
@@ -5886,6 +6068,7 @@ function collectScheda118FormData(id){
     sedeTrauma: scheda118SedeTrauma, sedeUstioni: scheda118SedeUstioni, sedeUstioniTotale: calcolaTotaleUstioni118(),
     anamnesi: G('e118-anamnesi'), terapiaInAtto: G('e118-terapiaInAtto'), allergie: G('e118-allergie'), segniClinici: G('e118-segniClinici'), terapiaPraticata: G('e118-terapiaPraticata'),
     pzAffidatoA: G('e118-pzAffidatoA'),
+    rifiuta: document.getElementById('e118-rifiuta').checked, rifiutoDati: scheda118RifiutoDati,
     altreInformazioni: getCheckboxGridValues('e118-altreInformazioni'), codiceRientroNote: getCheckboxGridValues('e118-codiceRientroNote'),
     annotazioni: G('e118-annotazioni'),
     firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
@@ -5976,7 +6159,7 @@ function costruisciStampaScheda118(s){
     <td>POSTAZIONE<br><b>${escapeHtml(s.postazione||'—')}</b></td>
     <td>TARGA AMBULANZA<br><b>${escapeHtml(s.targaAmbulanza||'—')}</b></td>
     <td>DATA<br><b>${formatDataIt(s.data)}</b></td>
-    <td>SCHEDA INTERVENTO N°<br><b>${escapeHtml(formattaNumeroScheda118(s))}</b></td>
+    <td>SCHEDA MISSIONE N.<br><b>${escapeHtml(formattaNumeroScheda118(s))}</b></td>
   </tr><tr>
     <td>COGNOME<br><b>${escapeHtml(s.cognome||'—')}</b></td>
     <td>NOME<br><b>${escapeHtml(s.nome||'—')}</b></td>
@@ -6113,6 +6296,20 @@ function costruisciStampaScheda118(s){
     <td style="text-align:center;">FIRMA SOCCORRITORE 1<br>${s.firmaSoccorritore1?`<img src="${s.firmaSoccorritore1}" style="height:40px;">`:'____________________'}</td>
     <td style="text-align:center;">FIRMA SOCCORRITORE 2<br>${s.firmaSoccorritore2?`<img src="${s.firmaSoccorritore2}" style="height:40px;">`:'____________________'}</td>
   </tr></table>`;
+
+  if(s.rifiuta && s.rifiutoDati && s.rifiutoDati.firmatario){
+    const rd = s.rifiutoDati;
+    html += `<div style="page-break-before:always;"></div>
+    <h3>Rifiuto del trasporto sanitario</h3>
+    <p style="font-size:12px;line-height:1.6;text-align:justify;">${testoDichiarazioneRifiuto118(s)}</p>
+    <table class="print-118-table"><tr>
+      <td style="text-align:center;">FIRMA<br>${rd.firma?`<img src="${rd.firma}" style="height:50px;">`:'____________________'}</td>
+    </tr></table>
+    <table class="print-118-table"><tr>
+      <td style="text-align:center;">DOCUMENTO — FRONTE<br>${rd.fotoFronte?`<img src="${rd.fotoFronte}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
+      <td style="text-align:center;">DOCUMENTO — RETRO<br>${rd.fotoRetro?`<img src="${rd.fotoRetro}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
+    </tr></table>`;
+  }
 
   return html;
 }
