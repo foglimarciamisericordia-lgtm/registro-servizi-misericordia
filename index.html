@@ -6279,8 +6279,6 @@ function costruisciStampaScheda118(s){
   html += `<div class="print-118-section-title">PARAMETRI VITALI</div>`;
   {
     const listaVal = (s.valutazioni && s.valutazioni.length) ? s.valutazioni : [{}];
-    const orariRow = listaVal.map((v,idx)=>`Valutazione ${idx+1} — Ora: ${v.ora||'—'}${v.parametriAssenti ? ' <span style="color:#B23A24;font-weight:700;">(PARAMETRI ASSENTI)</span>' : ''}`).join(' &nbsp; | &nbsp; ');
-    html += `<table class="print-118-table"><tr><td style="font-weight:700;">${orariRow}</td></tr></table>`;
     const parametri = [
       ['P.A.', v=>v.pa],
       ['F.C.', v=>v.fc],
@@ -6292,10 +6290,12 @@ function costruisciStampaScheda118(s){
       ['Polso c./p.', v=>(v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—')) + '/' + (v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—'))],
       ['Cute', v=> (CUTE_118.filter(([k])=>(v.cute||[]).includes(k)).map(([,l])=>l).join(', ') || '—')]
     ];
-    const intestazioneColonne = listaVal.map((v,idx)=>`<td style="text-align:center;font-weight:700;">${idx+1}</td>`).join('');
-    let corpo = `<tr><td style="width:60px;"></td>${intestazioneColonne}</tr>`;
+    const larghezzaEtichetta = 60;
+    const larghezzaColonna = Math.floor((100 - (larghezzaEtichetta/7)) / listaVal.length);
+    const intestazioneColonne = listaVal.map((v,idx)=>`<td style="width:${larghezzaColonna}%;text-align:center;font-weight:700;">Valutazione ${idx+1}${v.parametriAssenti ? '<br><span style="color:#B23A24;font-size:8px;">PARAMETRI ASSENTI</span>' : ''}<br><span style="font-weight:400;">Ora: ${v.ora||'—'}</span></td>`).join('');
+    let corpo = `<tr><td style="width:${larghezzaEtichetta}px;"></td>${intestazioneColonne}</tr>`;
     parametri.forEach(([nome,getter])=>{
-      corpo += `<tr><td style="font-weight:700;">${nome}</td>${listaVal.map(v=>`<td><b>${escapeHtml(String(getter(v)||'—'))}</b></td>`).join('')}</tr>`;
+      corpo += `<tr><td style="font-weight:700;">${nome}</td>${listaVal.map(v=>`<td style="text-align:center;"><b>${escapeHtml(String(getter(v)||'—'))}</b></td>`).join('')}</tr>`;
     });
     html += `<table class="print-118-table">${corpo}</table>`;
   }
