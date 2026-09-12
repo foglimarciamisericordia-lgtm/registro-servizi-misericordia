@@ -241,7 +241,7 @@
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   @media(max-width:680px){.grid3,.grid2{grid-template-columns:1fr;}}
-  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
+  label.checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}
   .btn-ghost:hover{background:var(--bg);}
@@ -1021,13 +1021,13 @@
             <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno *</label><input type="date" id="sf-perGiorno" required></div>
-          <div class="field"><label>Alle ore *</label><input type="time" id="sf-alleOre" required></div>
+          <div class="field"><label>Orario visita *</label><input type="time" id="sf-alleOre" required></div>
         </div>
 
         <div id="campi-trasporto-secondario">
           <div class="grid3">
-            <div class="field"><label>A casa del paziente *</label>
-              <select id="sf-aCasa" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
+            <div class="field"><label>Orario sul posto *</label>
+              <input type="time" id="sf-aCasa" required>
             </div>
             <div class="field"><label>Trasportare da (partenza) *</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
             <div class="field"><label>A (destinazione) *</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
@@ -1094,15 +1094,16 @@
               <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
             </select>
           </div>
-          <div class="field"><label>Presenza di scale *</label><select id="sf-scale" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Presenza di scale *</label><select id="sf-scale" required onchange="togglePianoScale()"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Ascensore *</label><select id="sf-ascensore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field" id="piano-scale-box" style="display:none;"><label>Indicare piano e condizione scale</label><input type="text" id="sf-pianoScale"></div>
           <div class="field"><label>Presenza accompagnatore *</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Ulteriori dettagli</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione"></div>
         </div>
         <div class="field"><label>Affetto da *</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
           <label>Presidi richiesti *</label>
-          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between;margin-bottom:8px;">
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
             <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
@@ -1112,7 +1113,7 @@
           </div>
           <input type="text" id="sf-presidiAltro" placeholder="Altri presidi (specificare)">
         </div>
-        <div class="field"><label>Note</label><textarea id="sf-note" rows="2"></textarea></div>
+        <div class="field"><label>Ulteriori informazioni utili sul servizio</label><textarea id="sf-note" rows="2"></textarea></div>
       </fieldset>
 
       <fieldset id="fieldset-equipaggio">
@@ -1142,10 +1143,11 @@
       <fieldset>
         <legend id="legend-dati-richiedente-finale">Dati del richiedente (se diverso dal paziente)</legend>
         <div class="grid3">
-          <div class="field"><label>Richiesto da *</label><select id="sf-richiestoDa" required><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Comune</option><option>Altro</option></select></div>
-          <div class="field"><label>Ente/Sig.</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
-          <div class="field"><label>Telefono richiedente (ulteriore contatto)</label><input type="text" id="sf-telRichiedente"></div>
-          <div class="field"><label id="label-relazione">Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
+          <div class="field"><label>Richiesto da *</label><select id="sf-richiestoDa" required onchange="toggleRelazioneRichiedente()"><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Comune</option><option>Altro</option></select></div>
+          <div class="field" id="relazione-box" style="display:none;"><label id="label-relazione">Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
+          <div class="field"><label>Ente/Nome e Cognome richiedente</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
+          <div class="field"><label>Telefono contatto principale</label><input type="text" id="sf-telRichiedente"></div>
+          <div class="field"><label>Telefono ulteriore contatto</label><input type="text" id="sf-telRichiedente2"></div>
         </div>
       </fieldset>
 
@@ -2202,12 +2204,56 @@ async function doLogin(){
     openAccountModal(true);
   }
   resettaTimerInattivita();
+  avviaAggiornamentoPeriodico();
+}
+let intervalloAggiornamentoDati = null;
+function avviaAggiornamentoPeriodico(){
+  fermaAggiornamentoPeriodico();
+  intervalloAggiornamentoDati = setInterval(ricaricaDatiCorrenti, 45000);
+  window.addEventListener('focus', ricaricaDatiCorrenti);
+}
+function fermaAggiornamentoPeriodico(){
+  if(intervalloAggiornamentoDati){ clearInterval(intervalloAggiornamentoDati); intervalloAggiornamentoDati = null; }
+  window.removeEventListener('focus', ricaricaDatiCorrenti);
+}
+async function ricaricaDatiCorrenti(){
+  if(!currentUser) return;
+  // Non tocchiamo nulla se c'è un modale aperto: l'utente potrebbe avere
+  // dati non ancora salvati in una scheda che sta compilando in quel momento.
+  if(document.querySelector('.modal-backdrop.active')) return;
+  const viewAttiva = document.querySelector('.view.active')?.id;
+  try {
+    if(viewAttiva === 'view-elenco' || viewAttiva === 'view-dashboard' || viewAttiva === 'view-cestino' || viewAttiva === 'view-statistiche'){
+      servizi = (await kvGet('servizi-' + annoCorrenteServizi)) || [];
+    }
+    if(viewAttiva === 'view-fogli' || viewAttiva === 'view-cestino'){
+      fogliMarcia = (await kvGet('fogli-' + annoCorrenteFogli)) || [];
+    }
+    if(viewAttiva === 'view-eccedenza118'){
+      interventi118 = (await kvGet('interventi118')) || [];
+    }
+    if(viewAttiva === 'view-presidi' || viewAttiva === 'view-gestionepresidi'){
+      presidi = (await kvGet('presidi-magazzino')) || [];
+      prestiti = (await kvGet('prestiti-presidi')) || [];
+    }
+    if(viewAttiva === 'view-elenco'){ renderElenco(); }
+    if(viewAttiva === 'view-dashboard'){ renderCalendar(); }
+    if(viewAttiva === 'view-fogli'){ renderFogliMarcia(); }
+    if(viewAttiva === 'view-cestino'){ renderCestino(); }
+    if(viewAttiva === 'view-statistiche'){ renderStatistiche(); }
+    if(viewAttiva === 'view-eccedenza118'){ renderElenco118(); }
+    if(viewAttiva === 'view-presidi'){ aggiornaEDisegnaPrestiti(); }
+    if(viewAttiva === 'view-gestionepresidi'){ aggiornaEDisegnaGestionePresidi(); }
+  } catch(e){
+    // Connessione assente al momento del giro: si ritenta al prossimo intervallo.
+  }
 }
 async function doLogout(){
   try{
     await fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
   }catch(e){}
   fermaMonitoraggioInattivita();
+  fermaAggiornamentoPeriodico();
   authToken = null;
   sessionStorage.removeItem('authToken');
   currentUser = null;
@@ -4578,9 +4624,10 @@ function viewServiceModal(id){
     <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Dati del richiedente' : 'Dati del richiedente (se diverso dal paziente)'}</h4>
     <div class="view-grid">
       ${item('Richiesto da', s.richiestoDa)}
-      ${item('Ente/Sig.', s.enteSig)}
-      ${item('Telefono richiedente', s.telRichiedente)}
-      ${item(isModalitaRichiedente(s.tipoScheda) ? 'Rapporto con ente richiedente' : 'Relazione col paziente', s.relazione)}
+      ${s.richiestoDa === 'Familiare' ? item(isModalitaRichiedente(s.tipoScheda) ? 'Rapporto con ente richiedente' : 'Relazione col paziente', s.relazione) : ''}
+      ${item('Ente/Nome e Cognome richiedente', s.enteSig)}
+      ${item('Telefono contatto principale', s.telRichiedente)}
+      ${item('Telefono ulteriore contatto', s.telRichiedente2)}
     </div>
     </div>
 
@@ -4612,13 +4659,13 @@ function viewServiceModal(id){
     <div class="view-grid">
       ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
-      ${item('Alle ore', s.alleOre)}
+      ${item('Orario visita', s.alleOre)}
       ${isModalitaRichiedente(s.tipoScheda) ? `
         ${item('Su luogo dell\'evento', s.suLuogoEvento)}
         ${item('Luogo evento', s.luogoEvento)}
         ${item('Ulteriori dettagli evento', s.dettagliEvento)}
       ` : `
-        ${item('A casa del paziente', s.aCasa)}
+        ${item('Orario sul posto', s.aCasa)}
         ${item('Partenza', s.partenza)}
         ${item('Destinazione', s.destinazione)}
         ${item('Reparto/Padiglione', s.repartoDestinazione)}
@@ -4635,6 +4682,7 @@ function viewServiceModal(id){
       ${item('Necessita ossigeno', s.ossigeno)}
       ${item('Flusso ossigeno', s.flussoOssigeno ? s.flussoOssigeno+' L/min' : '')}
       ${item('Presenza di scale', s.scale)}
+      ${s.scale === 'Si' ? item('Piano e condizione scale', s.pianoScale) : ''}
       ${item('Ascensore', s.ascensore)}
       ${item('Accompagnatore', s.accompagnatore)}
       ${item('Tipo di richiesta', s.tipoRichiesta)}
@@ -4715,10 +4763,27 @@ function toggleFlussoOssigeno(){
   document.getElementById('flusso-ossigeno-box').style.display = on ? 'block' : 'none';
   if(!on) document.getElementById('sf-flussoOssigeno').value = '';
 }
+function togglePianoScale(){
+  const on = document.getElementById('sf-scale').value === 'Si';
+  const campo = document.getElementById('sf-pianoScale');
+  document.getElementById('piano-scale-box').style.display = on ? 'block' : 'none';
+  campo.required = on;
+  if(!on) campo.value = '';
+}
+function toggleRelazioneRichiedente(){
+  const on = document.getElementById('sf-richiestoDa').value === 'Familiare';
+  document.getElementById('relazione-box').style.display = on ? 'block' : 'none';
+  if(!on) document.getElementById('sf-relazione').value = '';
+}
 
 function toggleChiusoStato(){
   currentChiusoState = !currentChiusoState;
   updateAperturaUI();
+  if(currentChiusoState && canCloseService()){
+    // Per responsabile/amministratore, "Assegna il servizio" salva e chiude
+    // subito la scheda, invece di richiedere un secondo clic su "Salva".
+    document.getElementById('service-form').requestSubmit();
+  }
 }
 function updateAperturaUI(){
   const badge = document.getElementById('badge-apertura');
@@ -4733,7 +4798,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   pulisciEvidenziazioneObbligatori('service-form');
   const data = cloneData || sv;
   const set = (elId, val) => { document.getElementById(elId).value = val || ''; };
-  set('sf-enteSig', data?.enteSig); set('sf-telRichiedente', data?.telRichiedente); set('sf-relazione', data?.relazione);
+  set('sf-enteSig', data?.enteSig); set('sf-telRichiedente', data?.telRichiedente); set('sf-telRichiedente2', data?.telRichiedente2); set('sf-relazione', data?.relazione);
   set('sf-cognome', data?.cognome); set('sf-nome', data?.nome); set('sf-natoA', data?.natoA); set('sf-natoIl', data?.natoIl);
   document.getElementById('sf-tipoScheda').value = data?.tipoScheda || 'secondario';
   set('sf-enteRichiedenteEvento', data?.enteRichiedenteEvento); set('sf-telRiferimentoEvento', data?.telRiferimentoEvento);
@@ -4749,7 +4814,9 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-aCasa', data?.aCasa); set('sf-partenza', data?.partenza); set('sf-destinazione', data?.destinazione);
   set('sf-repartoDestinazione', data?.repartoDestinazione);
   set('sf-peso', data?.peso); set('sf-deambula', data?.deambula); set('sf-ossigeno', data?.ossigeno); set('sf-scale', data?.scale);
+  set('sf-pianoScale', data?.pianoScale); togglePianoScale();
   set('sf-ascensore', data?.ascensore); set('sf-accompagnatore', data?.accompagnatore); set('sf-richiestoDa', data?.richiestoDa);
+  toggleRelazioneRichiedente();
   set('sf-tipoRichiesta', data?.tipoRichiesta); set('sf-affettoDa', data?.affettoDa);
   document.getElementById('sf-flussoOssigeno').value = data?.flussoOssigeno || '';
   toggleFlussoOssigeno();
@@ -4902,14 +4969,14 @@ function computeRimborsoSuggerito(){
 }
 
 const CAMPI_LABEL_SERVIZIO = {
-  enteSig:'Ente/Sig.', telRichiedente:'Telefono richiedente', relazione:'Relazione col paziente',
+  enteSig:'Ente/Nome e Cognome richiedente', telRichiedente:'Telefono contatto principale', telRichiedente2:'Telefono ulteriore contatto', relazione:'Relazione col paziente',
   cognome:'Cognome', nome:'Nome', natoA:'Nato a', natoIl:'Nato il',
   dataRicezione:'Data di ricezione', oraRicezione:'Ora di ricezione',
-  mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Ora servizio', aCasa:'A casa del paziente',
+  mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Orario visita', aCasa:'Orario sul posto',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
-  scale:'Presenza di scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
-  tipoRichiesta:'Ulteriori dettagli', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Note',
+  scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
+  tipoRichiesta:'Ulteriori dettagli', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Ulteriori informazioni utili sul servizio',
   rimborsoSuggerito:'Rimborso spesa', stato:'Stato',
   autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore', autorizzatoDa:'Autorizzato da'
 };
@@ -4949,14 +5016,14 @@ async function saveService(ev){
     tipoScheda,
     enteRichiedenteEvento: g('sf-enteRichiedenteEvento'), telRiferimentoEvento: g('sf-telRiferimentoEvento'),
     suLuogoEvento: g('sf-suLuogoEvento'), luogoEvento: g('sf-luogoEvento'), dettagliEvento: g('sf-dettagliEvento'),
-    enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), relazione: g('sf-relazione'),
+    enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), telRichiedente2: g('sf-telRichiedente2'), relazione: g('sf-relazione'),
     cognome: g('sf-cognome'), nome: g('sf-nome'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
     dataRicezione: g('sf-dataRicezione'), oraRicezione: g('sf-oraRicezione'),
     mezzoId: g('sf-mezzo'), tipoMezzoRichiesto: document.getElementById('sf-tipoMezzoRichiesto').value, perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
     aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
     repartoDestinazione: g('sf-repartoDestinazione'),
     peso: g('sf-peso'), deambula: g('sf-deambula'), ossigeno: g('sf-ossigeno'),
-    flussoOssigeno: g('sf-flussoOssigeno'), scale: g('sf-scale'),
+    flussoOssigeno: g('sf-flussoOssigeno'), scale: g('sf-scale'), pianoScale: g('sf-pianoScale'),
     ascensore: g('sf-ascensore'), accompagnatore: g('sf-accompagnatore'), richiestoDa: g('sf-richiestoDa'),
     tipoRichiesta: g('sf-tipoRichiesta'), affettoDa: g('sf-affettoDa'),
     presidi, presidiAltro: g('sf-presidiAltro'),
@@ -5038,9 +5105,15 @@ async function saveService(ev){
     for(let i=0;i<dateList.length;i++){
       const dk = dateList[i];
       const anno = new Date(dk+'T00:00:00').getFullYear();
-      const numeroProgressivo = await prossimoNumeroServizio(anno);
-      const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
       if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
+      // Calcoliamo il numero libero direttamente sul bucket locale (che include
+      // già le righe appena generate in questo stesso ciclo): interrogare di
+      // nuovo il server, come fa prossimoNumeroServizio(), restituirebbe sempre
+      // lo stesso numero perché il salvataggio avviene solo alla fine del ciclo.
+      const usati = new Set(bucketCache[anno].filter(s => !s.cestinato && s.numeroProgressivo).map(s => s.numeroProgressivo));
+      let numeroProgressivo = 1;
+      while(usati.has(numeroProgressivo)) numeroProgressivo++;
+      const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
       bucketCache[anno].push(nuovoServizio);
     }
     for(const anno in bucketCache){
