@@ -4659,11 +4659,9 @@ function viewServiceModal(id){
     <div class="print-section">
     <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Rimborso spese' : 'Rimborso spesa tratta'}</h4>
     <div class="rimborso-dettaglio">
-      ${s.offertaLibera ? `<div class="rd-riga rd-totale"><span>Offerta libera</span></div>` : `
-      <div class="rd-riga"><span>${isModalitaRichiedente(s.tipoScheda) ? 'Rimborso spese' : 'Rimborso tratta'}</span><span>€ ${(parseFloat(s.rimborsoBase)||0).toFixed(2).replace('.', ',')}</span></div>
-      ${isModalitaRichiedente(s.tipoScheda) ? '' : `<div class="rd-riga"><span>Maggiorazione ossigeno</span><span>€ ${(parseFloat(s.rimborsoMaggiorazione)||0).toFixed(2).replace('.', ',')}</span></div>`}
-      <div class="rd-riga rd-totale"><span>Totale</span><span>€ ${(parseFloat(s.rimborsoSuggerito)||0).toFixed(2).replace('.', ',')}</span></div>
-      `}
+      <div class="rd-riga"><span>${isModalitaRichiedente(s.tipoScheda) ? 'Rimborso spese' : 'Rimborso tratta'}</span><span>${s.offertaLibera ? '—' : '€ ' + (parseFloat(s.rimborsoBase)||0).toFixed(2).replace('.', ',')}</span></div>
+      ${isModalitaRichiedente(s.tipoScheda) ? '' : `<div class="rd-riga"><span>Maggiorazione ossigeno</span><span>${s.offertaLibera ? '—' : '€ ' + (parseFloat(s.rimborsoMaggiorazione)||0).toFixed(2).replace('.', ',')}</span></div>`}
+      <div class="rd-riga rd-totale"><span>Totale</span><span>${s.offertaLibera ? 'Offerta libera' : '€ ' + (parseFloat(s.rimborsoSuggerito)||0).toFixed(2).replace('.', ',')}</span></div>
     </div>
     </div>
 
@@ -4852,20 +4850,20 @@ function scheduleRimborsoCalc(){
 function aggiornaVisibilitaOffertaLibera(){
   const libera = document.getElementById('sf-offertaLibera').checked;
   if(libera){
-    document.getElementById('riga-rd-tratta').style.display = 'none';
-    document.getElementById('riga-rd-ossigeno').style.display = 'none';
-    document.getElementById('label-rd-totale').textContent = '';
+    document.getElementById('rd-tratta').textContent = '—';
+    document.getElementById('rd-ossigeno').textContent = '—';
+    document.getElementById('label-rd-totale').textContent = 'Totale';
     document.getElementById('rd-totale').textContent = 'Offerta libera';
   } else {
-    document.getElementById('riga-rd-tratta').style.display = 'flex';
-    document.getElementById('label-rd-totale').textContent = 'Totale';
     toggleTipoScheda();
     computeRimborsoSuggerito();
   }
 }
 function computeRimborsoSuggerito(){
   if(document.getElementById('sf-offertaLibera').checked){
-    document.getElementById('label-rd-totale').textContent = '';
+    document.getElementById('rd-tratta').textContent = '—';
+    document.getElementById('rd-ossigeno').textContent = '—';
+    document.getElementById('label-rd-totale').textContent = 'Totale';
     document.getElementById('rd-totale').textContent = 'Offerta libera';
     return;
   }
