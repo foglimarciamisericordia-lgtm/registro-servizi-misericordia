@@ -6597,9 +6597,14 @@ async function generaCanvasScheda118(s){
   const altezzaPaginaPx = (297 - 12) * mmToPx;
   const FONT_BASE = 9.5, FONT_MINIMO = 7;
   const altezzaNaturale = scalabile.scrollHeight;
-  if(altezzaNaturale > altezzaPaginaPx){
-    const fattoreMinimo = FONT_MINIMO / FONT_BASE;
-    const fattore = Math.max(altezzaPaginaPx / altezzaNaturale, fattoreMinimo);
+  // Adattiamo sempre l'altezza a quella di una pagina intera (solo in verticale,
+  // la larghezza resta piena): se il contenuto è più corto di una pagina lo
+  // allarghiamo per riempirla, se è più lungo lo comprimiamo per farcelo stare.
+  const fattoreMinimo = FONT_MINIMO / FONT_BASE; // non comprimere oltre un carattere leggibile
+  const fattoreMassimo = 1.6; // non allargare troppo una scheda molto breve
+  let fattore = altezzaPaginaPx / altezzaNaturale;
+  fattore = Math.max(fattoreMinimo, Math.min(fattoreMassimo, fattore));
+  if(Math.abs(fattore - 1) > 0.02){
     scalabile.style.transformOrigin = 'top left';
     scalabile.style.transform = `scaleY(${fattore})`;
     contenitoreScalato.style.height = (altezzaNaturale * fattore) + 'px';
