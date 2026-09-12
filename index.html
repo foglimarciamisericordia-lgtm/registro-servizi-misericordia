@@ -1830,10 +1830,74 @@ document.addEventListener('click', segnalaAttivita);
 document.addEventListener('keydown', segnalaAttivita);
 document.addEventListener('input', segnalaAttivita);
 
+function raccogliBackupLocaleForm(formEl){
+  const dati = {};
+  formEl.querySelectorAll('input, select, textarea').forEach(el=>{
+    if(!el.id) return;
+    if(el.type === 'checkbox' || el.type === 'radio') dati[el.id] = el.checked;
+    else dati[el.id] = el.value;
+  });
+  return dati;
+}
+function ripristinaBackupLocaleForm(formEl, dati){
+  Object.keys(dati).forEach(id=>{
+    const el = formEl.querySelector('#'+CSS.escape(id));
+    if(!el) return;
+    if(el.type === 'checkbox' || el.type === 'radio') el.checked = dati[id];
+    else el.value = dati[id];
+    el.dispatchEvent(new Event('change'));
+  });
+}
+let backupLocaleInterval = null;
+function avviaBackupLocaleAutomatico(chiave, formEl){
+  fermaBackupLocaleAutomatico();
+  backupLocaleInterval = setInterval(()=>{
+    try {
+      const dati = raccogliBackupLocaleForm(formEl);
+      localStorage.setItem(chiave, JSON.stringify({ dati, quando: Date.now() }));
+    } catch(e){ /* localStorage pieno o non disponibile: ignoriamo, non è critico */ }
+  }, 8000);
+}
+function fermaBackupLocaleAutomatico(){
+  if(backupLocaleInterval){ clearInterval(backupLocaleInterval); backupLocaleInterval = null; }
+}
+function pulisciBackupLocale(chiave){
+  try{ localStorage.removeItem(chiave); }catch(e){}
+}
+function controllaBackupLocale(chiave, formEl, descrizione){
+  let backup;
+  try { backup = JSON.parse(localStorage.getItem(chiave) || 'null'); } catch(e){ backup = null; }
+  if(!backup || !backup.dati) return;
+  // Scartiamo backup troppo vecchi (oltre 3 giorni): probabilmente non più utili.
+  if(Date.now() - backup.quando > 3*24*60*60*1000){ pulisciBackupLocale(chiave); return; }
+  const quando = new Date(backup.quando);
+  const testo = `È stata trovata una bozza non salvata di ${descrizione} del ${quando.toLocaleDateString('it-IT')} alle ${quando.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}. Vuoi recuperarla?`;
+  if(confirm(testo)){
+    ripristinaBackupLocaleForm(formEl, backup.dati);
+  } else {
+    pulisciBackupLocale(chiave);
+  }
+}
+async function salvaBozzaAutomaticaPerInattivita(){
+  try {
+    if(document.getElementById('service-modal-backdrop')?.classList.contains('active')){
+      const form = document.getElementById('service-form');
+      if(form && form.checkValidity()){
+        await saveService({ preventDefault(){} });
+      }
+    } else if(document.getElementById('scheda118-modal-backdrop')?.classList.contains('active')){
+      const form = document.querySelector('#scheda118-modal-backdrop form');
+      if(form && form.checkValidity()){
+        await saveScheda118({ preventDefault(){} });
+      }
+    }
+  } catch(e){ /* non blocchiamo il conto alla rovescia per un problema qui: resta comunque la copia locale */ }
+}
 function mostraAvvisoInattivita(secondiGiaTrascorsi){
   if(!currentUser) return;
   avvisoSecondiRimanenti = AVVISO_DURATA_SECONDI - (secondiGiaTrascorsi || 0);
   if(avvisoSecondiRimanenti <= 0){ disconnettiPerInattivita(); return; }
+  salvaBozzaAutomaticaPerInattivita();
   const backdrop = document.getElementById('avviso-inattivita-backdrop');
   if(backdrop) backdrop.classList.add('active');
   aggiornaTestoAvvisoInattivita();
@@ -4658,6 +4722,8 @@ function openServiceModal(id, prefillDate){
   document.getElementById('fieldset-ripetizione').style.display = ripetizioneAllowed ? 'block' : 'none';
 
   document.getElementById('service-modal-backdrop').classList.add('active');
+  if(!sv) controllaBackupLocale('bozza-servizio-locale', document.getElementById('service-form'), 'un servizio');
+  avviaBackupLocaleAutomatico('bozza-servizio-locale', document.getElementById('service-form'));
 }
 
 function duplicateService(id){
@@ -4953,6 +5019,7 @@ function closeServiceModal(){
   document.getElementById('service-modal-backdrop').classList.remove('active');
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);
   editingServiceId = null;
+  fermaBackupLocaleAutomatico();
 }
 function scheduleGeoPreview(){
   clearTimeout(geoTimer);
@@ -5073,6 +5140,7 @@ function calcolaModificheServizio(vecchio, nuovo){
 
 async function saveService(ev){
   ev.preventDefault();
+  pulisciBackupLocale('bozza-servizio-locale');
   try{
   const g = id => document.getElementById(id).value.trim();
   const tipoScheda = document.getElementById('sf-tipoScheda').value;
@@ -6335,6 +6403,8 @@ function openScheda118Modal(id){
   document.getElementById('e118-diagramma-ustioni').style.opacity = readOnly ? '0.6' : '1';
 
   document.getElementById('scheda118-modal-backdrop').classList.add('active');
+  if(!sch) controllaBackupLocale('bozza-scheda118-locale', document.querySelector('#scheda118-modal-backdrop form'), 'una scheda Eccedenza 118');
+  avviaBackupLocaleAutomatico('bozza-scheda118-locale', document.querySelector('#scheda118-modal-backdrop form'));
 }
 function firmaSalvataUtentePerNome(nomeCompleto){
   if(!nomeCompleto) return null;
@@ -6363,6 +6433,7 @@ function closeFirmaSchedaModal(){
 function closeScheda118Modal(){
   document.getElementById('scheda118-modal-backdrop').classList.remove('active');
   editingScheda118Id = null;
+  fermaBackupLocaleAutomatico();
 }
 
 function collectScheda118FormData(id){
@@ -6420,6 +6491,7 @@ function collectScheda118FormData(id){
 async function saveScheda118(event){
   event.preventDefault();
   if(!canGestireEccedenza()) return false;
+  pulisciBackupLocale('bozza-scheda118-locale');
   const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
   document.getElementById('e118-id').value = id;
   const existing = interventi118.find(x=>x.id===id);
@@ -6438,6 +6510,7 @@ async function saveScheda118(event){
 async function chiudiScheda118FromModal(){
   if(!canChiudereEccedenza()) return;
   if(!confirm('Confermi la chiusura definitiva della scheda? Dopo la chiusura non sarà più modificabile e verrà aperto il foglio di marcia da compilare.')) return;
+  pulisciBackupLocale('bozza-scheda118-locale');
   const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
   document.getElementById('e118-id').value = id;
   const existing = interventi118.find(x=>x.id===id);
