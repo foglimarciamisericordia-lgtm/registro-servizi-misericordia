@@ -6601,7 +6601,7 @@ async function generaCanvasScheda118(s){
     const fattoreMinimo = FONT_MINIMO / FONT_BASE;
     const fattore = Math.max(altezzaPaginaPx / altezzaNaturale, fattoreMinimo);
     scalabile.style.transformOrigin = 'top left';
-    scalabile.style.transform = `scale(${fattore})`;
+    scalabile.style.transform = `scaleY(${fattore})`;
     contenitoreScalato.style.height = (altezzaNaturale * fattore) + 'px';
     contenitoreScalato.style.overflow = 'hidden';
     await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
