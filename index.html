@@ -241,7 +241,8 @@
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   @media(max-width:680px){.grid3,.grid2{grid-template-columns:1fr;}}
-  label.checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
+  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
+  label.presidio-flag{flex:1 1 90px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}
   .btn-ghost:hover{background:var(--bg);}
@@ -1103,13 +1104,13 @@
         <div class="field"><label>Affetto da *</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
           <label>Presidi richiesti *</label>
-          <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between;margin-bottom:8px;">
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-saliscale" onchange="gestisciPresidioSelezionato(this)">Saliscale elettrico</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-telo" onchange="gestisciPresidioSelezionato(this)">Telo</label>
-            <label class="checkrow" style="margin:0;"><input type="checkbox" id="sf-presidio-nessuna" onchange="gestisciPresidioNessuna(this)">Nessuno</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-saliscale" onchange="gestisciPresidioSelezionato(this)">Saliscale elettrico</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-telo" onchange="gestisciPresidioSelezionato(this)">Telo</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-nessuna" onchange="gestisciPresidioNessuna(this)">Nessuno</label>
           </div>
           <input type="text" id="sf-presidiAltro" placeholder="Altri presidi (specificare)">
         </div>
@@ -1259,6 +1260,10 @@
         <select id="mf-tipo" onchange="onMfTipoChange()"></select>
       </div>
       <div class="field"><label>Codice mezzo</label><input type="text" id="mf-codice" placeholder="es. M03"></div>
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Marca</label><input type="text" id="mf-marca" placeholder="es. Fiat"></div>
+        <div class="field"><label>Modello</label><input type="text" id="mf-modello" placeholder="es. Ducato"></div>
+      </div>
       <div class="field"><label>Targa</label><input type="text" id="mf-targa" required style="text-transform:uppercase;"></div>
       <div class="field" id="mf-destinato118-wrap" style="display:none;">
         <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mf-destinato118"> Ambulanza destinata al 118 (Eccedenza)</label>
@@ -1356,6 +1361,7 @@
           <div class="codice-invio-buttons" id="e118-codiceInvio-buttons"></div>
           <input type="hidden" id="e118-codiceInvio">
         </div>
+        <div class="field"><label>Breve descrizione fornita da operatore</label><textarea id="e118-descrizioneOperatore" rows="2"></textarea></div>
       </div>
 
       <div class="e118-tab-pane" data-tabpane="dati-paziente">
@@ -1412,9 +1418,12 @@
         <div class="section-title" style="margin-top:20px;">Cincinnati Prehospital Stroke Scale (CPSS)</div>
         <p class="map-hint">1 parametro anormale su 3: probabilità di ictus ~72%. 3 su 3 anormali: ~85%.</p>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-          <div class="field"><label>Mimica facciale <span class="map-hint">(sorridere / mostrare i denti)</span></label><select id="e118-cinMimica"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
-          <div class="field"><label>Spostamento delle braccia <span class="map-hint">(occhi chiusi, sollevare le braccia)</span></label><select id="e118-cinMotorio"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
-          <div class="field"><label>Linguaggio <span class="map-hint">(pronunciare una frase)</span></label><select id="e118-cinLinguaggio"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
+          <div class="field"><label>Mimica facciale <span class="map-hint">(sorridere / mostrare i denti)</span></label><select id="e118-cinMimica" onchange="calcolaCincinnati118()"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
+          <div class="field"><label>Spostamento delle braccia <span class="map-hint">(occhi chiusi, sollevare le braccia)</span></label><select id="e118-cinMotorio" onchange="calcolaCincinnati118()"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
+          <div class="field"><label>Linguaggio <span class="map-hint">(pronunciare una frase)</span></label><select id="e118-cinLinguaggio" onchange="calcolaCincinnati118()"><option value="">—</option><option value="normale">Normale</option><option value="anormale">Anormale</option></select></div>
+        </div>
+        <div class="field"><label>Risultato CPSS</label>
+          <div id="e118-cincinnatiBox" class="gcs-total-box">—</div>
         </div>
         <div class="field"><label>Tempo di riempimento capillare (CRT)</label>
           <select id="e118-capillare"><option value="">—</option><option value="lt2">&lt; 2 sec.</option><option value="gt2">&gt; 2 sec.</option></select>
@@ -1521,7 +1530,7 @@
         <div class="field"><label>Altri pazienti coinvolti</label>
           <select id="e118-altriPazientiCoinvolti" onchange="onAltriPazientiToggle118()"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>
         </div>
-        <div class="field" id="e118-numeroPazienti-wrap" style="display:none;"><label>Quanti</label><input type="number" id="e118-numeroPazienti"></div>
+        <div class="field" id="e118-numeroPazienti-wrap" style="display:none;"><label>Quanti (oltre al presente paziente)</label><input type="number" id="e118-numeroPazienti"></div>
       </div>
 
       </div>
@@ -1581,6 +1590,7 @@
         <option value="">—</option>
         <option value="paziente">Paziente</option>
         <option value="rappresentante">Esercente la responsabilità genitoriale / Tutore / Amministratore di sostegno del paziente / Parente titolato</option>
+        <option value="rifiutaFirma">Il paziente si rifiuta di firmare</option>
       </select>
     </div>
 
@@ -1633,6 +1643,38 @@
           <input type="file" accept="image/*" capture="environment" id="rif-fotoRetro-input" onchange="onRifFotoChange(event,'retro')">
           <div id="rif-fotoRetro-preview" style="margin-top:8px;"></div>
         </div>
+      </div>
+    </div>
+
+    <div id="rif-rifiutaFirma-fields" style="display:none;">
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Ora chiamata alla C.O. <span class="map-hint">(per informare che il paziente si rifiuta di essere soccorso e di firmare il rifiuto)</span></label><input type="time" id="rif-oraChiamataCO"></div>
+        <div class="field"><label>Operatore della C.O.</label><input type="text" id="rif-operatoreCO"></div>
+      </div>
+      <div class="section-title">Eventuale testimone <span class="map-hint" style="font-weight:400;">(facoltativo)</span></div>
+      <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="field"><label>Nome testimone</label><input type="text" id="rif-testNome"></div>
+        <div class="field"><label>Cognome testimone</label><input type="text" id="rif-testCognome"></div>
+        <div class="field"><label>Nato a</label><input type="text" id="rif-testNatoA"></div>
+        <div class="field"><label>Il</label><input type="date" id="rif-testIl"></div>
+        <div class="field"><label>Residente a</label><input type="text" id="rif-testResidenteA"></div>
+        <div class="field"><label>In via</label><input type="text" id="rif-testInVia"></div>
+        <div class="field"><label>Tipo documento</label>
+          <select id="rif-testDocTipo"><option value="">—</option><option>Carta d'identità</option><option>Patente</option><option>Passaporto</option><option>Altro</option></select>
+        </div>
+        <div class="field"><label>N. documento</label><input type="text" id="rif-testDocNumero"></div>
+        <div class="field"><label>Rilasciato da</label><input type="text" id="rif-testDocRilasciatoDa"></div>
+        <div class="field"><label>Il</label><input type="date" id="rif-testDocIl"></div>
+        <div class="field"><label>Scadenza il</label><input type="date" id="rif-testDocScadenza"></div>
+      </div>
+      <div class="field"><label>Eventuali ulteriori annotazioni</label><textarea id="rif-annotazioniRifiutaFirma" rows="2"></textarea></div>
+      <div class="field"><label>Firma equipaggio</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggio-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggio-canvas')">Cancella firma</button>
+      </div>
+      <div class="field"><label>Firma testimone <span class="map-hint" style="font-weight:400;">(se presente)</span></label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaTestimone-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaTestimone-canvas')">Cancella firma</button>
       </div>
     </div>
 
@@ -2519,7 +2561,7 @@ async function renderElenco(){
         <button class="action-btn primary" onclick="modificaServizioAnno('${s.id}',${s.numeroAnno})">✎ Modifica</button>
         <button class="action-btn" onclick="visualizzaServizioAnno('${s.id}',${s.numeroAnno})">👁 Visualizza</button>
         <button class="action-btn" onclick="duplicaServizioAnno('${s.id}',${s.numeroAnno})">⧉ Duplica</button>
-        ${(s.chiuso && s.stato!=='rosso') ? `<button class="action-btn" onclick="generaFoglioServizioAnno('${s.id}',${s.numeroAnno})">🚐 Foglio marcia</button>` : ''}
+        ${(s.chiuso && s.stato!=='rosso' && !fogliMarcia.some(f=>f.servizioId===s.id && !f.cestinato)) ? `<button class="action-btn" onclick="generaFoglioServizioAnno('${s.id}',${s.numeroAnno})">🚐 Foglio marcia</button>` : ''}
         ${currentUser.ruolo==='amministratore' ? `<button class="action-btn danger" onclick="eliminaServizioDaElenco('${s.id}',${s.numeroAnno})">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
@@ -2785,6 +2827,7 @@ function renderMezzi(){
   const cardMezzo = (m, idx, lista) => `
     <div class="user-card">
       <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
+      ${(m.marca || m.modello) ? `<div class="un">${escapeHtml([m.marca, m.modello].filter(Boolean).join(' '))}</div>` : ''}
       <div class="un mono">${escapeHtml(m.targa)}</div>
       ${m.destinato118 ? `<span class="role-chip eccedenza">Ambulanza 118</span>` : ''}
       ${m.archiviato ? `<span class="tag-chiuso">Archiviato il ${m.dataArchiviazione||''}</span>` : ''}
@@ -2937,6 +2980,8 @@ function openMezzoModal(id){
   document.getElementById('mezzo-modal-title').textContent = m ? 'Modifica mezzo' : 'Nuovo mezzo';
   fillTipoMezzoSelect(document.getElementById('mf-tipo'), m ? m.tipo : null);
   document.getElementById('mf-codice').value = m ? (m.codice||'') : '';
+  document.getElementById('mf-marca').value = m ? (m.marca||'') : '';
+  document.getElementById('mf-modello').value = m ? (m.modello||'') : '';
   document.getElementById('mf-targa').value = m ? m.targa : '';
   document.getElementById('mf-destinato118').checked = !!(m && m.destinato118);
   onMfTipoChange();
@@ -2956,10 +3001,10 @@ async function saveMezzo(ev){
   const destinato118 = (tipo === 'Ambulanza') && document.getElementById('mf-destinato118').checked;
   if(editingMezzoId){
     const idx = mezzi.findIndex(m=>m.id===editingMezzoId);
-    mezzi[idx] = { ...mezzi[idx], tipo, codice: document.getElementById('mf-codice').value.trim(), targa, destinato118 };
+    mezzi[idx] = { ...mezzi[idx], tipo, codice: document.getElementById('mf-codice').value.trim(), marca: document.getElementById('mf-marca').value.trim(), modello: document.getElementById('mf-modello').value.trim(), targa, destinato118 };
   } else {
     const ordineMax = mezzi.reduce((max,m)=> Math.max(max, m.ordine ?? 0), -1);
-    mezzi.push({ id: 'm-' + Date.now(), tipo, codice: document.getElementById('mf-codice').value.trim(), targa, archiviato: false, ordine: ordineMax + 1, destinato118 });
+    mezzi.push({ id: 'm-' + Date.now(), tipo, codice: document.getElementById('mf-codice').value.trim(), marca: document.getElementById('mf-marca').value.trim(), modello: document.getElementById('mf-modello').value.trim(), targa, archiviato: false, ordine: ordineMax + 1, destinato118 });
   }
   await saveMezzi();
   renderMezzi();
@@ -3742,6 +3787,22 @@ async function rinumeraFogliPerRegistrazione(mezzoId, anno){
     await kvSet('fogli-' + anno, lista);
   }
 }
+async function registraFoglioInCronologiaServizio(servizioId, servizioAnno){
+  if(!servizioId) return;
+  try {
+    const anno = servizioAnno || annoCorrenteServizi;
+    const lista = (anno === annoCorrenteServizi) ? servizi : await fetchServiziAnno(anno);
+    const s = lista.find(x=>x.id===servizioId);
+    if(!s) return;
+    s.cronologia = s.cronologia || [];
+    s.cronologia.push({ tipo:'Foglio di marcia compilato', chi: currentUser.nome + ' ' + currentUser.cognome, quando: new Date().toISOString() });
+    if(anno === annoCorrenteServizi){
+      await kvSet('servizi-' + anno, servizi);
+    } else {
+      await kvSet('servizi-' + anno, lista);
+    }
+  } catch(e){ /* non blocchiamo il salvataggio del foglio per un problema qui */ }
+}
 async function saveFoglio(ev){
   ev.preventDefault();
   const mezzoId = document.getElementById('fm-mezzoId').value;
@@ -3794,6 +3855,10 @@ async function saveFoglio(ev){
     fogliMarcia[idx] = data;
     await saveFogliMarciaData();
 
+    if(data.servizioId && data.servizioId !== existing.servizioId){
+      await registraFoglioInCronologiaServizio(data.servizioId, data.servizioAnno);
+    }
+
     if(registratoIlModificato){
       const annoRiga = data.dataPartenza ? new Date(data.dataPartenza+'T00:00:00').getFullYear() : annoCorrenteFogli;
       await rinumeraFogliPerRegistrazione(mezzoId, annoRiga);
@@ -3816,6 +3881,9 @@ async function saveFoglio(ev){
       await aggiornaIndiceFogli(annoRiga);
     }
     await aggiornaUltimoKm(mezzoId, data.kmFinali);
+    if(data.servizioId){
+      await registraFoglioInCronologiaServizio(data.servizioId, data.servizioAnno);
+    }
     if(registratoIlManuale){
       await rinumeraFogliPerRegistrazione(mezzoId, annoRiga);
     }
@@ -4777,7 +4845,17 @@ function toggleRelazioneRichiedente(){
 }
 
 function toggleChiusoStato(){
-  currentChiusoState = !currentChiusoState;
+  const stoAssegnando = !currentChiusoState;
+  if(stoAssegnando && canCloseService()){
+    const mezzoOk = document.getElementById('sf-mezzo').value;
+    const autistaOk = document.getElementById('sf-autista').value;
+    const autorizzatoOk = document.getElementById('sf-autorizzatoDa').value;
+    if(!mezzoOk || !autistaOk || !autorizzatoOk){
+      alert('Per assegnare il servizio devono essere compilati: Mezzo assegnato, almeno un Autista e Autorizzato da (visto del responsabile).');
+      return;
+    }
+  }
+  currentChiusoState = stoAssegnando;
   updateAperturaUI();
   if(currentChiusoState && canCloseService()){
     // Per responsabile/amministratore, "Assegna il servizio" salva e chiude
@@ -5208,7 +5286,7 @@ const LUOGO_118 = [['S','Strada (S)'],['K','Casa (K)'],['P','Esercizi pubblici (
 const PATOLOGIA_118 = [['C1','Trauma (C1)'],['C2','Cardiocircolatoria (C2)'],['C3','Respiratoria (C3)'],['C4','Neurologica (C4)'],['C5','Psichiatrica (C5)'],['C6','Neoplastica (C6)'],['C7','Intossicazione (C7)'],['C8','Metabolica (C8)'],['C9','Gastroenterologica (C9)'],['C10','Urologica (C10)'],['C11','Oculistica (C11)'],['C12','Otorinolaringoiatrica (C12)'],['C13','Dermatologica (C13)'],['C14','Ostetrico-Ginecologica (C14)'],['C15','Infettiva (C15)'],['C19','Altro (C19)'],['C20','Patologia non identificata (C20)']];
 const CODICE_INVIO_118 = [['rosso','R','#D64545','#fff'],['giallo','G','#F2C744','#000'],['verde','V','#3FA34D','#fff'],['bianco','B','#FFFFFF','#000']];
 const CODICE_SCENA_118 = [['rosso','R3','#D64545','#fff'],['giallo','G2','#F2C744','#000'],['verde','V1','#3FA34D','#fff'],['bianco','B0','#FFFFFF','#000'],['nero','N4','#1a1a1a','#fff']];
-const CUTE_118 = [['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
+const CUTE_118 = [['normale','Normale'],['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
 const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
 const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['rcp','RCP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
 const VALUTAZIONE_TRAUMA_118 = [
@@ -5414,6 +5492,21 @@ function aggiornaScalaGCS118(){
   populateSimpleSelect('e118-gcsVerbale', ped ? GCS_VERBALE_PED_118 : GCS_VERBALE_118, curVerbale);
   populateSimpleSelect('e118-gcsMotoria', ped ? GCS_MOTORIA_PED_118 : GCS_MOTORIA_118, curMotoria);
   calcolaGCS118();
+}
+function risultatoCincinnati118(mimica, motorio, linguaggio){
+  const valori = [mimica, motorio, linguaggio];
+  if(valori.some(v=>!v)) return { liv:'', label:'—' };
+  const anormali = valori.filter(v=>v==='anormale').length;
+  if(anormali === 0) return { liv:'lieve', label:'0/3 anormali — nessun segno di allarme' };
+  if(anormali === 3) return { liv:'severa', label:'3/3 anormali — probabilità di ictus ~85%' };
+  return { liv:'moderata', label: anormali + '/3 anormali — probabilità di ictus ~72%' };
+}
+function calcolaCincinnati118(){
+  const box = document.getElementById('e118-cincinnatiBox');
+  if(!box) return;
+  const info = risultatoCincinnati118(document.getElementById('e118-cinMimica').value, document.getElementById('e118-cinMotorio').value, document.getElementById('e118-cinLinguaggio').value);
+  box.className = 'gcs-total-box' + (info.liv ? (' '+info.liv) : '');
+  box.textContent = info.label;
 }
 function calcolaGCS118(){
   const o = parseInt(document.getElementById('e118-gcsOcchi').value) || 0;
@@ -5905,6 +5998,20 @@ function apriRifiutoSoccorsoModal(){
   document.getElementById('rif-docRilasciatoDa').value = d.docRilasciatoDa || '';
   document.getElementById('rif-docIl').value = d.docIl || '';
   document.getElementById('rif-docScadenza').value = d.docScadenza || '';
+  document.getElementById('rif-oraChiamataCO').value = d.oraChiamataCO || '';
+  document.getElementById('rif-operatoreCO').value = d.operatoreCO || '';
+  document.getElementById('rif-testNome').value = d.testNome || '';
+  document.getElementById('rif-testCognome').value = d.testCognome || '';
+  document.getElementById('rif-testNatoA').value = d.testNatoA || '';
+  document.getElementById('rif-testIl').value = d.testIl || '';
+  document.getElementById('rif-testResidenteA').value = d.testResidenteA || '';
+  document.getElementById('rif-testInVia').value = d.testInVia || '';
+  document.getElementById('rif-testDocTipo').value = d.testDocTipo || '';
+  document.getElementById('rif-testDocNumero').value = d.testDocNumero || '';
+  document.getElementById('rif-testDocRilasciatoDa').value = d.testDocRilasciatoDa || '';
+  document.getElementById('rif-testDocIl').value = d.testDocIl || '';
+  document.getElementById('rif-testDocScadenza').value = d.testDocScadenza || '';
+  document.getElementById('rif-annotazioniRifiutaFirma').value = d.annotazioniRifiutaFirma || '';
   rifiutoFotoFronte = d.fotoFronte || null;
   rifiutoFotoRetro = d.fotoRetro || null;
   aggiornaAnteprimaFotoRifiuto118('rif-fotoFronte-preview', rifiutoFotoFronte);
@@ -5914,6 +6021,10 @@ function apriRifiutoSoccorsoModal(){
   setTimeout(()=>{
     initSignaturePad('rif-firma-canvas');
     if(d.firma) drawFirmaFromDataUrl('rif-firma-canvas', d.firma);
+    initSignaturePad('rif-firmaEquipaggio-canvas');
+    if(d.firmaEquipaggio) drawFirmaFromDataUrl('rif-firmaEquipaggio-canvas', d.firmaEquipaggio);
+    initSignaturePad('rif-firmaTestimone-canvas');
+    if(d.firmaTestimone) drawFirmaFromDataUrl('rif-firmaTestimone-canvas', d.firmaTestimone);
   }, 60);
 }
 function aggiornaAnteprimaFotoRifiuto118(previewId, valore){
@@ -5932,7 +6043,8 @@ function onRifFirmatarioChange(){
   const val = document.getElementById('rif-firmatario').value;
   document.getElementById('rif-rapporto-wrap').style.display = (val === 'rappresentante') ? 'block' : 'none';
   document.getElementById('rif-rappresentante-fields').style.display = (val === 'rappresentante') ? 'block' : 'none';
-  document.getElementById('rif-documento-fields').style.display = val ? 'block' : 'none';
+  document.getElementById('rif-documento-fields').style.display = (val === 'paziente' || val === 'rappresentante') ? 'block' : 'none';
+  document.getElementById('rif-rifiutaFirma-fields').style.display = (val === 'rifiutaFirma') ? 'block' : 'none';
 }
 function comprimiFotoDocumento118(file, callback){
   const reader = new FileReader();
@@ -5982,6 +6094,10 @@ function confermaRifiutoSoccorso(){
   const firmatario = document.getElementById('rif-firmatario').value;
   if(!firmatario){ alert('Seleziona chi firma il rifiuto.'); return; }
   if(firmatario === 'rappresentante' && !document.getElementById('rif-rapporto').value){ alert('Seleziona il rapporto con il paziente.'); return; }
+  if(firmatario === 'rifiutaFirma' && (!document.getElementById('rif-oraChiamataCO').value || !document.getElementById('rif-operatoreCO').value)){
+    alert('Indica ora della chiamata alla C.O. e l\'operatore che ha risposto.');
+    return;
+  }
   scheda118RifiutoDati = {
     dataOra: document.getElementById('rif-dataOra').value,
     firmatario,
@@ -5999,7 +6115,23 @@ function confermaRifiutoSoccorso(){
     docScadenza: document.getElementById('rif-docScadenza').value,
     firma: getFirmaDataUrl118('rif-firma-canvas'),
     fotoFronte: rifiutoFotoFronte,
-    fotoRetro: rifiutoFotoRetro
+    fotoRetro: rifiutoFotoRetro,
+    oraChiamataCO: document.getElementById('rif-oraChiamataCO').value,
+    operatoreCO: document.getElementById('rif-operatoreCO').value,
+    testNome: document.getElementById('rif-testNome').value,
+    testCognome: document.getElementById('rif-testCognome').value,
+    testNatoA: document.getElementById('rif-testNatoA').value,
+    testIl: document.getElementById('rif-testIl').value,
+    testResidenteA: document.getElementById('rif-testResidenteA').value,
+    testInVia: document.getElementById('rif-testInVia').value,
+    testDocTipo: document.getElementById('rif-testDocTipo').value,
+    testDocNumero: document.getElementById('rif-testDocNumero').value,
+    testDocRilasciatoDa: document.getElementById('rif-testDocRilasciatoDa').value,
+    testDocIl: document.getElementById('rif-testDocIl').value,
+    testDocScadenza: document.getElementById('rif-testDocScadenza').value,
+    annotazioniRifiutaFirma: document.getElementById('rif-annotazioniRifiutaFirma').value,
+    firmaEquipaggio: getFirmaDataUrl118('rif-firmaEquipaggio-canvas'),
+    firmaTestimone: getFirmaDataUrl118('rif-firmaTestimone-canvas')
   };
   aggiornaStatoRifiuto118();
   document.getElementById('rifiuto-soccorso-modal-backdrop').classList.remove('active');
@@ -6028,6 +6160,24 @@ function testoDichiarazioneRifiuto118(s){
     const cfPaz = (dp.codiceFiscale||'').toUpperCase();
     return `Io sottoscritto ${nomeRapp} ${cognomeRapp}, nato a ${natoARapp} il ${ilRapp}, residente a ${residenteARapp}, in via ${inViaRapp}, ${docBlocco}, nella qualità di ${rapporto}, pienamente informato dai soccorritori presenti sulle condizioni di salute manifeste di ${nomePaz} ${cognomePaz}, nato a ${natoAPaz}, il ${ilPaz}, residente a ${residenteAPaz}, in via ${inViaPaz}, ${cfPaz}, sulla necessità di ricevere cure/accertamenti e sulle possibili conseguenze negative (incluso il rischio di peggioramento o compromissione vitale) derivanti dalla mia decisione, si rifiuta il trasporto in ospedale del succitato paziente. Esonero l'equipaggio di soccorso, da qualsiasi responsabilità civile o penale per le conseguenze fisiche e patologiche che potrebbero derivare da tale rifiuto. Data ${dataStr} ora ${oraStr}.`;
   }
+}
+function testoDichiarazioneRifiutaFirma118(s){
+  const d = s.rifiutoDati || {};
+  const dp = s || {};
+  const equipaggio = [dp.autista, dp.soccorritore1, dp.soccorritore2].filter(Boolean).join(', ') || '—';
+  const nomePaz = (dp.nome||'').toUpperCase(), cognomePaz = (dp.cognome||'').toUpperCase();
+  const natoAPaz = (dp.comuneNascita||'').toUpperCase(), ilPaz = formatDataIt(dp.natoIl);
+  const residenteAPaz = (dp.comuneResidenza||'').toUpperCase(), inViaPaz = (dp.viaResidenza||'').toUpperCase();
+  const cfPaz = (dp.codiceFiscale||'').toUpperCase();
+  let testo = `I sottoscritti ${escapeHtml(equipaggio)}, attestano che il paziente ${nomePaz} ${cognomePaz}, nato a ${natoAPaz}, il ${ilPaz}, residente a ${residenteAPaz} in via ${inViaPaz}, C.F. ${cfPaz}, nonostante le ripetute informazioni fornite sui rischi sanitari, rifiuta il trasporto presso il più idoneo Pronto Soccorso. Il paziente è cosciente, orientato e in grado di intendere e di volere e rifiuta di firmare il presente modulo. Di quanto sopra si è contattata la C.O. alle ore ${escapeHtml(d.oraChiamataCO||'—')} e si è informato l'operatore ${escapeHtml(d.operatoreCO||'—')}.`;
+  if(d.testNome || d.testCognome){
+    const docTest = `Tipo Documento ${escapeHtml(d.testDocTipo||'—')}, N. documento ${escapeHtml(d.testDocNumero||'—')}, rilasciato da ${escapeHtml(d.testDocRilasciatoDa||'—')}, il ${formatDataIt(d.testDocIl)}, scadenza il ${formatDataIt(d.testDocScadenza)}`;
+    testo += ` Dei fatti è stato testimone ${escapeHtml(d.testNome||'—')} ${escapeHtml(d.testCognome||'—')}, nato a ${escapeHtml(d.testNatoA||'—')}, il ${formatDataIt(d.testIl)}, residente a ${escapeHtml(d.testResidenteA||'—')}, in via ${escapeHtml(d.testInVia||'—')}, ${docTest}.`;
+  }
+  if(d.annotazioniRifiutaFirma){
+    testo += ` Eventuali ulteriori annotazioni: ${escapeHtml(d.annotazioniRifiutaFirma)}.`;
+  }
+  return testo;
 }
 
 /* --- Elenco --- */
@@ -6108,6 +6258,7 @@ function openScheda118Modal(id){
   aggiornaAnteprimaNumeroScheda118();
   F('e118-postazione', sch ? sch.postazione : 'Licodia 1');
   F('e118-operatoreCentrale', sch?.operatoreCentrale);
+  F('e118-descrizioneOperatore', sch?.descrizioneOperatore);
   document.getElementById('e118-allertamentoPS').checked = (sch?.allertamentoPS === 'si' || sch?.allertamentoPS === true);
   F('e118-cognome', sch?.cognome);
   F('e118-nome', sch?.nome);
@@ -6140,6 +6291,7 @@ function openScheda118Modal(id){
   F('e118-capillare', sch?.capillare);
   const c = sch?.cincinnati || {};
   F('e118-cinMimica', c.mimica); F('e118-cinMotorio', c.motorio); F('e118-cinLinguaggio', c.linguaggio);
+  calcolaCincinnati118();
   const pd = sch?.pupille?.dx || {}, ps = sch?.pupille?.sx || {};
   buildPupilleViz(sch?.pupille?.valutazione);
   F('e118-pupDxFoto', pd.foto); F('e118-pupDxCilio', pd.cilio); F('e118-pupDxCong', pd.cong);
@@ -6218,7 +6370,7 @@ function collectScheda118FormData(id){
   return {
     id,
     numeroScheda: G('e118-numeroScheda'), data: G('e118-data'), postazione: G('e118-postazione'),
-    targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), allertamentoPS: document.getElementById('e118-allertamentoPS').checked,
+    targaAmbulanza: G('e118-targaAmbulanza'), operatoreCentrale: G('e118-operatoreCentrale'), descrizioneOperatore: G('e118-descrizioneOperatore'), allertamentoPS: document.getElementById('e118-allertamentoPS').checked,
     cognome: G('e118-cognome'), nome: G('e118-nome'), natoIl: G('e118-natoIl'), sesso: G('e118-sesso'), eta: G('e118-eta'), codiceFiscale: G('e118-codiceFiscale'),
     comuneIntervento: G('e118-comuneIntervento'), via: G('e118-via'), comuneNascita: G('e118-comuneNascita'), comuneResidenza: G('e118-comuneResidenza'), viaResidenza: G('e118-viaResidenza'),
     telefonoFamiliare1: G('e118-telefonoFamiliare1'), telefonoFamiliare2: G('e118-telefonoFamiliare2'),
@@ -6451,9 +6603,13 @@ function costruisciStampaScheda118(s){
   </tr></table>`;
 
   html += `<table class="print-118-table"><tr>
-    <td>CHIAMATA<br><b>${o.chiamata||'—'}</b></td><td>PARTENZA<br><b>${o.partenza||'—'}</b></td>
-    <td>ARRIVO POSTO<br><b>${o.arrivoPosto||'—'}</b></td><td>PARTENZA POSTO<br><b>${o.partenzaPosto||'—'}</b></td>
-    <td>ARRIVO PS<br><b>${o.arrivoPS||'—'}</b></td><td>LIBERI<br><b>${o.liberi||'—'}</b></td>
+    <td style="width:14%;">CHIAMATA<br><b>${o.chiamata||'—'}</b></td><td style="width:14%;">PARTENZA<br><b>${o.partenza||'—'}</b></td>
+    <td style="width:14%;">ARRIVO POSTO<br><b>${o.arrivoPosto||'—'}</b></td><td style="width:14%;">PARTENZA POSTO<br><b>${o.partenzaPosto||'—'}</b></td>
+    <td style="width:14%;">ARRIVO PS<br><b>${o.arrivoPS||'—'}</b></td><td style="width:14%;">LIBERI<br><b>${o.liberi||'—'}</b></td>
+  </tr><tr>
+    <td colspan="2"><b>Ospedalizzato PS:</b> ${escapeHtml(s.prontoSoccorsoDi||'—')}</td>
+    <td colspan="2"><b>Pz affidato a:</b> ${escapeHtml(s.pzAffidatoA||'—')}</td>
+    <td colspan="2"><b>Allertato PS:</b> ${simboloFlag118(!!s.allertamentoPS)} Sì</td>
   </tr></table>`;
 
   html += `<table class="print-118-table"><tr>
@@ -6497,19 +6653,21 @@ function costruisciStampaScheda118(s){
       : listaVal.map((v,i)=>`${romano(i+1)}: ${escapeHtml(String(getter(v)||'—'))}`).join(' &nbsp; ');
     let corpo = '';
     if(listaVal.length > 1){
-      corpo += `<tr><td colspan="4" style="font-weight:700;">${listaVal.map((v,i)=>`${romano(i+1)} — Ora: ${v.ora||'—'}${v.parametriAssenti ? ' <span style="color:#B23A24;">(PARAMETRI ASSENTI)</span>' : ''}`).join(' &nbsp;|&nbsp; ')}</td></tr>`;
+      corpo += `<tr><td colspan="5" style="font-weight:700;">${listaVal.map((v,i)=>`${romano(i+1)} — Ora: ${v.ora||'—'}${v.parametriAssenti ? ' <span style="color:#B23A24;">(PARAMETRI ASSENTI)</span>' : ''}`).join(' &nbsp;|&nbsp; ')}</td></tr>`;
     }
     corpo += `<tr>
       <td>P.A.<br><b>${valori(v=>v.pa)}</b></td>
       <td>F.C.<br><b>${valori(v=>v.fc)}</b></td>
       <td>F.R.<br><b>${valori(v=>v.fr)}</b></td>
       <td>SpO2<br><b>${valori(v=>v.spo2)}</b></td>
-    </tr><tr>
       <td>ETCO2<br><b>${valori(v=>v.etco2)}</b></td>
+    </tr><tr>
       <td>HGT<br><b>${valori(v=>v.hgt)}</b></td>
       <td>T°<br><b>${valori(v=>v.temperatura)}</b></td>
-      <td>Polso c./p.<br><b>${valori(v=>(v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—'))+'/'+(v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—')))}</b></td>
-    </tr><tr><td colspan="4">CUTE: ${listaVal.length > 1
+      <td>Polso centrale<br><b>${valori(v=>v.polsoCentrale==='si'?'Sì':(v.polsoCentrale==='no'?'No':'—'))}</b></td>
+      <td>Polso periferico<br><b>${valori(v=>v.polsoPeriferico==='si'?'Sì':(v.polsoPeriferico==='no'?'No':'—'))}</b></td>
+      <td></td>
+    </tr><tr><td colspan="5">CUTE: ${listaVal.length > 1
       ? listaVal.map((v,i)=>`${romano(i+1)}: ${CUTE_118.filter(([k])=>(v.cute||[]).includes(k)).map(([,l])=>l).join(', ')||'—'}`).join(' &nbsp;|&nbsp; ')
       : CUTE_118.map(([k,l])=>`${ck118((listaVal[0]||{}).cute,k)} ${l}`).join(' &nbsp; ')}</td></tr>`;
     html += `<table class="print-118-table">${corpo}</table>`;
@@ -6526,6 +6684,7 @@ function costruisciStampaScheda118(s){
     <td>Mimica<br>${normAnorm118(c.mimica)}</td>
     <td>Braccia<br>${normAnorm118(c.motorio)}</td>
     <td>Linguaggio<br>${normAnorm118(c.linguaggio)}</td>
+    <td>Risultato CPSS<br><b>${risultatoCincinnati118(c.mimica, c.motorio, c.linguaggio).label}</b></td>
     <td>RTS tot. (rif. Val. 1)<br><b>${escapeHtml(rts.totale||'—')}</b> (${escapeHtml(rts.gcs||'—')}/${escapeHtml(rts.fr||'—')}/${escapeHtml(rts.pas||'—')})</td>
   </tr></table>
   <table class="print-118-table"><tr>
@@ -6545,9 +6704,9 @@ function costruisciStampaScheda118(s){
   <table class="print-118-table"><tr>
     <td>Murmure dx<br><b>${s.murmureDx==='si'?'Presente':(s.murmureDx==='no'?'Assente':'—')}</b></td>
     <td>Murmure sx<br><b>${s.murmureSx==='si'?'Presente':(s.murmureSx==='no'?'Assente':'—')}</b></td>
-    <td>Dispnea<br>${yn118(s.dispnea)}</td>
-    <td></td>
-  </tr><tr><td colspan="4">${ESPANSIONE_TORACICA_118.map(([k,l])=>`${ck118(s.espansioneToracica,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
+    <td>Dispnea<br><b>${s.dispnea==='si'?'Sì':(s.dispnea==='no'?'No':'—')}</b></td>
+    <td style="width:46%;">${ESPANSIONE_TORACICA_118.map(([k,l])=>`${ck118(s.espansioneToracica,k)} ${l}`).join(' &nbsp; ')}</td>
+  </tr></table>`;
 
   html += `<div class="print-118-section-title">INTERVENTI SUL PAZIENTE</div>
   <table class="print-118-table"><tr><td>${INTERVENTI_PAZIENTE_118.map(([k,l])=>`${ck118(s.interventiPaziente,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
@@ -6573,13 +6732,6 @@ function costruisciStampaScheda118(s){
     <td style="width:33.3%;"><b>Terapia praticata:</b> ${escapeHtml(s.terapiaPraticata||'—')}</td>
   </tr></table>`;
 
-  html += `<div class="print-118-section-title">ESITO</div>
-  <table class="print-118-table"><tr>
-    <td><b>Ospedalizzato presso PS di:</b> ${escapeHtml(s.prontoSoccorsoDi||'—')}</td>
-    <td><b>Paziente affidato a:</b> ${escapeHtml(s.pzAffidatoA||'—')}</td>
-    <td><b>Allertamento → P.S.:</b> ${simboloFlag118(!!s.allertamentoPS)} Sì</td>
-  </tr></table>`;
-
   html += `<div class="print-118-section-title">ALTRE ANNOTAZIONI/ALTRE INFORMAZIONI</div>
   <table class="print-118-table"><tr><td colspan="3">${ALTRE_INFORMAZIONI_118.map(([k,l])=>`${ck118(s.altreInformazioni,k)} ${l}`).join(' &nbsp; ')}</td></tr></table>`;
 
@@ -6594,16 +6746,24 @@ function costruisciStampaScheda118(s){
 
   if(s.rifiuta && s.rifiutoDati && s.rifiutoDati.firmatario){
     const rd = s.rifiutoDati;
+    const rifiutaFirma = rd.firmatario === 'rifiutaFirma';
     html += `<div style="page-break-before:always;"></div>
     <h3>Rifiuto del trasporto sanitario</h3>
-    <p style="font-size:12px;line-height:1.6;text-align:justify;">${testoDichiarazioneRifiuto118(s)}</p>
-    <table class="print-118-table"><tr>
-      <td style="text-align:center;">FIRMA<br>${rd.firma?`<img src="${rd.firma}" style="height:24px;max-width:120px;object-fit:contain;">`:'____________________'}</td>
-    </tr></table>
-    <table class="print-118-table"><tr>
-      <td style="text-align:center;">DOCUMENTO — FRONTE<br>${rd.fotoFronte?`<img src="${rd.fotoFronte}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
-      <td style="text-align:center;">DOCUMENTO — RETRO<br>${rd.fotoRetro?`<img src="${rd.fotoRetro}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
-    </tr></table>`;
+    <p style="font-size:12px;line-height:1.6;text-align:justify;">${rifiutaFirma ? testoDichiarazioneRifiutaFirma118(s) : testoDichiarazioneRifiuto118(s)}</p>`;
+    if(rifiutaFirma){
+      html += `<table class="print-118-table"><tr>
+        <td style="text-align:center;">FIRMA EQUIPAGGIO<br>${rd.firmaEquipaggio?`<img src="${rd.firmaEquipaggio}" style="height:24px;max-width:120px;object-fit:contain;">`:'____________________'}</td>
+        <td style="text-align:center;">FIRMA TESTIMONE<br>${rd.firmaTestimone?`<img src="${rd.firmaTestimone}" style="height:24px;max-width:120px;object-fit:contain;">`:'—'}</td>
+      </tr></table>`;
+    } else {
+      html += `<table class="print-118-table"><tr>
+        <td style="text-align:center;">FIRMA<br>${rd.firma?`<img src="${rd.firma}" style="height:24px;max-width:120px;object-fit:contain;">`:'____________________'}</td>
+      </tr></table>
+      <table class="print-118-table"><tr>
+        <td style="text-align:center;">DOCUMENTO — FRONTE<br>${rd.fotoFronte?`<img src="${rd.fotoFronte}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
+        <td style="text-align:center;">DOCUMENTO — RETRO<br>${rd.fotoRetro?`<img src="${rd.fotoRetro}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
+      </tr></table>`;
+    }
   }
 
   return html;
