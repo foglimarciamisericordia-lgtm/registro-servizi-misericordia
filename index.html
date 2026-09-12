@@ -1343,6 +1343,7 @@
         <button type="button" class="e118-tab-btn" data-tab="valutazione-paziente" onclick="switchTab118('valutazione-paziente')">Valutazione Paziente</button>
         <button type="button" class="e118-tab-btn" data-tab="anamnesi-interventi" onclick="switchTab118('anamnesi-interventi')">Anamnesi/Interventi</button>
         <button type="button" class="e118-tab-btn" data-tab="provvisoria" onclick="switchTab118('provvisoria')">Chiusura intervento</button>
+        <button type="button" class="e118-tab-btn" data-tab="relazione-servizio" onclick="switchTab118('relazione-servizio')">Relazione di servizio</button>
       </div>
 
       <div class="e118-tab-pane active" data-tabpane="dati-intervento">
@@ -1535,10 +1536,19 @@
 
       </div>
 
+      <div class="e118-tab-pane" data-tabpane="relazione-servizio">
+        <div class="section-title">Relazione di servizio</div>
+        <p class="map-hint">Resoconto narrativo dell'intervento, a cura dell'equipaggio. Se compilata, forma una pagina a parte nel PDF (dopo l'eventuale pagina del rifiuto soccorso).</p>
+        <div class="field"><textarea id="e118-relazioneServizio" rows="14"></textarea></div>
+      </div>
+
       <div class="modal-actions">
-        <div id="e118-stato-label" class="map-hint"></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="e118-stato-label" class="map-hint"></div>
+          <span id="e118-conferma-salvataggio" class="map-hint" style="display:none;color:#1E6B45;font-weight:600;">✓ Bozza salvata</span>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Annulla</button>
+          <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Chiudi</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Scarica PDF</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="apriFirmaSchedaModal()">Firma scheda</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
@@ -6372,6 +6382,7 @@ function openScheda118Modal(id){
   F('e118-anamnesi', sch?.anamnesi); F('e118-terapiaInAtto', sch?.terapiaInAtto); F('e118-allergie', sch?.allergie); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
   F('e118-pzAffidatoA', sch?.pzAffidatoA);
   F('e118-annotazioni', sch?.annotazioni);
+  F('e118-relazioneServizio', sch?.relazioneServizio);
 
   scheda118RifiutoDati = sch?.rifiutoDati ? JSON.parse(JSON.stringify(sch.rifiutoDati)) : null;
   aggiornaStatoRifiuto118();
@@ -6481,13 +6492,20 @@ function collectScheda118FormData(id){
     pzAffidatoA: G('e118-pzAffidatoA'),
     rifiuta: !!scheda118RifiutoDati, rifiutoDati: scheda118RifiutoDati,
     altreInformazioni: getCheckboxGridValues('e118-altreInformazioni'), codiceRientroNote: getCheckboxGridValues('e118-codiceRientroNote'),
-    annotazioni: G('e118-annotazioni'),
+    annotazioni: G('e118-annotazioni'), relazioneServizio: G('e118-relazioneServizio'),
     firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
     firmaSoccorritore1: getFirmaDataUrl118('e118-firmaSoccorritore1-canvas'),
     firmaSoccorritore2: getFirmaDataUrl118('e118-firmaSoccorritore2-canvas')
   };
 }
 
+function mostraConfermaSalvataggio118(){
+  const el = document.getElementById('e118-conferma-salvataggio');
+  if(!el) return;
+  el.style.display = 'inline';
+  clearTimeout(mostraConfermaSalvataggio118._timer);
+  mostraConfermaSalvataggio118._timer = setTimeout(()=>{ el.style.display = 'none'; }, 3000);
+}
 async function saveScheda118(event){
   event.preventDefault();
   if(!canGestireEccedenza()) return false;
@@ -6502,8 +6520,8 @@ async function saveScheda118(event){
   data.aggiornatoIl = new Date().toISOString();
   if(existing){ Object.assign(existing, data); } else { interventi118.push(data); }
   await saveInterventi118();
-  closeScheda118Modal();
   renderElenco118();
+  mostraConfermaSalvataggio118();
   return false;
 }
 
@@ -6532,9 +6550,23 @@ async function generaCanvasScheda118(s){
   const logoImg = document.querySelector('.print-letterhead img');
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;';
+
+  // La stampa completa contiene, in coda, l'eventuale pagina del rifiuto
+  // soccorso (o della relazione del rappresentante): quella pagina resta
+  // sempre a parte, a dimensione normale, e non deve mai essere ridotta.
+  const contenutoCompleto = costruisciStampaScheda118(sPerStampa);
+  const marcatorePagina = '<div style="page-break-before:always;">';
+  const indiceMarcatore = contenutoCompleto.indexOf(marcatorePagina);
+  const principaleHtml = indiceMarcatore >= 0 ? contenutoCompleto.slice(0, indiceMarcatore) : contenutoCompleto;
+  const paginaSeparataHtml = indiceMarcatore >= 0 ? contenutoCompleto.slice(indiceMarcatore) : '';
+
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'width:190mm;background:#fff;font-size:9.5px;padding:2mm;';
-  wrapper.innerHTML = `
+  wrapper.style.cssText = 'width:190mm;background:#fff;padding:2mm;';
+
+  const contenitoreScalato = document.createElement('div');
+  const scalabile = document.createElement('div');
+  scalabile.style.cssText = 'font-size:9.5px;';
+  scalabile.innerHTML = `
     <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
       <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
       <div>
@@ -6543,11 +6575,38 @@ async function generaCanvasScheda118(s){
       </div>
     </div>
     <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
-    ${costruisciStampaScheda118(sPerStampa)}
+    ${principaleHtml}
   `;
+  contenitoreScalato.appendChild(scalabile);
+  wrapper.appendChild(contenitoreScalato);
+
+  if(paginaSeparataHtml){
+    const paginaSeparata = document.createElement('div');
+    paginaSeparata.style.cssText = 'font-size:9.5px;';
+    paginaSeparata.innerHTML = paginaSeparataHtml;
+    wrapper.appendChild(paginaSeparata);
+  }
+
   document.body.appendChild(overlay);
   document.body.appendChild(wrapper);
   await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+  // Spazio utile di una pagina A4 con 6mm di margine per lato, alla risoluzione
+  // standard di 96 dpi usata dal browser per convertire mm in pixel a schermo.
+  const mmToPx = 96 / 25.4;
+  const altezzaPaginaPx = (297 - 12) * mmToPx;
+  const FONT_BASE = 9.5, FONT_MINIMO = 7;
+  const altezzaNaturale = scalabile.scrollHeight;
+  if(altezzaNaturale > altezzaPaginaPx){
+    const fattoreMinimo = FONT_MINIMO / FONT_BASE;
+    const fattore = Math.max(altezzaPaginaPx / altezzaNaturale, fattoreMinimo);
+    scalabile.style.transformOrigin = 'top left';
+    scalabile.style.transform = `scale(${fattore})`;
+    contenitoreScalato.style.height = (altezzaNaturale * fattore) + 'px';
+    contenitoreScalato.style.overflow = 'hidden';
+    await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+  }
+
   let canvas;
   try {
     canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
@@ -6837,6 +6896,12 @@ function costruisciStampaScheda118(s){
         <td style="text-align:center;">DOCUMENTO — RETRO<br>${rd.fotoRetro?`<img src="${rd.fotoRetro}" style="max-width:260px;margin-top:6px;">`:'—'}</td>
       </tr></table>`;
     }
+  }
+
+  if(s.relazioneServizio && s.relazioneServizio.trim()){
+    html += `<div style="page-break-before:always;"></div>
+    <h3>Relazione di servizio</h3>
+    <p style="font-size:12px;line-height:1.6;text-align:justify;white-space:pre-wrap;">${escapeHtml(s.relazioneServizio)}</p>`;
   }
 
   return html;
