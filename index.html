@@ -6552,20 +6552,17 @@ async function generaCanvasScheda118(s){
   overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;';
 
   // La stampa completa contiene, in coda, l'eventuale pagina del rifiuto
-  // soccorso (o della relazione del rappresentante): quella pagina resta
-  // sempre a parte, a dimensione normale, e non deve mai essere ridotta.
+  // soccorso (o della relazione del rappresentante/relazione di servizio):
+  // quella parte resta sempre a parte, a dimensione normale, e non deve
+  // mai essere ridotta o allargata.
   const contenutoCompleto = costruisciStampaScheda118(sPerStampa);
   const marcatorePagina = '<div style="page-break-before:always;">';
   const indiceMarcatore = contenutoCompleto.indexOf(marcatorePagina);
   const principaleHtml = indiceMarcatore >= 0 ? contenutoCompleto.slice(0, indiceMarcatore) : contenutoCompleto;
   const paginaSeparataHtml = indiceMarcatore >= 0 ? contenutoCompleto.slice(indiceMarcatore) : '';
 
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'width:190mm;background:#fff;padding:2mm;';
-
-  const contenitoreScalato = document.createElement('div');
   const scalabile = document.createElement('div');
-  scalabile.style.cssText = 'font-size:9.5px;';
+  scalabile.style.cssText = 'width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
   scalabile.innerHTML = `
     <div class="print-letterhead" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0 6px;">
       <img src="${logoImg?logoImg.src:''}" style="width:34px;height:34px;object-fit:contain;">
@@ -6577,49 +6574,28 @@ async function generaCanvasScheda118(s){
     <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
     ${principaleHtml}
   `;
-  contenitoreScalato.appendChild(scalabile);
-  wrapper.appendChild(contenitoreScalato);
-
-  if(paginaSeparataHtml){
-    const paginaSeparata = document.createElement('div');
-    paginaSeparata.style.cssText = 'font-size:9.5px;';
-    paginaSeparata.innerHTML = paginaSeparataHtml;
-    wrapper.appendChild(paginaSeparata);
-  }
-
   document.body.appendChild(overlay);
-  document.body.appendChild(wrapper);
+  document.body.appendChild(scalabile);
   await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
-  // Spazio utile di una pagina A4 con 6mm di margine per lato, alla risoluzione
-  // standard di 96 dpi usata dal browser per convertire mm in pixel a schermo.
-  const mmToPx = 96 / 25.4;
-  const altezzaPaginaPx = (297 - 12) * mmToPx;
-  const FONT_BASE = 9.5, FONT_MINIMO = 7;
-  const altezzaNaturale = scalabile.scrollHeight;
-  // Adattiamo sempre l'altezza a quella di una pagina intera (solo in verticale,
-  // la larghezza resta piena): se il contenuto è più corto di una pagina lo
-  // allarghiamo per riempirla, se è più lungo lo comprimiamo per farcelo stare.
-  const fattoreMinimo = FONT_MINIMO / FONT_BASE; // non comprimere oltre un carattere leggibile
-  const fattoreMassimo = 1.6; // non allargare troppo una scheda molto breve
-  let fattore = altezzaPaginaPx / altezzaNaturale;
-  fattore = Math.max(fattoreMinimo, Math.min(fattoreMassimo, fattore));
-  if(Math.abs(fattore - 1) > 0.02){
-    scalabile.style.transformOrigin = 'top left';
-    scalabile.style.transform = `scaleY(${fattore})`;
-    contenitoreScalato.style.height = (altezzaNaturale * fattore) + 'px';
-    contenitoreScalato.style.overflow = 'hidden';
-    await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
-  }
-
-  let canvas;
+  let canvasPrincipale, canvasSeparato = null;
   try {
-    canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    canvasPrincipale = await html2canvas(scalabile, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    document.body.removeChild(scalabile);
+
+    if(paginaSeparataHtml){
+      const separata = document.createElement('div');
+      separata.style.cssText = 'width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
+      separata.innerHTML = paginaSeparataHtml;
+      document.body.appendChild(separata);
+      await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+      canvasSeparato = await html2canvas(separata, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      document.body.removeChild(separata);
+    }
   } finally {
-    document.body.removeChild(wrapper);
     document.body.removeChild(overlay);
   }
-  return canvas;
+  return { principale: canvasPrincipale, separata: canvasSeparato };
 }
 function canvasSembraVuoto118(canvas){
   if(!canvas || !canvas.width || !canvas.height) return true;
@@ -6634,20 +6610,32 @@ function canvasSembraVuoto118(canvas){
   }
   return nonBianchi === 0;
 }
-async function generaPdfDaCanvas118(canvas){
+async function generaPdfDaCanvas118(canvasSet){
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const larghezzaPagina = 210 - 12, altezzaPagina = 297 - 12;
-  const larghezzaImg = larghezzaPagina;
-  const altezzaImg = (canvas.height * larghezzaImg) / canvas.width;
-  const datiImg = canvas.toDataURL('image/jpeg', 0.92);
-  let restante = altezzaImg, offsetY = 0, primaPagina = true;
-  while(restante > 0){
-    if(!primaPagina) pdf.addPage();
-    pdf.addImage(datiImg, 'JPEG', 6, 6 - offsetY, larghezzaImg, altezzaImg);
-    restante -= altezzaPagina;
-    offsetY += altezzaPagina;
-    primaPagina = false;
+
+  // Pagina principale: forziamo l'altezza a riempire esattamente una pagina
+  // (comprimendo o allargando solo in verticale, mai in larghezza) disegnando
+  // l'immagine con un'altezza diversa dalle sue proporzioni naturali — jsPDF
+  // lo fa in modo affidabile, a differenza di un CSS transform prima della
+  // cattura, che alcune versioni di html2canvas non rendono correttamente.
+  const canvasPrincipale = canvasSet.principale || canvasSet;
+  const datiImgPrincipale = canvasPrincipale.toDataURL('image/jpeg', 0.92);
+  pdf.addImage(datiImgPrincipale, 'JPEG', 6, 6, larghezzaPagina, altezzaPagina);
+
+  const canvasSeparato = canvasSet.separata;
+  if(canvasSeparato){
+    const larghezzaImg = larghezzaPagina;
+    const altezzaImg = (canvasSeparato.height * larghezzaImg) / canvasSeparato.width;
+    const datiImg = canvasSeparato.toDataURL('image/jpeg', 0.92);
+    let restante = altezzaImg, offsetY = 0;
+    while(restante > 0){
+      pdf.addPage();
+      pdf.addImage(datiImg, 'JPEG', 6, 6 - offsetY, larghezzaImg, altezzaImg);
+      restante -= altezzaPagina;
+      offsetY += altezzaPagina;
+    }
   }
   return pdf;
 }
@@ -6655,12 +6643,12 @@ async function salvaPdfSchedaSuDriveInBackground118(id){
   try {
     const s = interventi118.find(x=>x.id===id);
     if(!s) return;
-    const canvas = await generaCanvasScheda118(s);
-    if(canvasSembraVuoto118(canvas)){
+    const canvasSet = await generaCanvasScheda118(s);
+    if(canvasSembraVuoto118(canvasSet.principale)){
       console.warn('PDF scheda 118: cattura risultata vuota, salvataggio su Drive saltato per sicurezza.');
       return;
     }
-    const pdf = await generaPdfDaCanvas118(canvas);
+    const pdf = await generaPdfDaCanvas118(canvasSet);
     const pdfBlob = pdf.output('blob');
     const pdfDataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -6990,9 +6978,9 @@ async function scaricaPdfScheda118(id){
   const s = interventi118.find(x=>x.id===id);
   if(!s) return;
   try {
-    const canvas = await generaCanvasScheda118(s);
-    if(canvasSembraVuoto118(canvas)) throw new Error('cattura risultata vuota');
-    const pdf = await generaPdfDaCanvas118(canvas);
+    const canvasSet = await generaCanvasScheda118(s);
+    if(canvasSembraVuoto118(canvasSet.principale)) throw new Error('cattura risultata vuota');
+    const pdf = await generaPdfDaCanvas118(canvasSet);
     pdf.save(nomeFilePdf118(s));
   } catch(errore){
     console.warn('Download PDF diretto non riuscito, uso la stampa del browser come alternativa:', errore);
