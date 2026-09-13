@@ -6307,14 +6307,51 @@ function renderElenco118(){
   if(stato === 'aperta') righe = righe.filter(s=>!s.chiuso);
   if(stato === 'chiusa') righe = righe.filter(s=>s.chiuso);
   if(cerca) righe = righe.filter(s => ((s.cognome||'')+' '+(s.nome||'')+' '+(s.numeroScheda||'')).toLowerCase().includes(cerca));
+
+  // Capostipite del gruppo = quella con la data di creazione più antica.
+  // Calcolato dinamicamente (non solo dal flag nonPrimoDelGruppo) così
+  // funziona anche per gli interventi multi-paziente creati prima di questa
+  // funzione, che non hanno ancora quel flag salvato.
+  const eCollegata = s => {
+    if(!s.gruppoInterventoId) return false;
+    const membri = interventi118.filter(x => x.gruppoInterventoId === s.gruppoInterventoId);
+    if(membri.length < 2) return false;
+    const capostipite = membri.reduce((m,c) => (new Date(c.creatoIl||0) < new Date(m.creatoIl||0)) ? c : m);
+    return capostipite.id !== s.id;
+  };
+
+  // Le schede collegate (altri pazienti dello stesso intervento) vengono
+  // spostate subito sotto la prima scheda del gruppo, in ordine di
+  // creazione, così restano visivamente raggruppate invece di mischiarsi
+  // con interventi diversi che hanno la stessa data.
+  const inserite = new Set();
+  const righeOrdinate = [];
+  righe.forEach(s=>{
+    if(inserite.has(s.id)) return;
+    righeOrdinate.push(s);
+    inserite.add(s.id);
+    if(s.gruppoInterventoId && !eCollegata(s)){
+      righe.filter(x => x.gruppoInterventoId === s.gruppoInterventoId && x.id !== s.id)
+        .sort((a,b) => new Date(a.creatoIl||0) - new Date(b.creatoIl||0))
+        .forEach(c => { if(!inserite.has(c.id)){ righeOrdinate.push(c); inserite.add(c.id); } });
+    }
+  });
+  righe = righeOrdinate;
+
   const container = document.getElementById('e118-container');
   if(!container) return;
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
   let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
     const nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
+    // Rientro visivo per le schede collegate (altri pazienti dello stesso
+    // intervento), così è immediato capire che appartengono allo stesso
+    // soccorso della scheda sopra.
+    const numeroScheda = eCollegata(s)
+      ? `<span style="padding-left:22px;color:#777;display:inline-block;">↳ ${escapeHtml(formattaNumeroScheda118(s))}</span>`
+      : escapeHtml(formattaNumeroScheda118(s));
     html += `<tr>
-      <td>${escapeHtml(formattaNumeroScheda118(s))}</td>
+      <td>${numeroScheda}</td>
       <td>${formatDataIt(s.data)}</td>
       <td>${escapeHtml(nomePaziente||'—')}</td>
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
