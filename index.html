@@ -1536,6 +1536,7 @@
         </div>
         <div class="field" id="e118-numeroPazienti-wrap" style="display:none;"><label>Quanti (oltre al presente paziente)</label><input type="number" id="e118-numeroPazienti" min="1"></div>
       </div>
+      <p class="map-hint" id="e118-numeroPazienti-nota" style="display:none;margin-top:-4px;">Valore impostato nella prima scheda di questo intervento: non modificabile da qui.</p>
 
       </div>
 
@@ -6311,11 +6312,7 @@ function renderElenco118(){
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
   let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
-    let nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
-    if(s.gruppoInterventoId){
-      const pazientiGruppo = interventi118.filter(x=>x.gruppoInterventoId === s.gruppoInterventoId).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl));
-      nomePaziente = pazientiGruppo.map(p=>((p.cognome||'')+' '+(p.nome||'')).trim()).filter(Boolean).join(' / ');
-    }
+    const nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
     html += `<tr>
       <td>${escapeHtml(formattaNumeroScheda118(s))}</td>
       <td>${formatDataIt(s.data)}</td>
@@ -6423,6 +6420,16 @@ function openScheda118Modal(id){
   F('e118-rcpMinuti', sch?.rcpMinuti);
   F('e118-murmureDx', sch?.murmureDx); F('e118-murmureSx', sch?.murmureSx); F('e118-dispnea', sch?.dispnea);
   F('e118-altriPazientiCoinvolti', sch?.altriPazientiCoinvolti); onAltriPazientiToggle118(); F('e118-numeroPazienti', sch?.numeroPazienti);
+  // Se questa scheda è stata generata automaticamente per un ulteriore
+  // paziente dello stesso intervento (non è la prima del gruppo), il numero
+  // di pazienti dichiarato è "blindato": si vede il valore preso dalla prima
+  // scheda ma non si può cambiarlo da qui, per non disallineare il conteggio
+  // usato per aprire le schede successive.
+  const campiPazientiBloccati = !!sch?.nonPrimoDelGruppo;
+  document.getElementById('e118-altriPazientiCoinvolti').disabled = campiPazientiBloccati;
+  document.getElementById('e118-numeroPazienti').disabled = campiPazientiBloccati;
+  const notaPazientiBloccati = document.getElementById('e118-numeroPazienti-nota');
+  if(notaPazientiBloccati) notaPazientiBloccati.style.display = campiPazientiBloccati ? 'block' : 'none';
   F('e118-anamnesi', sch?.anamnesi); F('e118-terapiaInAtto', sch?.terapiaInAtto); F('e118-allergie', sch?.allergie); F('e118-segniClinici', sch?.segniClinici); F('e118-terapiaPraticata', sch?.terapiaPraticata);
   F('e118-pzAffidatoA', sch?.pzAffidatoA);
   F('e118-annotazioni', sch?.annotazioni);
@@ -6439,8 +6446,8 @@ function openScheda118Modal(id){
 
   const isChiuso = !!sch?.chiuso;
   const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
-  document.getElementById('e118-btn-chiudi').style.display = (sch && !isChiuso && canChiudereEccedenza()) ? 'inline-block' : 'none';
-  document.getElementById('e118-btn-stampa').style.display = sch ? 'inline-block' : 'none';
+  document.getElementById('e118-btn-chiudi').style.display = (!isChiuso && canChiudereEccedenza()) ? 'inline-block' : 'none';
+  document.getElementById('e118-btn-stampa').style.display = 'inline-block';
   document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
   document.getElementById('e118-stato-label').textContent = isChiuso ? ('Scheda chiusa' + (readOnly ? ' — sola lettura' : '')) : 'Scheda aperta';
   document.querySelectorAll('#scheda118-modal-backdrop input, #scheda118-modal-backdrop select, #scheda118-modal-backdrop textarea').forEach(el=>{ el.disabled = !!readOnly; });
@@ -6637,6 +6644,7 @@ async function apriNuovoPazienteStessoIntervento(datiPrecedenti){
     luogoIntervento: datiPrecedenti.luogoIntervento,
     comuneIntervento: datiPrecedenti.comuneIntervento, via: datiPrecedenti.via,
     altriPazientiCoinvolti: datiPrecedenti.altriPazientiCoinvolti, numeroPazienti: datiPrecedenti.numeroPazienti,
+    nonPrimoDelGruppo: true,
     creatoDa: currentUser.nome+' '+currentUser.cognome,
     creatoIl: new Date().toISOString(),
     aggiornatoIl: new Date().toISOString()
