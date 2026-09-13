@@ -6653,7 +6653,7 @@ async function chiudiScheda118FromModal(){
   if(data.gruppoInterventoId && pazientiGiaRegistrati < numeroTotalePrevisti){
     closeScheda118Modal();
     alert('Scheda paziente ' + pazientiGiaRegistrati + ' di ' + numeroTotalePrevisti + ' chiusa e salvata. Si apre ora la scheda per il paziente successivo.');
-    apriNuovoPazienteStessoIntervento(data);
+    await apriNuovoPazienteStessoIntervento(data);
   } else {
     closeScheda118Modal();
     salvaPdfGruppoSuDriveInBackground118(data.gruppoInterventoId, id); // non bloccante: se fallisce, non impedisce la chiusura
