@@ -1036,7 +1036,7 @@
           </div>
           <div class="field"><label>Ulteriori dettagli destinazione (Reparto / Padiglione / Ambulatorio/ecc)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
           <div class="field"><label>Tipo di trasporto</label>
-            <select id="sf-tipoTrasporto"><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Altro</option></select>
+            <select id="sf-tipoTrasporto"><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Terapia riabilitativa</option><option>Altro</option></select>
           </div>
           <div class="grid2">
             <div class="field"><label>Mappa partenza</label><div id="geo-preview-partenza"></div></div>
@@ -1104,7 +1104,6 @@
           <div class="field"><label>Ascensore *</label><select id="sf-ascensore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field" id="piano-scale-box" style="display:none;"><label>Indicare piano e condizione scale</label><input type="text" id="sf-pianoScale"></div>
           <div class="field"><label>Presenza accompagnatore *</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
-          <div class="field"><label>Ulteriori dettagli</label><input type="text" id="sf-tipoRichiesta" placeholder="es. dializzato, visita, dimissione"></div>
         </div>
         <div class="field"><label>Affetto da *</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
@@ -1130,7 +1129,6 @@
           <div class="field"><label>1° Soccorritore</label><select id="sf-soccorritore1"></select></div>
           <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2"></select></div>
         </div>
-        <div class="field"><label>Autorizzato da (visto del responsabile)</label><select id="sf-autorizzatoDa"></select></div>
       </fieldset>
 
       <fieldset>
@@ -1182,7 +1180,7 @@
         <div id="modal-delete-slot"></div>
         <div style="display:flex;gap:10px;">
           <button type="button" class="btn btn-ghost" onclick="closeServiceModal()">Annulla</button>
-          <button type="submit" class="btn btn-primary" style="width:auto;">Salva servizio</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;" id="btn-salva-servizio">Salva servizio</button>
         </div>
       </div>
     </form>
@@ -1751,6 +1749,11 @@ let geoTimerEvento = null;
 let rimborsoTimer = null;
 let currentChiusoState = false;
 let rimborsoManuallyEdited = false;
+// Evita il doppio salvataggio dello stesso servizio quando la connessione è
+// lenta: se un salvataggio è già in corso, un secondo tentativo (click
+// ripetuto, salvataggio automatico per inattività, ecc.) viene ignorato
+// finché il primo non è terminato (con successo o errore).
+let salvataggioServizioInCorso = false;
 let fogliMarcia = [];
 let editingFoglioId = null;
 let servizioCollegatoFoglio = null;
@@ -4635,10 +4638,6 @@ function fillPersonSelects(){
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
   const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
   ['sf-autista','sf-soccorritore1','sf-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
-  const responsabiliAdmin = utenti.filter(u=>(u.ruolo==='responsabile'||u.ruolo==='responsabile118'||u.ruolo==='amministratore'));
-  const attiviRA = responsabiliAdmin.filter(u=>!u.archiviato);
-  const archiviatiRA = responsabiliAdmin.filter(u=>u.archiviato);
-  document.getElementById('sf-autorizzatoDa').innerHTML = '<option value="">-- seleziona --</option>' + attiviRA.map(opt).join('') + archiviatiRA.map(opt).join('');
 }
 function fillFoglioPersonSelects(){
   const attivi = utenti.filter(u=>!u.archiviato);
@@ -4836,7 +4835,6 @@ function viewServiceModal(id){
       ${s.scale === 'Si' ? item('Piano e condizione scale', s.pianoScale) : ''}
       ${item('Ascensore', s.ascensore)}
       ${item('Accompagnatore', s.accompagnatore)}
-      ${item('Tipo di richiesta', s.tipoRichiesta)}
       ${item('Affetto da', s.affettoDa)}
     </div>
     <div class="view-item" style="margin-top:8px;"><span class="vl">Presidi richiesti</span><span class="vv">${escapeHtml(presidiTesto)}</span></div>
@@ -4851,7 +4849,6 @@ function viewServiceModal(id){
       ${item('Autista', s.autista)}
       ${item('1° Soccorritore', s.soccorritore1)}
       ${item('2° Soccorritore', s.soccorritore2)}
-      ${item('Autorizzato da', s.autorizzatoDa)}
     </div>
     </div>
 
@@ -4932,9 +4929,8 @@ function toggleChiusoStato(){
   if(stoAssegnando && canCloseService()){
     const mezzoOk = document.getElementById('sf-mezzo').value;
     const autistaOk = document.getElementById('sf-autista').value;
-    const autorizzatoOk = document.getElementById('sf-autorizzatoDa').value;
-    if(!mezzoOk || !autistaOk || !autorizzatoOk){
-      alert('Per assegnare il servizio devono essere compilati: Mezzo assegnato, almeno un Autista e Autorizzato da (visto del responsabile).');
+    if(!mezzoOk || !autistaOk){
+      alert('Per assegnare il servizio devono essere compilati: Mezzo assegnato e almeno un Autista.');
       return;
     }
   }
@@ -4978,7 +4974,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-pianoScale', data?.pianoScale); togglePianoScale();
   set('sf-ascensore', data?.ascensore); set('sf-accompagnatore', data?.accompagnatore); set('sf-richiestoDa', data?.richiestoDa);
   toggleRelazioneRichiedente();
-  set('sf-tipoRichiesta', data?.tipoRichiesta); set('sf-affettoDa', data?.affettoDa);
+  set('sf-affettoDa', data?.affettoDa);
   document.getElementById('sf-flussoOssigeno').value = data?.flussoOssigeno || '';
   toggleFlussoOssigeno();
   document.getElementById('sf-presidio-sedia').checked = !!(data?.presidi||[]).includes('Sedia a rotelle');
@@ -4990,7 +4986,6 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-presidiAltro', data?.presidiAltro);
   set('sf-note', data?.note);
   set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2);
-  set('sf-autorizzatoDa', data?.autorizzatoDa);
   document.getElementById('sf-stato').value = data?.stato || 'giallo';
   rimborsoManuallyEdited = false;
   document.getElementById('sf-rimborsoSuggerito').value = data?.rimborsoSuggerito || '';
@@ -5138,9 +5133,9 @@ const CAMPI_LABEL_SERVIZIO = {
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
   scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
-  tipoRichiesta:'Ulteriori dettagli', affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Ulteriori informazioni utili',
+  affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Ulteriori informazioni utili',
   rimborsoSuggerito:'Rimborso spesa', stato:'Stato',
-  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore', autorizzatoDa:'Autorizzato da'
+  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore'
 };
 function calcolaModificheServizio(vecchio, nuovo){
   const cambi = [];
@@ -5157,6 +5152,11 @@ function calcolaModificheServizio(vecchio, nuovo){
 
 async function saveService(ev){
   ev.preventDefault();
+  if(salvataggioServizioInCorso) return false;
+  salvataggioServizioInCorso = true;
+  const btnSalva = document.getElementById('btn-salva-servizio');
+  const testoBtnOriginale = btnSalva ? btnSalva.textContent : '';
+  if(btnSalva){ btnSalva.disabled = true; btnSalva.textContent = 'Salvataggio in corso…'; }
   pulisciBackupLocale('bozza-servizio-locale');
   try{
   const g = id => document.getElementById(id).value.trim();
@@ -5188,7 +5188,7 @@ async function saveService(ev){
     peso: g('sf-peso'), deambula: g('sf-deambula'), posizioneTrasporto: g('sf-posizioneTrasporto'), ossigeno: g('sf-ossigeno'),
     flussoOssigeno: g('sf-flussoOssigeno'), scale: g('sf-scale'), pianoScale: g('sf-pianoScale'),
     ascensore: g('sf-ascensore'), accompagnatore: g('sf-accompagnatore'), richiestoDa: g('sf-richiestoDa'),
-    tipoRichiesta: g('sf-tipoRichiesta'), affettoDa: g('sf-affettoDa'),
+    affettoDa: g('sf-affettoDa'),
     presidi, presidiAltro: g('sf-presidiAltro'),
     note: g('sf-note'),
     rimborsoSuggerito: g('sf-rimborsoSuggerito'),
@@ -5200,10 +5200,8 @@ async function saveService(ev){
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
   if(canEditEquipaggio()){
     data.autista = g('sf-autista'); data.soccorritore1 = g('sf-soccorritore1'); data.soccorritore2 = g('sf-soccorritore2');
-    data.autorizzatoDa = g('sf-autorizzatoDa');
   } else if(existing){
     data.autista = existing.autista; data.soccorritore1 = existing.soccorritore1; data.soccorritore2 = existing.soccorritore2;
-    data.autorizzatoDa = existing.autorizzatoDa;
   }
   if(canCloseService()){
     data.chiuso = currentChiusoState;
@@ -5313,6 +5311,9 @@ async function saveService(ev){
     console.error('Errore nel salvataggio del servizio:', errore);
     alert('Si è verificato un errore durante il salvataggio: ' + errore.message + '\n\nIl servizio non è stato salvato. Riprova, e se il problema persiste segnalalo indicando questo messaggio.');
     return false;
+  } finally {
+    salvataggioServizioInCorso = false;
+    if(btnSalva){ btnSalva.disabled = false; btnSalva.textContent = testoBtnOriginale; }
   }
 }
 async function deleteService(){
