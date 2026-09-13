@@ -273,7 +273,8 @@
 
   /* ---------- SCHEDA VISUALIZZAZIONE ---------- */
   .view-sheet h4{font-size:12.5px;font-weight:700;color:var(--navy);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line-soft);}
-  .view-sheet h4:first-child{margin-top:0;}
+  .view-sheet > .print-section:first-child h4,.view-sheet > h4:first-child{margin-top:0;}
+  .view-sheet .print-section{margin-bottom:10px;}
   .view-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;}
   @media(max-width:680px){.view-grid{grid-template-columns:1fr;}}
   .view-item{font-size:13px;}
