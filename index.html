@@ -1037,7 +1037,7 @@
             <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno *</label><input type="date" id="sf-perGiorno" required></div>
-          <div class="field"><label>Orario visita *</label><input type="time" id="sf-alleOre" required></div>
+          <div class="field"><label id="label-orario-visita">Orario visita *</label><input type="time" id="sf-alleOre" required></div>
         </div>
 
         <div id="campi-trasporto-secondario">
@@ -4739,6 +4739,8 @@ function toggleTipoScheda(){
   document.getElementById('campo-tipoTrasporto').style.display = mostraTipoTrasporto ? 'block' : 'none';
   document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
+  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : 'Orario visita *';
+
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
 
@@ -4818,8 +4820,10 @@ function duplicateService(id){
   if(!src) return;
   editingServiceId = null;
   fillPersonSelects();
-  fillMezzoSelect(src.mezzoId);
-  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:''};
+  fillMezzoSelect(null);
+  // L'equipaggio e il mezzo assegnato non vengono mai duplicati: deve
+  // impostarli di nuovo il responsabile prima di assegnare il servizio.
+  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:'', mezzoId:null, autista:'', soccorritore1:'', soccorritore2:''};
   delete clone.gruppoRipetizione;
   document.getElementById('service-modal-title').textContent = 'Duplica servizio — ' + nomeVisualizzatoServizio(clone);
   fillServiceForm(null, null, clone);
