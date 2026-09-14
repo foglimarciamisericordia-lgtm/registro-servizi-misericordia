@@ -865,6 +865,7 @@
       <div class="grid2">
         <div class="field"><label>N. Scheda 118</label><input type="text" id="fm-numeroScheda118"></div>
         <div class="field"><label>Data Scheda 118</label><input type="date" id="fm-dataScheda118"></div>
+        <input type="hidden" id="fm-schedaEccedenza118Id">
       </div>
       <div class="grid3">
         <div class="field"><label>Autista *</label><select id="fm-autista" required></select></div>
@@ -1572,7 +1573,6 @@
           <button type="button" class="btn btn-ghost" onclick="closeScheda118Modal()">Chiudi</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-stampa" style="display:none;" onclick="scaricaPdfScheda118(document.getElementById('e118-id').value)">Scarica PDF</button>
           <button type="button" class="btn btn-ghost" id="e118-btn-chiudi" style="display:none;" onclick="apriFirmaSchedaModal()">Firma scheda</button>
-          <button type="button" class="btn btn-primary" style="width:auto;display:none;" id="e118-btn-valida" onclick="validaSchedaDefinitivamente118()">Valida definitivamente</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="e118-btn-salva">Salva bozza</button>
         </div>
       </div>
@@ -3476,6 +3476,7 @@ async function openFoglioModal(id){
   document.getElementById('fm-aDove').value = f?.aDove || '';
   document.getElementById('fm-numeroScheda118').value = f?.numeroScheda118 || '';
   document.getElementById('fm-dataScheda118').value = f?.dataScheda118 || '';
+  document.getElementById('fm-schedaEccedenza118Id').value = f?.schedaEccedenza118Id || '';
   document.getElementById('fm-autista').value = f?.autista || '';
   document.getElementById('fm-soccorritore1').value = f?.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = f?.soccorritore2 || '';
@@ -3966,6 +3967,7 @@ async function saveFoglio(ev){
     paziente: g('fm-paziente'), viceversa: document.getElementById('fm-viceversa').checked,
     daDove: g('fm-daDove'), aDove: g('fm-aDove'),
     numeroScheda118: g('fm-numeroScheda118'), dataScheda118: g('fm-dataScheda118'),
+    schedaEccedenza118Id: document.getElementById('fm-schedaEccedenza118Id').value || null,
     autista: g('fm-autista'), soccorritore1: g('fm-soccorritore1'), soccorritore2: g('fm-soccorritore2'),
     dataPartenza: g('fm-dataPartenza'), orarioPartenza: g('fm-orarioPartenza'),
     dataArrivo: g('fm-dataArrivo'), orarioRientro: g('fm-orarioRientro'),
@@ -5183,7 +5185,12 @@ function computeRimborsoSuggerito(){
     document.getElementById('sf-rimborsoSuggerito').value = totale > 0 ? totale.toFixed(2) : '';
   }
   const fmt = n => '€ ' + n.toFixed(2).replace('.', ',');
-  document.getElementById('rd-tratta').textContent = fmt(base);
+  // Se partenza/destinazione sono state indicate ma non corrispondono a
+  // nessuna tratta del listino, mostriamo un avviso invece di "€ 0,00":
+  // altrimenti sembrerebbe una tratta effettivamente gratuita invece di una
+  // tratta mancante dal listino.
+  const trattaNonInListino = (partenza || destinazione) && !matched;
+  document.getElementById('rd-tratta').textContent = trattaNonInListino ? 'Contattare un responsabile' : fmt(base);
   document.getElementById('rd-ossigeno').textContent = fmt(maggiorazione);
   document.getElementById('rd-totale').textContent = fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
 }
@@ -6416,7 +6423,7 @@ function renderElenco118(){
   const container = document.getElementById('e118-container');
   if(!container) return;
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
-  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Stato</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Stato scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Validazione</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
     const nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
     // Rientro visivo per le schede collegate (altri pazienti dello stesso
@@ -6425,15 +6432,30 @@ function renderElenco118(){
     const numeroScheda = eCollegata(s)
       ? `<span style="padding-left:22px;color:#777;display:inline-block;">↳ ${escapeHtml(formattaNumeroScheda118(s))}</span>`
       : escapeHtml(formattaNumeroScheda118(s));
+    // "Stato scheda": riguarda l'azione dell'equipaggio (compilare e firmare).
+    const statoScheda = s.firmata
+      ? '<span class="role-chip responsabile118">Firmata</span>'
+      : '<span class="role-chip operatore">Bozza</span>';
+    // "Validazione": riguarda l'azione del responsabile118/amministratore, e
+    // ha senso solo una volta che la scheda è stata firmata dall'equipaggio.
+    const isChiuso = !!(s.chiuso || s.validata);
+    const validazione = !s.firmata ? '' : (isChiuso
+      ? '<span class="role-chip responsabile118">' + (s.validata ? 'Validata' : 'Chiusa') + '</span>'
+      : '<span class="role-chip eccedenza">Da Validare</span>');
+    const idGruppoOSingola = s.gruppoInterventoId || s.id;
+    const foglioGiaCompilato = fogliMarcia.some(f => f.schedaEccedenza118Id === idGruppoOSingola && !f.cestinato);
     html += `<tr>
       <td>${numeroScheda}</td>
+      <td>${statoScheda}</td>
       <td>${formatDataIt(s.data)}</td>
       <td>${escapeHtml(nomePaziente||'—')}</td>
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
-      <td>${(s.chiuso || s.validata) ? '<span class="role-chip responsabile">' + (s.validata ? 'Validata' : 'Chiusa') + '</span>' : (s.firmata ? '<span class="role-chip responsabile118">Firmata</span>' : '<span class="role-chip operatore">Aperta</span>')}</td>
+      <td>${validazione}</td>
       <td><div class="row-actions">
-        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${((s.chiuso || s.validata) && currentUser.ruolo!=='amministratore')?'👁 Apri':'✏️ Modifica'}</button>
-        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima</button>
+        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && currentUser.ruolo!=='amministratore')?'👁 Visualizza':'✏️ Modifica'}</button>
+        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF</button>
+        ${(canChiudereEccedenza() && (!isChiuso || currentUser.ruolo==='amministratore')) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
+        ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
@@ -6581,7 +6603,6 @@ function openScheda118Modal(id){
   const isChiuso = !!(sch?.chiuso || sch?.validata);
   const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
   document.getElementById('e118-btn-chiudi').style.display = (canChiudereEccedenza() && (!isChiuso || currentUser.ruolo === 'amministratore')) ? 'inline-block' : 'none';
-  document.getElementById('e118-btn-valida').style.display = (canChiudereEccedenza() && (!isChiuso || currentUser.ruolo === 'amministratore')) ? 'inline-block' : 'none';
   document.getElementById('e118-btn-stampa').style.display = 'inline-block';
   document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
   document.getElementById('e118-stato-label').textContent = isChiuso
@@ -6755,34 +6776,25 @@ async function saveScheda118(event){
   return false;
 }
 
-// Validazione definitiva (responsabile118/amministratore): a differenza
-// della firma, blocca la scheda (riapribile solo da un amministratore) e
-// genera/aggiorna il PDF su Drive. Se la scheda era già stata validata in
-// precedenza (riaperta e corretta da un amministratore), il PDF viene
-// sovrascritto invece di crearne uno nuovo.
-async function validaSchedaDefinitivamente118(){
+// Validazione definitiva (responsabile118/amministratore), avviata dalla riga
+// dell'elenco: a differenza della firma, blocca la scheda (riapribile solo da
+// un amministratore) e genera/aggiorna il PDF su Drive. Se la scheda era già
+// stata validata in precedenza (riaperta e corretta da un amministratore),
+// il PDF viene sovrascritto invece di crearne uno nuovo.
+async function validaSchedaDefinitivamente118(id){
   if(!canChiudereEccedenza()) return;
+  const scheda = interventi118.find(x=>x.id===id);
+  if(!scheda) return;
   if(!confirm('Confermi la validazione definitiva di questa scheda? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato il PDF su Drive.')) return;
-  pulisciBackupLocale('bozza-scheda118-locale');
-  const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
-  document.getElementById('e118-id').value = id;
-  const existing = interventi118.find(x=>x.id===id);
-  const data = collectScheda118FormData(id);
-  data.validata = true;
-  data.validataDa = currentUser.nome+' '+currentUser.cognome;
-  data.validataIl = new Date().toISOString();
-  data.chiuso = existing?.chiuso || false;
-  data.gruppoInterventoId = existing?.gruppoInterventoId || null;
-  data.creatoDa = existing?.creatoDa || (currentUser.nome+' '+currentUser.cognome);
-  data.creatoIl = existing?.creatoIl || new Date().toISOString();
-  data.aggiornatoIl = new Date().toISOString();
-  if(existing){ Object.assign(existing, data); } else { interventi118.push(data); }
+  scheda.validata = true;
+  scheda.validataDa = currentUser.nome+' '+currentUser.cognome;
+  scheda.validataIl = new Date().toISOString();
+  scheda.aggiornatoIl = new Date().toISOString();
   await saveInterventi118();
-  closeScheda118Modal();
   renderElenco118();
-  const esito = await salvaPdfGruppoSuDriveInBackground118(data.gruppoInterventoId, id);
+  const esito = await salvaPdfGruppoSuDriveInBackground118(scheda.gruppoInterventoId, id);
   if(!esito.ok){
-    alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi riaprendo la scheda e validandola di nuovo, oppure segnala il problema.');
+    alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi validandola di nuovo, oppure segnala il problema.');
   }
 }
 async function chiudiScheda118FromModal(){
@@ -7096,6 +7108,7 @@ function generaFoglioDaScheda118(schedaId){
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
   document.getElementById('fm-numeroScheda118').value = formattaNumeroScheda118(s);
   document.getElementById('fm-dataScheda118').value = s.data || '';
+  document.getElementById('fm-schedaEccedenza118Id').value = s.gruppoInterventoId || s.id;
   if(document.getElementById('fm-aDove')) document.getElementById('fm-aDove').value = s.prontoSoccorsoDi || '';
   if(s.data){
     document.getElementById('fm-dataPartenza').value = s.data;
