@@ -361,6 +361,19 @@
     .cal-title{min-width:0;font-size:14px;}
     .seg button{padding:6px 9px;font-size:12px;}
   }
+  @keyframes spin118{ to{ transform:rotate(360deg); } }
+  .avviso-generazione-118{
+    position:fixed;bottom:20px;right:20px;z-index:999999;
+    background:#fff;border:1px solid var(--line-soft);border-radius:10px;
+    box-shadow:0 4px 16px rgba(0,0,0,.15);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;
+  }
+  .avviso-generazione-118 .spinner-118{
+    width:20px;height:20px;flex-shrink:0;border-radius:50%;
+    border:3px solid var(--line-soft);border-top-color:var(--navy);
+    animation:spin118 0.8s linear infinite;
+  }
+  .avviso-generazione-118 .testo-118{color:var(--navy);font-weight:600;font-size:13px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -6883,8 +6896,12 @@ async function generaCanvasScheda118(s){
   const sPerStampa = await preparaDatiStampa118(s);
   const logoImg = document.querySelector('.print-letterhead img');
   const logoSrc = logoImg ? logoImg.src : '';
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:999999;';
+  // Un piccolo avviso non invasivo, invece del riquadro bianco a schermo
+  // intero di prima: l'operatore vede che qualcosa sta succedendo ma può
+  // continuare a leggere/usare il resto della pagina nel frattempo.
+  const avviso = document.createElement('div');
+  avviso.className = 'avviso-generazione-118';
+  avviso.innerHTML = '<div class="spinner-118"></div><div class="testo-118">Generazione scheda in corso…</div>';
 
   // La stampa completa contiene, in coda, le eventuali pagine di rifiuto
   // soccorso e/o relazione di servizio: ciascuna di queste pagine extra viene
@@ -6900,14 +6917,18 @@ async function generaCanvasScheda118(s){
     return contenutoCompleto.slice(m.index, fine);
   });
 
+  // La scheda da catturare viene disegnata fuori dallo schermo (a sinistra,
+  // ben oltre il bordo visibile) invece che dietro un velo bianco: il
+  // browser la renderizza comunque normalmente (html2canvas la vede), ma
+  // l'operatore non la vede mai e può continuare a usare la pagina.
   const scalabile = document.createElement('div');
-  scalabile.style.cssText = 'width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
+  scalabile.style.cssText = 'position:fixed;left:-10000px;top:0;width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
   scalabile.innerHTML = `
     ${intestazionePdf118(logoSrc, false, sPerStampa)}
     <h3 style="font-size:13px;margin:0 0 4px;">Scheda intervento 118</h3>
     ${principaleHtml}
   `;
-  document.body.appendChild(overlay);
+  document.body.appendChild(avviso);
   document.body.appendChild(scalabile);
   await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
@@ -6919,7 +6940,7 @@ async function generaCanvasScheda118(s){
 
     for(const sezioneHtml of sezioniExtra){
       const paginaExtra = document.createElement('div');
-      paginaExtra.style.cssText = 'width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
+      paginaExtra.style.cssText = 'position:fixed;left:-10000px;top:0;width:190mm;background:#fff;padding:2mm;font-size:9.5px;';
       paginaExtra.innerHTML = intestazionePdf118(logoSrc, true, sPerStampa) + sezioneHtml;
       document.body.appendChild(paginaExtra);
       await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
@@ -6928,7 +6949,7 @@ async function generaCanvasScheda118(s){
       canvasExtra.push(canvasSezione);
     }
   } finally {
-    document.body.removeChild(overlay);
+    document.body.removeChild(avviso);
   }
   return { principale: canvasPrincipale, extra: canvasExtra };
 }
