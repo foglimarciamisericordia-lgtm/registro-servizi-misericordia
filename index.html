@@ -2503,6 +2503,9 @@ function canEditServizio(sv){
 function canVedereEccedenza(){ return ['eccedenza','responsabile118','amministratore'].includes(currentUser.ruolo); }
 function canGestireEccedenza(){ return canVedereEccedenza(); } // creare/inserire/modificare mentre la scheda è aperta
 function canChiudereEccedenza(){ return currentUser.ruolo === 'responsabile118' || currentUser.ruolo === 'amministratore'; }
+// La firma della scheda (non la validazione definitiva) è permessa anche
+// all'utente di tipo "eccedenza", oltre a responsabile118 e amministratore.
+function canFirmareEccedenza(){ return currentUser.ruolo === 'eccedenza' || canChiudereEccedenza(); }
 function canEditScheda118(sch){
   if(currentUser.ruolo === 'amministratore') return true;
   if(sch && sch.chiuso) return false;
@@ -6620,7 +6623,7 @@ function openScheda118Modal(id){
 
   const isChiuso = !!(sch?.chiuso || sch?.validata);
   const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
-  document.getElementById('e118-btn-chiudi').style.display = (canChiudereEccedenza() && (!isChiuso || currentUser.ruolo === 'amministratore')) ? 'inline-block' : 'none';
+  document.getElementById('e118-btn-chiudi').style.display = (canFirmareEccedenza() && (!isChiuso || currentUser.ruolo === 'amministratore')) ? 'inline-block' : 'none';
   document.getElementById('e118-btn-stampa').style.display = 'inline-block';
   document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
   document.getElementById('e118-stato-label').textContent = isChiuso
@@ -6842,7 +6845,7 @@ async function validaSchedaDefinitivamente118(id){
   }
 }
 async function chiudiScheda118FromModal(){
-  if(!canChiudereEccedenza()) return;
+  if(!canFirmareEccedenza()) return;
   if(!confirm('Confermi la firma di questa scheda? Resterà comunque modificabile in seguito.')) return;
   pulisciBackupLocale('bozza-scheda118-locale');
   const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
