@@ -1386,8 +1386,8 @@
 
       <div class="e118-tab-pane" data-tabpane="dati-paziente">
         <div class="grid2">
-          <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
           <div class="field"><label>Nome</label><input type="text" id="e118-nome"></div>
+          <div class="field"><label>Cognome</label><input type="text" id="e118-cognome"></div>
           <div class="field"><label>Nato a</label><input type="text" id="e118-comuneNascita"></div>
           <div class="field"><label>Il</label><input type="date" id="e118-natoIl" oninput="calcolaEta118()" onchange="calcolaEta118()"></div>
           <div class="field"><label>Età</label><input type="number" id="e118-eta" readonly></div>
@@ -1502,7 +1502,7 @@
 
         <div class="section-title" style="margin-top:20px;">Defibrillazione e arresto cardiaco</div>
         <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
-          <div class="field"><label>Ore</label><input type="time" id="e118-defibOre"></div>
+          <div class="field"><label>Avviata alle ore</label><input type="time" id="e118-defibOre"></div>
           <div class="field"><label>N. scariche</label><input type="number" id="e118-defibScariche"></div>
           <div class="field"><label>Joule</label><input type="text" id="e118-defibJoule"></div>
         </div>
@@ -1512,7 +1512,7 @@
 
         <div class="section-title" style="margin-top:20px;">Anamnesi, segni clinici, terapia</div>
         <div class="field"><label>Anamnesi e descrizione</label><textarea id="e118-anamnesi" rows="2"></textarea></div>
-        <div class="field"><label>Terapia in atto</label><textarea id="e118-terapiaInAtto" rows="2"></textarea></div>
+        <div class="field"><label>Terapia in atto paziente</label><textarea id="e118-terapiaInAtto" rows="2"></textarea></div>
         <div class="field"><label>Allergie riferite</label><textarea id="e118-allergie" rows="2"></textarea></div>
         <div class="field"><label>Segni clinici</label><textarea id="e118-segniClinici" rows="2"></textarea></div>
         <div class="field"><label>Terapia praticata</label><textarea id="e118-terapiaPraticata" rows="2"></textarea></div>
@@ -5748,6 +5748,13 @@ function calcolaRTS118(){
   document.getElementById('e118-rtsTotale').value = tutti.every(v=>v!==null) ? (codGcs+codFr+codPa) : '';
 }
 function onValutazionePAFRChange(){ calcolaRTS118(); }
+function onParametriAssentiChange118(vid){
+  const checked = document.getElementById('e118-val-assenti-'+vid).checked;
+  const badge = document.getElementById('e118-val-assenti-badge-'+vid);
+  if(badge) badge.style.display = checked ? 'inline' : 'none';
+  const griglia = document.getElementById('e118-val-grid-'+vid);
+  if(griglia) griglia.style.opacity = checked ? '.5' : '1';
+}
 
 function buildAvpuButtons(selected){
   const container = document.getElementById('e118-avpu-buttons');
@@ -5791,11 +5798,12 @@ function templateValutazione118(v, idx, readOnly){
         <label class="map-hint" style="margin:0;">Ora</label>
         <input type="time" id="e118-val-ora-${v.id}" value="${v.ora||''}" style="width:110px;" ${dis}>
         ${idx===0 ? `<button type="button" class="btn btn-ghost" style="width:auto;padding:2px 10px;" onclick="setOraValutazione118('${v.id}')" ${dis}>Ora</button>` : ''}
-        <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" id="e118-val-assenti-${v.id}" ${v.parametriAssenti?'checked':''} ${dis}> Parametri assenti</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" id="e118-val-assenti-${v.id}" ${v.parametriAssenti?'checked':''} ${dis} onchange="onParametriAssentiChange118('${v.id}')"> Parametri assenti</label>
+        <span id="e118-val-assenti-badge-${v.id}" style="display:${v.parametriAssenti?'inline':'none'};color:#B23A24;font-weight:700;font-size:11px;letter-spacing:.3px;">PARAMETRI ASSENTI</span>
         ${(scheda118Valutazioni.length>1 && !readOnly) ? `<button type="button" class="action-btn danger" onclick="rimuoviValutazione118('${v.id}')">🗑</button>` : ''}
       </div>
     </div>
-    <div class="grid2" style="grid-template-columns:repeat(4,1fr);">
+    <div class="grid2" id="e118-val-grid-${v.id}" style="grid-template-columns:repeat(4,1fr);${v.parametriAssenti?'opacity:.5;':''}">
       <div class="field"><label>P.A.</label><input type="text" id="e118-val-pa-${v.id}" value="${escapeHtml(v.pa||'')}" oninput="onValutazionePAFRChange()" ${dis}></div>
       <div class="field"><label>F.C.</label><input type="text" id="e118-val-fc-${v.id}" value="${escapeHtml(v.fc||'')}" ${dis}></div>
       <div class="field"><label>F.R.</label><input type="text" id="e118-val-fr-${v.id}" value="${escapeHtml(v.fr||'')}" oninput="onValutazionePAFRChange()" ${dis}></div>
@@ -5881,7 +5889,7 @@ function switchTab118(name){
       initSignaturePad('e118-firmaRelazione-canvas');
       const id = document.getElementById('e118-id').value;
       const sch = id ? interventi118.find(x=>x.id===id) : null;
-      drawFirmaFromDataUrl('e118-firmaRelazione-canvas', sch?.firmaRelazione || firmaUtenteCorrente118());
+      drawFirmaFromDataUrl('e118-firmaRelazione-canvas', sch?.firmaRelazione || firmaEquipaggioPreesistente118(sch));
     }, 60);
   }
 }
@@ -6214,9 +6222,9 @@ function apriRifiutoSoccorsoModal(){
     initSignaturePad('rif-firma-canvas');
     if(d.firma) drawFirmaFromDataUrl('rif-firma-canvas', d.firma);
     initSignaturePad('rif-firmaEquipaggioPz-canvas');
-    drawFirmaFromDataUrl('rif-firmaEquipaggioPz-canvas', d.firmaEquipaggioPz || firmaUtenteCorrente118());
+    drawFirmaFromDataUrl('rif-firmaEquipaggioPz-canvas', d.firmaEquipaggioPz || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value)));
     initSignaturePad('rif-firmaEquipaggio-canvas');
-    drawFirmaFromDataUrl('rif-firmaEquipaggio-canvas', d.firmaEquipaggio || firmaUtenteCorrente118());
+    drawFirmaFromDataUrl('rif-firmaEquipaggio-canvas', d.firmaEquipaggio || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value)));
     initSignaturePad('rif-firmaTestimone-canvas');
     if(d.firmaTestimone) drawFirmaFromDataUrl('rif-firmaTestimone-canvas', d.firmaTestimone);
   }, 60);
@@ -6475,7 +6483,7 @@ function renderElenco118(){
       <td><div class="row-actions">
         <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && currentUser.ruolo!=='amministratore')?'👁 Visualizza':'✏️ Modifica'}</button>
         <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF</button>
-        ${(canChiudereEccedenza() && (!isChiuso || currentUser.ruolo==='amministratore')) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
+        ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
         ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
@@ -6665,13 +6673,27 @@ function firmaSalvataUtentePerNome(nomeCompleto){
   return (u && u.firma118) ? u.firma118 : null;
 }
 // Firma salvata dell'operatore che ha effettuato l'accesso in questo
-// momento: usata per pre-compilare automaticamente i campi "Firma
-// equipaggio" (rifiuto soccorso, relazione di servizio) con la firma di chi
-// sta materialmente compilando la scheda.
+// momento: usata come ultima risorsa se non si trova nient'altro.
 function firmaUtenteCorrente118(){
   if(!currentUser) return null;
   const u = utenti.find(x => x.id === currentUser.id) || utenti.find(x => (x.nome+' '+x.cognome) === (currentUser.nome+' '+currentUser.cognome));
   return (u && u.firma118) ? u.firma118 : null;
+}
+// Firma "dell'equipaggio" da usare per pre-compilare i campi Firma equipaggio
+// (rifiuto soccorso, relazione di servizio): deve corrispondere alla firma
+// già presente/precaricata dell'equipaggio di questa scheda — quella
+// dell'autista, se già firmata sulla scheda stessa, altrimenti quella
+// salvata nel profilo dell'autista assegnato (la stessa che precompila il
+// modulo di firma scheda), e solo come ultima risorsa quella dell'utente
+// che ha effettuato l'accesso in questo momento.
+function firmaEquipaggioPreesistente118(sch){
+  if(sch && sch.firmaAutista) return sch.firmaAutista;
+  if(sch && sch.firmaSoccorritore1) return sch.firmaSoccorritore1;
+  if(sch && sch.firmaSoccorritore2) return sch.firmaSoccorritore2;
+  const autista = document.getElementById('e118-autista')?.value;
+  const daProfiloAutista = firmaSalvataUtentePerNome(autista);
+  if(daProfiloAutista) return daProfiloAutista;
+  return firmaUtenteCorrente118();
 }
 function apriFirmaSchedaModal(){
   const id = document.getElementById('e118-id').value;
@@ -6785,6 +6807,7 @@ async function saveScheda118(event){
   const id = document.getElementById('e118-id').value || ('e118-' + Date.now());
   document.getElementById('e118-id').value = id;
   const existing = interventi118.find(x=>x.id===id);
+  const eraGiaValidata = !!existing?.validata;
   const data = collectScheda118FormData(id);
   data.chiuso = existing?.chiuso || false;
   data.creatoDa = existing?.creatoDa || (currentUser.nome+' '+currentUser.cognome);
@@ -6794,6 +6817,17 @@ async function saveScheda118(event){
   await saveInterventi118();
   renderElenco118();
   mostraConfermaSalvataggio118();
+  // Il pulsante "Valida" non compare più su una scheda già validata: se è
+  // stato un amministratore a correggerla e salvarla, aggiorniamo comunque il
+  // PDF su Drive (stesso file, sovrascritto), senza richiedere un passaggio
+  // separato.
+  if(eraGiaValidata && currentUser.ruolo === 'amministratore'){
+    const schedaSalvata = interventi118.find(x=>x.id===id);
+    const esito = await salvaPdfGruppoSuDriveInBackground118(schedaSalvata.gruppoInterventoId, id);
+    if(!esito.ok){
+      alert('La scheda è stata salvata, ma l\'aggiornamento del PDF su Drive non è riuscito (' + esito.errore + ').');
+    }
+  }
   return false;
 }
 
@@ -7012,9 +7046,14 @@ function aggiungiCanvasSetAPdf118(pdf, canvasSet, isPrimaPagina){
   // l'immagine con un'altezza diversa dalle sue proporzioni naturali — jsPDF
   // lo fa in modo affidabile, a differenza di un CSS transform prima della
   // cattura, che alcune versioni di html2canvas non rendono correttamente.
+  // JPEG ad alta qualità invece di PNG: a parità di nitidezza (la risoluzione
+  // di cattura è già tripla, vedi generaCanvasScheda118) pesa una frazione,
+  // il che conta soprattutto per le pagine extra che contengono foto vere
+  // (rifiuto soccorso): PNG su una fotografia reale può pesare 5-10 volte di
+  // più di un JPEG praticamente indistinguibile a occhio.
   const canvasPrincipale = canvasSet.principale || canvasSet;
-  const datiImgPrincipale = canvasPrincipale.toDataURL('image/png');
-  pdf.addImage(datiImgPrincipale, 'PNG', 6, 6, larghezzaPagina, altezzaPagina, undefined, 'FAST');
+  const datiImgPrincipale = canvasPrincipale.toDataURL('image/jpeg', 0.95);
+  pdf.addImage(datiImgPrincipale, 'JPEG', 6, 6, larghezzaPagina, altezzaPagina, undefined, 'FAST');
 
   // Pagine extra (rifiuto soccorso, relazione di servizio): ciascuna ha già la
   // propria intestazione incorporata nella cattura, quindi parte sempre su una
@@ -7024,11 +7063,11 @@ function aggiungiCanvasSetAPdf118(pdf, canvasSet, isPrimaPagina){
   for(const canvasSezione of canvasExtra){
     const larghezzaImg = larghezzaPagina;
     const altezzaImg = (canvasSezione.height * larghezzaImg) / canvasSezione.width;
-    const datiImg = canvasSezione.toDataURL('image/png');
+    const datiImg = canvasSezione.toDataURL('image/jpeg', 0.95);
     let restante = altezzaImg, offsetY = 0;
     while(restante > 0){
       pdf.addPage();
-      pdf.addImage(datiImg, 'PNG', 6, 6 - offsetY, larghezzaImg, altezzaImg, undefined, 'FAST');
+      pdf.addImage(datiImg, 'JPEG', 6, 6 - offsetY, larghezzaImg, altezzaImg, undefined, 'FAST');
       restante -= altezzaPagina;
       offsetY += altezzaPagina;
     }
