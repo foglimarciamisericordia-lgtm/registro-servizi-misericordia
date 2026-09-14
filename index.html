@@ -6366,8 +6366,8 @@ function renderElenco118(){
   const stato = document.getElementById('e118f-stato')?.value || '';
   const cerca = (document.getElementById('e118f-cerca')?.value || '').toLowerCase();
   let righe = interventi118.slice().sort((a,b) => (b.data||'').localeCompare(a.data||''));
-  if(stato === 'aperta') righe = righe.filter(s=>!s.chiuso);
-  if(stato === 'chiusa') righe = righe.filter(s=>s.chiuso);
+  if(stato === 'aperta') righe = righe.filter(s=>!(s.chiuso || s.validata));
+  if(stato === 'chiusa') righe = righe.filter(s=>s.chiuso || s.validata);
   if(cerca) righe = righe.filter(s => ((s.cognome||'')+' '+(s.nome||'')+' '+(s.numeroScheda||'')).toLowerCase().includes(cerca));
 
   // Capostipite del gruppo = quella con la data di creazione più antica.
@@ -6417,9 +6417,9 @@ function renderElenco118(){
       <td>${formatDataIt(s.data)}</td>
       <td>${escapeHtml(nomePaziente||'—')}</td>
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
-      <td>${s.chiuso ? '<span class="role-chip responsabile">Chiusa</span>' : '<span class="role-chip operatore">Aperta</span>'}</td>
+      <td>${(s.chiuso || s.validata) ? '<span class="role-chip responsabile">' + (s.validata ? 'Validata' : 'Chiusa') + '</span>' : (s.firmata ? '<span class="role-chip responsabile118">Firmata</span>' : '<span class="role-chip operatore">Aperta</span>')}</td>
       <td><div class="row-actions">
-        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(s.chiuso && currentUser.ruolo!=='amministratore')?'👁 Apri':'✏️ Modifica'}</button>
+        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${((s.chiuso || s.validata) && currentUser.ruolo!=='amministratore')?'👁 Apri':'✏️ Modifica'}</button>
         <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima</button>
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
@@ -6767,7 +6767,10 @@ async function validaSchedaDefinitivamente118(){
   await saveInterventi118();
   closeScheda118Modal();
   renderElenco118();
-  await salvaPdfGruppoSuDriveInBackground118(data.gruppoInterventoId, id);
+  const esito = await salvaPdfGruppoSuDriveInBackground118(data.gruppoInterventoId, id);
+  if(!esito.ok){
+    alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi riaprendo la scheda e validandola di nuovo, oppure segnala il problema.');
+  }
 }
 async function chiudiScheda118FromModal(){
   if(!canChiudereEccedenza()) return;
@@ -7018,7 +7021,7 @@ async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
     const pazienti = gruppoId
       ? interventi118.filter(x=>x.gruppoInterventoId===gruppoId).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl))
       : [interventi118.find(x=>x.id===idRiferimento)].filter(Boolean);
-    if(pazienti.length === 0) return;
+    if(pazienti.length === 0) return { ok: false, errore: 'scheda non trovata' };
     const canvasSets = [];
     for(const p of pazienti){
       const set = await generaCanvasScheda118(p);
@@ -7026,7 +7029,7 @@ async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
     }
     if(canvasSets.length === 0){
       console.warn('PDF scheda 118: cattura risultata vuota per tutti i pazienti, salvataggio su Drive saltato per sicurezza.');
-      return;
+      return { ok: false, errore: 'la cattura della scheda è risultata vuota' };
     }
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -7047,8 +7050,10 @@ async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
     const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile, 'schede', fileIdEsistente);
     pazienti.forEach(p => { p.pdfDriveFileId = fileId; });
     await saveInterventi118();
+    return { ok: true };
   } catch(errore){
     console.warn('Salvataggio automatico PDF su Drive non riuscito:', errore);
+    return { ok: false, errore: errore.message || String(errore) };
   }
 }
 
