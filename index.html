@@ -1147,7 +1147,7 @@
 
       <fieldset>
         <legend>Rimborso spesa</legend>
-        <div class="field"><label id="label-rimborso-tratta">Rimborso spesa tratta (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true; document.getElementById('rd-totale').textContent = '€ ' + (parseFloat(this.value)||0).toFixed(2).replace('.', ',');"></div>
+        <div class="field"><label id="label-rimborso-tratta">Rimborso spesa tratta (suggerito, modificabile) €</label><input type="number" step="0.01" id="sf-rimborsoSuggerito" oninput="rimborsoManuallyEdited=true; aggiornaRimborsoDaCampoManuale()"></div>
         <label style="display:flex;align-items:center;gap:8px;margin:-8px 0 12px;">
           <input type="checkbox" id="sf-offertaLibera" onchange="aggiornaVisibilitaOffertaLibera()"> Offerta libera
         </label>
@@ -5186,13 +5186,23 @@ function computeRimborsoSuggerito(){
   }
   const fmt = n => '€ ' + n.toFixed(2).replace('.', ',');
   // Se partenza/destinazione sono state indicate ma non corrispondono a
-  // nessuna tratta del listino, mostriamo un avviso invece di "€ 0,00":
-  // altrimenti sembrerebbe una tratta effettivamente gratuita invece di una
-  // tratta mancante dal listino.
+  // nessuna tratta del listino, mostriamo un avviso invece di "€ 0,00" (sia
+  // sulla riga tratta sia sul totale): altrimenti sembrerebbe una tratta
+  // effettivamente gratuita invece di una tratta mancante dal listino.
   const trattaNonInListino = (partenza || destinazione) && !matched;
   document.getElementById('rd-tratta').textContent = trattaNonInListino ? 'Contattare un responsabile' : fmt(base);
   document.getElementById('rd-ossigeno').textContent = fmt(maggiorazione);
-  document.getElementById('rd-totale').textContent = fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
+  document.getElementById('rd-totale').textContent = trattaNonInListino ? 'Contattare un responsabile' : fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
+}
+// Quando l'operatore digita a mano un importo nel campo "Rimborso spesa
+// tratta" (es. dopo aver sentito un responsabile per una tratta non in
+// listino), sostituiamo l'eventuale scritta "Contattare un responsabile"
+// nelle righe di riepilogo con l'importo appena inserito.
+function aggiornaRimborsoDaCampoManuale(){
+  const valore = parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || 0;
+  const testo = '€ ' + valore.toFixed(2).replace('.', ',');
+  document.getElementById('rd-tratta').textContent = testo;
+  document.getElementById('rd-totale').textContent = testo;
 }
 
 const CAMPI_LABEL_SERVIZIO = {
@@ -5263,8 +5273,11 @@ async function saveService(ev){
     note: g('sf-note'),
     rimborsoSuggerito: g('sf-rimborsoSuggerito'),
     offertaLibera: document.getElementById('sf-offertaLibera').checked,
-    rimborsoBase: (document.getElementById('rd-tratta').textContent||'').replace('€','').replace(',','.').trim(),
-    rimborsoMaggiorazione: (document.getElementById('rd-ossigeno').textContent||'').replace('€','').replace(',','.').trim(),
+    // Se è rimasto scritto "Contattare un responsabile" (tratta non in
+    // listino, mai sistemata a mano prima di salvare), salviamo 0 invece di
+    // un testo non numerico nel campo.
+    rimborsoBase: (document.getElementById('rd-tratta').textContent||'').includes('€') ? document.getElementById('rd-tratta').textContent.replace('€','').replace(',','.').trim() : '0',
+    rimborsoMaggiorazione: (document.getElementById('rd-ossigeno').textContent||'').includes('€') ? document.getElementById('rd-ossigeno').textContent.replace('€','').replace(',','.').trim() : '0',
     stato: document.getElementById('sf-stato').value,
   };
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
