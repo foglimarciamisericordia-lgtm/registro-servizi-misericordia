@@ -1750,6 +1750,11 @@ let geoTimerEvento = null;
 let rimborsoTimer = null;
 let currentChiusoState = false;
 let rimborsoManuallyEdited = false;
+// Vedi ricaricaDatiCorrenti(): true durante il breve intervallo in cui la
+// scheda 118 del paziente appena chiuso è già chiusa ma quella del paziente
+// successivo non è ancora aperta, per evitare che un aggiornamento
+// automatico dei dati sovrascriva in memoria la nuova scheda appena creata.
+let transizionePaziente118InCorso = false;
 // Evita il doppio salvataggio dello stesso servizio quando la connessione è
 // lenta: se un salvataggio è già in corso, un secondo tentativo (click
 // ripetuto, salvataggio automatico per inattività, ecc.) viene ignorato
@@ -2350,7 +2355,12 @@ async function ricaricaDatiCorrenti(){
   if(!currentUser) return;
   // Non tocchiamo nulla se c'è un modale aperto: l'utente potrebbe avere
   // dati non ancora salvati in una scheda che sta compilando in quel momento.
+  // In più, durante il passaggio automatico da una scheda Eccedenza 118 alla
+  // successiva (stesso intervento, più pazienti) c'è una breve finestra in
+  // cui nessun modale risulta "attivo" pur essendo un'operazione critica in
+  // corso: transizionePaziente118InCorso copre proprio quella finestra.
   if(document.querySelector('.modal-backdrop.active')) return;
+  if(transizionePaziente118InCorso) return;
   const viewAttiva = document.querySelector('.view.active')?.id;
   try {
     if(viewAttiva === 'view-elenco' || viewAttiva === 'view-dashboard' || viewAttiva === 'view-cestino' || viewAttiva === 'view-statistiche'){
@@ -6653,9 +6663,14 @@ async function chiudiScheda118FromModal(){
     : 1;
 
   if(data.gruppoInterventoId && pazientiGiaRegistrati < numeroTotalePrevisti){
-    closeScheda118Modal();
-    alert('Scheda paziente ' + pazientiGiaRegistrati + ' di ' + numeroTotalePrevisti + ' chiusa e salvata. Si apre ora la scheda per il paziente successivo.');
-    await apriNuovoPazienteStessoIntervento(data);
+    transizionePaziente118InCorso = true;
+    try {
+      closeScheda118Modal();
+      alert('Scheda paziente ' + pazientiGiaRegistrati + ' di ' + numeroTotalePrevisti + ' chiusa e salvata. Si apre ora la scheda per il paziente successivo.');
+      await apriNuovoPazienteStessoIntervento(data);
+    } finally {
+      transizionePaziente118InCorso = false;
+    }
   } else {
     closeScheda118Modal();
     salvaPdfGruppoSuDriveInBackground118(data.gruppoInterventoId, id); // non bloccante: se fallisce, non impedisce la chiusura
