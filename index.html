@@ -1007,7 +1007,7 @@
       <fieldset>
         <legend>Tipo servizio</legend>
         <div class="field">
-          <label>Seleziona il tipo di scheda</label>
+          <label>Seleziona il tipo di servizio</label>
           <select id="sf-tipoScheda" onchange="toggleTipoScheda()">
             <option value="secondario">Servizi secondari/disabili</option>
             <option value="evento">Eventi/manifestazioni</option>
@@ -1049,13 +1049,15 @@
             <div class="field"><label>A (destinazione) *</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
           </div>
           <div class="field"><label>Ulteriori dettagli destinazione (Reparto / Padiglione / Ambulatorio/ecc)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
-          <div class="field"><label>Tipo di trasporto</label>
-            <select id="sf-tipoTrasporto"><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Terapia riabilitativa</option><option>Altro</option></select>
-          </div>
           <div class="grid2">
             <div class="field"><label>Mappa partenza</label><div id="geo-preview-partenza"></div></div>
             <div class="field"><label>Mappa destinazione</label><div id="geo-preview-destinazione"></div></div>
           </div>
+        </div>
+
+        <div class="field" id="campo-tipoTrasporto">
+          <label>Tipo di trasporto *</label>
+          <select id="sf-tipoTrasporto" required><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Terapia riabilitativa</option><option>Trasporto sangue</option><option>Altro</option></select>
         </div>
 
         <div id="campi-trasporto-evento" style="display:none;">
@@ -4730,6 +4732,12 @@ function toggleTipoScheda(){
   document.getElementById('campi-trasporto-secondario').style.display = modalitaRichiedente ? 'none' : 'block';
   document.getElementById('campi-trasporto-evento').style.display = modalitaRichiedente ? 'block' : 'none';
   document.getElementById('legend-trasporto').textContent = modalitaRichiedente ? 'Dettagli manifestazione/evento' : 'Trasporto';
+
+  // "Tipo di trasporto" vale sia per i servizi secondari sia per quelli in
+  // convenzione, non per gli eventi/manifestazioni.
+  const mostraTipoTrasporto = (tipo === 'secondario' || tipo === 'convenzione');
+  document.getElementById('campo-tipoTrasporto').style.display = mostraTipoTrasporto ? 'block' : 'none';
+  document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
