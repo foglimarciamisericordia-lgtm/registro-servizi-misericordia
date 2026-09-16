@@ -417,14 +417,14 @@
         <label style="font-size:10.5px;color:#9FB1C6;display:block;margin-bottom:4px;">Anno riferimento</label>
         <select id="anno-servizi-select" onchange="cambiaAnnoServizi(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;"></select>
       </div>
-      <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">📅 Dashboard</div>
-      <div class="nav-item" data-view="elenco" onclick="switchView('elenco')">📋 Elenco servizi</div>
+      <div class="nav-item active" id="nav-dashboard" data-view="dashboard" onclick="switchView('dashboard')" style="display:none;">📅 Dashboard</div>
+      <div class="nav-item" id="nav-elenco" data-view="elenco" onclick="switchView('elenco')" style="display:none;">📋 Elenco servizi</div>
       <div class="nav-item" id="nav-utenti" data-view="utenti" onclick="switchView('utenti')" style="display:none;">👤 Gestione utenti</div>
       <div class="nav-item" id="nav-mezzi" data-view="mezzi" onclick="switchView('mezzi')" style="display:none;">🚑 Mezzi</div>
       <div class="nav-item" id="nav-gestionepresidi" data-view="gestionepresidi" onclick="switchView('gestionepresidi')" style="display:none;">📦 Gestione presidi</div>
       <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
-      <div class="nav-item" data-view="fogli" onclick="switchView('fogli')">🚐 Fogli di marcia</div>
-      <div class="nav-item" data-view="presidi" onclick="switchView('presidi')">🦽 Prestito presidi</div>
+      <div class="nav-item" id="nav-fogli" data-view="fogli" onclick="switchView('fogli')" style="display:none;">🚐 Fogli di marcia</div>
+      <div class="nav-item" id="nav-presidi" data-view="presidi" onclick="switchView('presidi')" style="display:none;">🦽 Prestito presidi</div>
       <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenza 118</div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
       <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
@@ -2374,6 +2374,12 @@ async function doLogin(){
   document.getElementById('shell').classList.add('active');
   document.getElementById('ub-name').textContent = currentUser.nome + ' ' + currentUser.cognome;
   document.getElementById('ub-role').textContent = ruoliLabelUtente(currentUser);
+  document.getElementById('nav-dashboard').style.display = canVedereServizi() ? 'flex' : 'none';
+  document.getElementById('nav-elenco').style.display = canVedereServizi() ? 'flex' : 'none';
+  document.getElementById('nav-presidi').style.display = canVedereServizi() ? 'flex' : 'none';
+  // Fogli di marcia: dominio proprio di Volontario/SCU, ma anche di Eccedenza
+  // 118 (che lo usa per registrare le uscite legate alle schede 118).
+  document.getElementById('nav-fogli').style.display = (canVedereServizi() || canVedereEccedenza()) ? 'flex' : 'none';
   document.getElementById('nav-utenti').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-mezzi').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-gestionepresidi').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
@@ -2381,6 +2387,13 @@ async function doLogin(){
   document.getElementById('nav-statistiche').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-cestino').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-eccedenza118').style.display = canVedereEccedenza() ? 'flex' : 'none';
+  // Al primo accesso mostriamo la prima sezione a cui questo utente ha
+  // davvero accesso, invece di dare per scontato che veda la Dashboard.
+  const primaVistaDisponibile =
+    canVedereServizi() ? 'dashboard' :
+    canVedereEccedenza() ? 'eccedenza118' :
+    haRuolo('amministratore') ? 'utenti' : 'dashboard';
+  switchView(primaVistaDisponibile);
   renderCalendar();
   renderElenco();
   renderUsers();
@@ -2457,6 +2470,16 @@ async function doLogout(){
 
 /* ============ NAVIGAZIONE ============ */
 function switchView(v){
+  // Controllo di sicurezza: anche se il pulsante di menu è nascosto, non si
+  // deve mai poter raggiungere una vista per cui questo utente non ha il
+  // livello di accesso richiesto (es. da una chiamata programmatica).
+  const richiedeServizi = ['dashboard','elenco','presidi'].includes(v);
+  const richiedeEccedenza = v === 'eccedenza118';
+  const richiedeAdmin = ['utenti','mezzi','gestionepresidi','rimborsi','statistiche','cestino'].includes(v);
+  if(richiedeServizi && !canVedereServizi()) return;
+  if(richiedeEccedenza && !canVedereEccedenza()) return;
+  if(v === 'fogli' && !canVedereServizi() && !canVedereEccedenza()) return;
+  if(richiedeAdmin && !haRuolo('amministratore')) return;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === v));
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
@@ -2483,8 +2506,11 @@ function closeSidebarMobile(){
 }
 
 /* ============ PERMESSI ============ */
-// Eccedenza si comporta come Operatore, Responsabile118 come Responsabile, su tutte le funzioni "di base"
-// (servizi, fogli marcia, presidi). In più, entrambi hanno accesso alla scheda Eccedenza 118.
+// Ogni livello di accesso è completamente autonomo e additivo: nessuna
+// gerarchia implicita, nessun livello "include" un altro. Se un utente deve
+// vedere/fare più cose, l'amministratore gli seleziona più livelli — ma
+// selezionarne uno non ne attiva mai un altro automaticamente (a parte
+// Amministratore, che dà comunque accesso a tutto).
 function ruoloLabel(ruolo){
   return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenza 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', amministratore:'Amministratore'}[ruolo] || ruolo;
 }
@@ -2501,39 +2527,37 @@ function ruoliUtente(u){
 function ruoliLabelUtente(u){
   return ruoliUtente(u).map(ruoloLabel).join(', ') || '—';
 }
-// Un amministratore ha sempre accesso a tutto: haRuolo/haRuoloBase lo
-// concedono automaticamente qualunque sia il livello richiesto.
+// Un amministratore ha sempre accesso a tutto: haRuolo lo concede
+// automaticamente qualunque sia il livello richiesto.
 function haRuolo(nome){
   const r = ruoliUtente(currentUser);
   if(r.includes('amministratore')) return true;
   return r.includes(nome);
 }
-function ruoloBase(ruolo){
-  if(ruolo === 'eccedenza' || ruolo === 'scu') return 'operatore';
-  if(ruolo === 'responsabile118') return 'responsabile';
-  return ruolo;
-}
-function haRuoloBase(base){
-  const r = ruoliUtente(currentUser);
-  if(r.includes('amministratore')) return true;
-  return r.some(x => ruoloBase(x) === base);
-}
 function canManageUsers(){ return haRuolo('amministratore'); }
-function canEditEquipaggio(){ return haRuoloBase('responsabile'); }
-function canCloseService(){ return haRuoloBase('responsabile'); }
+// Dashboard, Elenco servizi, Prestito presidi: solo Volontario e SCU (oltre
+// ad Amministratore). Nessun altro livello li porta con sé.
+function canVedereServizi(){ return haRuolo('operatore') || haRuolo('scu'); }
+// Assegnare l'equipaggio/mezzo e chiudere un servizio: solo Responsabile
+// Servizi, indipendentemente dagli altri livelli selezionati.
+function canEditEquipaggio(){ return haRuolo('responsabile'); }
+function canCloseService(){ return haRuolo('responsabile'); }
 function canEditServizio(sv){
   if(haRuolo('amministratore')) return true;
   if(sv && sv.chiuso) return false;
-  return true; // operatore e responsabile possono modificare i dati finché non è chiuso
+  return true; // chi vede il servizio può modificarne i dati finché non è chiuso
 }
 // --- Permessi scheda Eccedenza 118 ---
-// Visibile e gestibile solo da Eccedenza 118, Responsabile 118 e Amministratore. Volontario/SCU e Responsabile Servizi: nessun accesso.
-function canVedereEccedenza(){ return haRuolo('eccedenza') || haRuolo('responsabile118'); }
+// Visualizzazione, compilazione e firma: solo il livello Eccedenza 118 (oltre
+// ad Amministratore). Responsabile 118 NON dà da solo questo accesso: va
+// selezionato anche Eccedenza 118, se si vuole che l'utente vi acceda.
+function canVedereEccedenza(){ return haRuolo('eccedenza'); }
 function canGestireEccedenza(){ return canVedereEccedenza(); } // creare/inserire/modificare mentre la scheda è aperta
+function canFirmareEccedenza(){ return canVedereEccedenza(); }
+// Validazione definitiva: solo il livello Responsabile 118, che aggiunge
+// esclusivamente questo potere (non la visualizzazione base della sezione,
+// che resta legata al livello Eccedenza 118).
 function canChiudereEccedenza(){ return haRuolo('responsabile118'); }
-// La firma della scheda (non la validazione definitiva) è permessa anche
-// all'utente di tipo "eccedenza", oltre a responsabile118 e amministratore.
-function canFirmareEccedenza(){ return haRuolo('eccedenza') || canChiudereEccedenza(); }
 function canEditScheda118(sch){
   if(haRuolo('amministratore')) return true;
   if(sch && sch.chiuso) return false;
@@ -5002,7 +5026,7 @@ function viewServiceModal(id){
     </div>
   `;
   document.getElementById('view-sheet-content').innerHTML = html;
-  document.getElementById('btn-stampa-scheda-servizio').style.display = (haRuoloBase('operatore')) ? 'none' : 'inline-block';
+  document.getElementById('btn-stampa-scheda-servizio').style.display = (!canEditEquipaggio()) ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
 }
 function closeViewModal(){
@@ -5134,7 +5158,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   const equipaggioAllowed = canEditEquipaggio();
   document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = !equipaggioAllowed);
 
-  const locked = sv && sv.chiuso && haRuoloBase('operatore');
+  const locked = sv && sv.chiuso && !canEditEquipaggio();
   document.getElementById('locked-note-box').innerHTML = locked ? '<div class="locked-note">Questo servizio è stato assegnato: puoi modificare solo lo stato del servizio. Per altre modifiche rivolgiti a un responsabile o a un amministratore.</div>' : '';
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>{
     el.disabled = false;
