@@ -1045,7 +1045,7 @@
             <div class="field"><label>Orario sul posto *</label>
               <input type="time" id="sf-aCasa" required>
             </div>
-            <div class="field"><label>Trasportare da (partenza) *</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
+            <div class="field"><label>Trasportare da (città, via, n.) *</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
             <div class="field"><label>A (destinazione) *</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
           </div>
           <div class="field"><label>Ulteriori dettagli destinazione (Reparto / Padiglione / Ambulatorio/ecc)</label><input type="text" id="sf-repartoDestinazione" placeholder="es. Ortopedia, Padiglione C"></div>
@@ -1145,6 +1145,7 @@
           <div class="field"><label>1° Soccorritore</label><select id="sf-soccorritore1"></select></div>
           <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2"></select></div>
         </div>
+        <div class="field"><label>Soccorritore 3</label><select id="sf-soccorritore3"></select></div>
       </fieldset>
 
       <fieldset>
@@ -1166,7 +1167,7 @@
           <div class="field"><label>Richiesto da *</label><select id="sf-richiestoDa" required onchange="toggleRelazioneRichiedente()"><option value="">-- seleziona --</option><option>Paziente</option><option>Familiare</option><option>RSA</option><option>Ospedale</option><option>Comune</option><option>Altro</option></select></div>
           <div class="field" id="relazione-box" style="display:none;"><label id="label-relazione">Parente/Relazione col paziente</label><input type="text" id="sf-relazione" placeholder="es. Figlia, Coniuge"></div>
           <div class="field"><label>Ente/Nome e Cognome richiedente</label><input type="text" id="sf-enteSig" placeholder="es. RSA Cosentino, o nome familiare"></div>
-          <div class="field"><label>Telefono contatto principale</label><input type="text" id="sf-telRichiedente"></div>
+          <div class="field"><label>Telefono contatto principale *</label><input type="text" id="sf-telRichiedente" required></div>
           <div class="field"><label>Telefono ulteriore contatto</label><input type="text" id="sf-telRichiedente2"></div>
         </div>
       </fieldset>
@@ -4707,7 +4708,7 @@ function fillPersonSelects(){
   const archiviati = utenti.filter(u=>u.archiviato);
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
   const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
-  ['sf-autista','sf-soccorritore1','sf-soccorritore2'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
+  ['sf-autista','sf-soccorritore1','sf-soccorritore2','sf-soccorritore3'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
 }
 function fillFoglioPersonSelects(){
   const attivi = utenti.filter(u=>!u.archiviato);
@@ -4826,7 +4827,7 @@ function duplicateService(id){
   fillMezzoSelect(null);
   // L'equipaggio e il mezzo assegnato non vengono mai duplicati: deve
   // impostarli di nuovo il responsabile prima di assegnare il servizio.
-  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:'', mezzoId:null, autista:'', soccorritore1:'', soccorritore2:''};
+  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:'', mezzoId:null, autista:'', soccorritore1:'', soccorritore2:'', soccorritore3:''};
   delete clone.gruppoRipetizione;
   document.getElementById('service-modal-title').textContent = 'Duplica servizio — ' + nomeVisualizzatoServizio(clone);
   fillServiceForm(null, null, clone);
@@ -4929,6 +4930,7 @@ function viewServiceModal(id){
       ${item('Autista', s.autista)}
       ${item('1° Soccorritore', s.soccorritore1)}
       ${item('2° Soccorritore', s.soccorritore2)}
+      ${item('Soccorritore 3', s.soccorritore3)}
     </div>
     </div>
 
@@ -5065,7 +5067,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-presidio-nessuna').checked = !!(data?.presidi||[]).includes('Nessuno');
   set('sf-presidiAltro', data?.presidiAltro);
   set('sf-note', data?.note);
-  set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2);
+  set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2); set('sf-soccorritore3', data?.soccorritore3);
   document.getElementById('sf-stato').value = data?.stato || 'giallo';
   rimborsoManuallyEdited = false;
   document.getElementById('sf-rimborsoSuggerito').value = data?.rimborsoSuggerito || '';
@@ -5215,7 +5217,7 @@ const CAMPI_LABEL_SERVIZIO = {
   scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
   affettoDa:'Affetto da', presidiAltro:'Presidi (altro)', note:'Ulteriori informazioni utili',
   rimborsoSuggerito:'Rimborso spesa', stato:'Stato',
-  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore'
+  autista:'Autista', soccorritore1:'1° Soccorritore', soccorritore2:'2° Soccorritore', soccorritore3:'Soccorritore 3'
 };
 function calcolaModificheServizio(vecchio, nuovo){
   const cambi = [];
@@ -5282,9 +5284,9 @@ async function saveService(ev){
   };
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
   if(canEditEquipaggio()){
-    data.autista = g('sf-autista'); data.soccorritore1 = g('sf-soccorritore1'); data.soccorritore2 = g('sf-soccorritore2');
+    data.autista = g('sf-autista'); data.soccorritore1 = g('sf-soccorritore1'); data.soccorritore2 = g('sf-soccorritore2'); data.soccorritore3 = g('sf-soccorritore3');
   } else if(existing){
-    data.autista = existing.autista; data.soccorritore1 = existing.soccorritore1; data.soccorritore2 = existing.soccorritore2;
+    data.autista = existing.autista; data.soccorritore1 = existing.soccorritore1; data.soccorritore2 = existing.soccorritore2; data.soccorritore3 = existing.soccorritore3;
   }
   if(canCloseService()){
     data.chiuso = currentChiusoState;
