@@ -239,8 +239,9 @@
   fieldset{border:1px solid var(--line-soft);border-radius:8px;margin:0 0 16px;padding:14px 16px 6px;}
   legend{font-size:12.5px;font-weight:700;color:var(--navy);padding:0 6px;}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
-  @media(max-width:680px){.grid3,.grid2{grid-template-columns:1fr;}}
+  @media(max-width:680px){.grid3,.grid2,.grid4{grid-template-columns:1fr;}}
   .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
   label.presidio-flag{flex:1 1 90px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
@@ -348,7 +349,7 @@
     .cal-week-cols{min-width:640px;}
     table.servizi, table.mini-table{min-width:640px;}
     #elenco-container, #tariffe-container, #maggiorazioni-container, #fogli-container, #users-container.table-wrap{overflow-x:auto;}
-    .grid3, .grid2, .view-grid{grid-template-columns:1fr;}
+    .grid3, .grid2, .grid4, .view-grid{grid-template-columns:1fr;}
     .modal{padding:22px 18px 24px;max-width:95vw;}
     .page-head{flex-direction:column;align-items:flex-start;}
     .cal-toolbar{gap:8px;}
@@ -1140,12 +1141,12 @@
       <fieldset id="fieldset-equipaggio">
         <legend>Equipaggio e mezzo assegnato</legend>
         <div class="field"><label>Mezzo assegnato</label><select id="sf-mezzo"><option value="">-- seleziona --</option></select></div>
-        <div class="grid3">
+        <div class="grid4">
           <div class="field"><label>Autista</label><select id="sf-autista"></select></div>
           <div class="field"><label>1° Soccorritore</label><select id="sf-soccorritore1"></select></div>
           <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2"></select></div>
+          <div class="field"><label>Soccorritore 3</label><select id="sf-soccorritore3"></select></div>
         </div>
-        <div class="field"><label>Soccorritore 3</label><select id="sf-soccorritore3"></select></div>
       </fieldset>
 
       <fieldset>
@@ -1219,15 +1220,16 @@
       <div class="field"><label id="uf-password-label">Password provvisoria</label><input type="text" id="uf-password" placeholder="Lascia vuoto per non cambiarla">
         <p class="map-hint" id="uf-password-hint">L'utente dovrà cambiarla al primo accesso.</p>
       </div>
-      <div class="field"><label>Ruolo</label>
-        <select id="uf-ruolo" onchange="onUfRuoloChange()">
-          <option value="operatore">Operatore</option>
-          <option value="eccedenza">Eccedenza</option>
-          <option value="responsabile">Responsabile</option>
-          <option value="responsabile118">Responsabile 118</option>
-          <option value="amministratore">Amministratore</option>
-        </select>
-        <p class="map-hint">Eccedenza: come Operatore, più gestione della scheda Eccedenza 118 (non visibile all'Operatore base). Responsabile 118: come Responsabile, più gestione della scheda Eccedenza 118 (non visibile al Responsabile base).</p>
+      <div class="field"><label>Livelli di accesso</label>
+        <div id="uf-ruoli-checkbox" style="display:flex;flex-direction:column;gap:4px;">
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="operatore" onchange="onUfRuoloChange()"> Volontario</label>
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="scu" onchange="onUfRuoloChange()"> SCU</label>
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="responsabile" onchange="onUfRuoloChange()"> Responsabile Servizi</label>
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"> Eccedenza 118</label>
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="responsabile118" onchange="onUfRuoloChange()"> Responsabile 118</label>
+          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="amministratore" onchange="onUfRuoloChange()"> Amministratore</label>
+        </div>
+        <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenza 118). Eccedenza 118: visualizza e gestisce la scheda Eccedenza 118. Responsabile 118: come Eccedenza 118, più modifica e validazione definitiva. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
       </div>
       <div class="field" id="uf-firma118-wrap" style="display:none;">
         <label>Firma per la scheda Eccedenza 118</label>
@@ -1871,7 +1873,7 @@ async function kvSet(key, value){
 const INATTIVITA_LIMITE_MS = 5 * 60 * 1000; // 5 minuti senza alcuna attività (default)
 const INATTIVITA_LIMITE_118_MS = 30 * 60 * 1000; // 30 minuti per i ruoli che gestiscono la scheda Eccedenza 118
 function inattivitaLimiteAttuale(){
-  if(currentUser && (currentUser.ruolo === 'eccedenza' || currentUser.ruolo === 'responsabile118')) return INATTIVITA_LIMITE_118_MS;
+  if(currentUser && (haRuolo('eccedenza') || haRuolo('responsabile118'))) return INATTIVITA_LIMITE_118_MS;
   return INATTIVITA_LIMITE_MS;
 }
 const AVVISO_DURATA_SECONDI = 60; // 60 secondi di avviso prima della disconnessione
@@ -2371,13 +2373,13 @@ async function doLogin(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('shell').classList.add('active');
   document.getElementById('ub-name').textContent = currentUser.nome + ' ' + currentUser.cognome;
-  document.getElementById('ub-role').textContent = ruoloLabel(currentUser.ruolo);
-  document.getElementById('nav-utenti').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-mezzi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-gestionepresidi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-rimborsi').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-statistiche').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
-  document.getElementById('nav-cestino').style.display = (currentUser.ruolo === 'amministratore') ? 'flex' : 'none';
+  document.getElementById('ub-role').textContent = ruoliLabelUtente(currentUser);
+  document.getElementById('nav-utenti').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
+  document.getElementById('nav-mezzi').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
+  document.getElementById('nav-gestionepresidi').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
+  document.getElementById('nav-rimborsi').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
+  document.getElementById('nav-statistiche').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
+  document.getElementById('nav-cestino').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-eccedenza118').style.display = canVedereEccedenza() ? 'flex' : 'none';
   renderCalendar();
   renderElenco();
@@ -2484,35 +2486,60 @@ function closeSidebarMobile(){
 // Eccedenza si comporta come Operatore, Responsabile118 come Responsabile, su tutte le funzioni "di base"
 // (servizi, fogli marcia, presidi). In più, entrambi hanno accesso alla scheda Eccedenza 118.
 function ruoloLabel(ruolo){
-  return {operatore:'Operatore', eccedenza:'Eccedenza', responsabile:'Responsabile', responsabile118:'Responsabile 118', amministratore:'Amministratore'}[ruolo] || ruolo;
+  return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenza 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', amministratore:'Amministratore'}[ruolo] || ruolo;
+}
+// Un utente può avere più livelli di accesso contemporaneamente (es.
+// "Responsabile Servizi" + "Eccedenza 118"): i ruoli sono salvati come
+// elenco (u.ruoli). Per compatibilità con gli utenti creati prima di questa
+// modifica, che hanno ancora solo il vecchio campo singolo u.ruolo, quel
+// valore viene trattato come un elenco di un solo elemento.
+function ruoliUtente(u){
+  if(!u) return [];
+  if(Array.isArray(u.ruoli) && u.ruoli.length) return u.ruoli;
+  return u.ruolo ? [u.ruolo] : [];
+}
+function ruoliLabelUtente(u){
+  return ruoliUtente(u).map(ruoloLabel).join(', ') || '—';
+}
+// Un amministratore ha sempre accesso a tutto: haRuolo/haRuoloBase lo
+// concedono automaticamente qualunque sia il livello richiesto.
+function haRuolo(nome){
+  const r = ruoliUtente(currentUser);
+  if(r.includes('amministratore')) return true;
+  return r.includes(nome);
 }
 function ruoloBase(ruolo){
-  if(ruolo === 'eccedenza') return 'operatore';
+  if(ruolo === 'eccedenza' || ruolo === 'scu') return 'operatore';
   if(ruolo === 'responsabile118') return 'responsabile';
   return ruolo;
 }
-function canManageUsers(){ return currentUser.ruolo === 'amministratore'; }
-function canEditEquipaggio(){ return currentUser.ruolo === 'amministratore' || ruoloBase(currentUser.ruolo) === 'responsabile'; }
-function canCloseService(){ return currentUser.ruolo === 'amministratore' || ruoloBase(currentUser.ruolo) === 'responsabile'; }
+function haRuoloBase(base){
+  const r = ruoliUtente(currentUser);
+  if(r.includes('amministratore')) return true;
+  return r.some(x => ruoloBase(x) === base);
+}
+function canManageUsers(){ return haRuolo('amministratore'); }
+function canEditEquipaggio(){ return haRuoloBase('responsabile'); }
+function canCloseService(){ return haRuoloBase('responsabile'); }
 function canEditServizio(sv){
-  if(currentUser.ruolo === 'amministratore') return true;
+  if(haRuolo('amministratore')) return true;
   if(sv && sv.chiuso) return false;
   return true; // operatore e responsabile possono modificare i dati finché non è chiuso
 }
 // --- Permessi scheda Eccedenza 118 ---
-// Visibile e gestibile solo da Eccedenza, Responsabile118 e Amministratore. Operatore e Responsabile base: nessun accesso.
-function canVedereEccedenza(){ return ['eccedenza','responsabile118','amministratore'].includes(currentUser.ruolo); }
+// Visibile e gestibile solo da Eccedenza 118, Responsabile 118 e Amministratore. Volontario/SCU e Responsabile Servizi: nessun accesso.
+function canVedereEccedenza(){ return haRuolo('eccedenza') || haRuolo('responsabile118'); }
 function canGestireEccedenza(){ return canVedereEccedenza(); } // creare/inserire/modificare mentre la scheda è aperta
-function canChiudereEccedenza(){ return currentUser.ruolo === 'responsabile118' || currentUser.ruolo === 'amministratore'; }
+function canChiudereEccedenza(){ return haRuolo('responsabile118'); }
 // La firma della scheda (non la validazione definitiva) è permessa anche
 // all'utente di tipo "eccedenza", oltre a responsabile118 e amministratore.
-function canFirmareEccedenza(){ return currentUser.ruolo === 'eccedenza' || canChiudereEccedenza(); }
+function canFirmareEccedenza(){ return haRuolo('eccedenza') || canChiudereEccedenza(); }
 function canEditScheda118(sch){
-  if(currentUser.ruolo === 'amministratore') return true;
+  if(haRuolo('amministratore')) return true;
   if(sch && sch.chiuso) return false;
   return canVedereEccedenza();
 }
-function canDeleteScheda118(){ return currentUser.ruolo === 'amministratore'; }
+function canDeleteScheda118(){ return haRuolo('amministratore'); }
 
 /* ============ CALENDARIO ============ */
 function setCalMode(m){
@@ -2713,7 +2740,7 @@ async function renderElenco(){
         <button class="action-btn" onclick="visualizzaServizioAnno('${s.id}',${s.numeroAnno})">👁 Visualizza</button>
         <button class="action-btn" onclick="duplicaServizioAnno('${s.id}',${s.numeroAnno})">⧉ Duplica</button>
         ${(s.chiuso && s.stato!=='rosso' && !fogliMarcia.some(f=>f.servizioId===s.id && !f.cestinato)) ? `<button class="action-btn" onclick="generaFoglioServizioAnno('${s.id}',${s.numeroAnno})">🚐 Foglio marcia</button>` : ''}
-        ${currentUser.ruolo==='amministratore' ? `<button class="action-btn danger" onclick="eliminaServizioDaElenco('${s.id}',${s.numeroAnno})">🗑 Elimina</button>` : ''}
+        ${haRuolo('amministratore') ? `<button class="action-btn danger" onclick="eliminaServizioDaElenco('${s.id}',${s.numeroAnno})">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
   });
@@ -2768,7 +2795,7 @@ function renderUsers(){
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
       <div class="un">@${escapeHtml(u.username)}</div>
-      <span class="role-chip ${u.ruolo}">${ruoloLabel(u.ruolo)}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">${ruoliUtente(u).map(r=>`<span class="role-chip ${r}">${ruoloLabel(r)}</span>`).join('')}</div>
       ${u.mustChangePassword ? '<span class="tag-chiuso">Deve cambiare password</span>' : ''}
       ${u.archiviato ? `<span class="tag-chiuso">Archiviato il ${u.dataArchiviazione||''}</span>` : ''}
       <div class="row-actions" style="margin-top:10px;">
@@ -2787,13 +2814,13 @@ function renderUsers(){
 }
 function ultimoAmministratoreAttivo(idEscluso){
   // Impedisce di restare senza nessun amministratore attivo in grado di accedere.
-  const altriAdminAttivi = utenti.filter(u => u.id!==idEscluso && u.ruolo==='amministratore' && !u.archiviato && !u.cestinato);
+  const altriAdminAttivi = utenti.filter(u => u.id!==idEscluso && ruoliUtente(u).includes('amministratore') && !u.archiviato && !u.cestinato);
   return altriAdminAttivi.length === 0;
 }
 async function archiviaUtente(id){
   const u = utenti.find(x=>x.id===id);
   if(!u) return;
-  if(u.ruolo==='amministratore' && ultimoAmministratoreAttivo(id)){
+  if(ruoliUtente(u).includes('amministratore') && ultimoAmministratoreAttivo(id)){
     alert('Non puoi archiviare questo amministratore: è l\'unico rimasto attivo. Crea o riattiva un altro amministratore prima di procedere.');
     return;
   }
@@ -2822,7 +2849,8 @@ function openUserModal(id){
   document.getElementById('uf-password').value = '';
   document.getElementById('uf-password-label').textContent = u ? 'Nuova password' : 'Password provvisoria';
   document.getElementById('uf-password-hint').textContent = u ? 'Lascia vuoto per non cambiarla. Se la imposti, l\'utente dovrà cambiarla al prossimo accesso.' : 'L\'utente dovrà cambiarla al primo accesso.';
-  document.getElementById('uf-ruolo').value = u ? u.ruolo : 'operatore';
+  const ruoliAttuali = u ? ruoliUtente(u) : ['operatore'];
+  document.querySelectorAll('.uf-ruolo-cb').forEach(cb => { cb.checked = ruoliAttuali.includes(cb.value); });
   onUfRuoloChange();
   document.getElementById('user-modal-backdrop').classList.add('active');
   setTimeout(()=>{
@@ -2830,9 +2858,12 @@ function openUserModal(id){
     if(u?.firma118) drawFirmaFromDataUrl('uf-firma118-canvas', u.firma118);
   }, 60);
 }
+function ruoliSelezionatiForm(){
+  return [...document.querySelectorAll('.uf-ruolo-cb:checked')].map(cb=>cb.value);
+}
 function onUfRuoloChange(){
-  const ruolo = document.getElementById('uf-ruolo').value;
-  document.getElementById('uf-firma118-wrap').style.display = (ruolo === 'eccedenza' || ruolo === 'responsabile118') ? 'block' : 'none';
+  const ruoli = ruoliSelezionatiForm();
+  document.getElementById('uf-firma118-wrap').style.display = (ruoli.includes('eccedenza') || ruoli.includes('responsabile118')) ? 'block' : 'none';
 }
 function closeUserModal(){ document.getElementById('user-modal-backdrop').classList.remove('active'); editingUserId = null; }
 async function saveUser(ev){
@@ -2841,14 +2872,24 @@ async function saveUser(ev){
   const duplicato = utenti.some(u=>u.username.toLowerCase()===username.toLowerCase() && u.id!==editingUserId);
   if(duplicato){ alert('Nome utente già esistente.'); return false; }
   const nuovaPassword = document.getElementById('uf-password').value;
+  let ruoli = ruoliSelezionatiForm();
+  if(ruoli.length === 0){ alert('Seleziona almeno un livello di accesso.'); return false; }
   if(editingUserId){
     const idx = utenti.findIndex(u=>u.id===editingUserId);
     const u = utenti[idx];
+    // Non si può togliere "Amministratore" all'ultimo amministratore attivo:
+    // l'associazione resterebbe senza nessuno in grado di gestire utenti,
+    // mezzi, ecc.
+    if(ruoliUtente(u).includes('amministratore') && !ruoli.includes('amministratore') && ultimoAmministratoreAttivo(editingUserId)){
+      alert('Non puoi togliere il livello Amministratore all\'ultimo amministratore attivo. Rendi prima amministratore un altro utente.');
+      return false;
+    }
     u.nome = document.getElementById('uf-nome').value.trim();
     u.cognome = document.getElementById('uf-cognome').value.trim();
     u.username = username;
-    if(u.ruolo !== 'amministratore') u.ruolo = document.getElementById('uf-ruolo').value;
-    if(u.ruolo === 'eccedenza' || u.ruolo === 'responsabile118'){
+    u.ruoli = ruoli;
+    u.ruolo = ruoli[0]; // mantenuto per compatibilità con eventuali letture del vecchio campo singolo
+    if(ruoli.includes('eccedenza') || ruoli.includes('responsabile118')){
       u.firma118 = getFirmaDataUrl118('uf-firma118-canvas');
     }
     if(nuovaPassword){
@@ -2857,14 +2898,14 @@ async function saveUser(ev){
       u.mustChangePassword = true;
     }
   } else {
-    const nuovoRuolo = document.getElementById('uf-ruolo').value;
     utenti.push({
       id: 'u-' + Date.now(),
       nome: document.getElementById('uf-nome').value.trim(),
       cognome: document.getElementById('uf-cognome').value.trim(),
       username, passwordHash: await sha256Hex(nuovaPassword || 'cambiami123'),
-      ruolo: nuovoRuolo,
-      firma118: (nuovoRuolo === 'eccedenza' || nuovoRuolo === 'responsabile118') ? getFirmaDataUrl118('uf-firma118-canvas') : null,
+      ruoli: ruoli,
+      ruolo: ruoli[0], // mantenuto per compatibilità con eventuali letture del vecchio campo singolo
+      firma118: (ruoli.includes('eccedenza') || ruoli.includes('responsabile118')) ? getFirmaDataUrl118('uf-firma118-canvas') : null,
       mustChangePassword: true
     });
   }
@@ -2888,7 +2929,7 @@ async function resetPasswordUtente(id){
 async function deleteUser(id){
   const u = utenti.find(x=>x.id===id);
   if(!u) return;
-  if(u.ruolo==='amministratore' && ultimoAmministratoreAttivo(id)){
+  if(ruoliUtente(u).includes('amministratore') && ultimoAmministratoreAttivo(id)){
     alert('Non puoi eliminare questo amministratore: è l\'unico rimasto attivo. Crea o riattiva un altro amministratore prima di procedere.');
     return;
   }
@@ -2907,7 +2948,7 @@ async function ripristinaUtenteCestino(id){
 }
 async function eliminaUtenteDefinitivo(id){
   const u = utenti.find(x=>x.id===id);
-  if(u && u.ruolo==='amministratore' && ultimoAmministratoreAttivo(id)){
+  if(u && ruoliUtente(u).includes('amministratore') && ultimoAmministratoreAttivo(id)){
     alert('Non puoi eliminare definitivamente questo amministratore: è l\'unico rimasto attivo.');
     return;
   }
@@ -2957,7 +2998,7 @@ async function saveOwnAccount(ev){
     delete record.password;
     record.mustChangePassword = false;
   }
-  currentUser = { id: record.id, username: record.username, nome: record.nome, cognome: record.cognome, ruolo: record.ruolo, mustChangePassword: !!record.mustChangePassword };
+  currentUser = { id: record.id, username: record.username, nome: record.nome, cognome: record.cognome, ruolo: record.ruolo, ruoli: record.ruoli, mustChangePassword: !!record.mustChangePassword };
   await saveUtenti();
   document.getElementById('account-modal-backdrop').dataset.forzato = '0';
   document.getElementById('account-modal-backdrop').classList.remove('active');
@@ -2971,7 +3012,7 @@ function mezziOrdinati(lista){
   return [...lista].sort((a,b) => (a.ordine ?? 0) - (b.ordine ?? 0));
 }
 function renderMezzi(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   const container = document.getElementById('mezzi-container');
   const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
   const archiviati = mezziOrdinati(mezzi.filter(m=>m.archiviato && !m.cestinato));
@@ -3223,7 +3264,7 @@ function fillMezzoSelect(valoreCorrente){
 let editingTariffaId = null;
 let editingMaggiorazioneId = null;
 function renderRimborsi(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   document.getElementById('rf-tipoMezzo').innerHTML = '<option value="">Qualsiasi mezzo</option>' + tipiMezzo.map(t=>`<option>${t}</option>`).join('');
 
   const tContainer = document.getElementById('tariffe-container');
@@ -3386,7 +3427,7 @@ function renderFogliMarcia(){
   sel.innerHTML = '<option value="">-- seleziona un mezzo --</option><option value="__tutti__">Tutti i mezzi</option>' + mezziOrdinati(mezzi).map(m=>`<option value="${m.id}" ${m.id===mezzoAttuale?'selected':''}>${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
   if(mezzoAttuale) sel.value = mezzoAttuale;
 
-  const isAdmin = currentUser.ruolo === 'amministratore';
+  const isAdmin = haRuolo('amministratore');
   document.getElementById('btn-esporta-excel').style.display = isAdmin ? 'inline-flex' : 'none';
   document.getElementById('btn-stampa-fogli').style.display = isAdmin ? 'inline-flex' : 'none';
 
@@ -3503,7 +3544,7 @@ async function openFoglioModal(id){
   document.getElementById('fm-annotazioni').value = f?.annotazioni || '';
   document.getElementById('fm-compilatore').value = f ? f.compilatore : (currentUser.nome + ' ' + currentUser.cognome);
 
-  const isAdmin = currentUser.ruolo === 'amministratore';
+  const isAdmin = haRuolo('amministratore');
   const registratoIlRif = f ? f.registratoIl : new Date().toISOString();
   document.getElementById('fm-dataRegistrazione').value = registratoIlRif ? registratoIlRif.slice(0,10) : '';
   document.getElementById('fm-oraRegistrazione').value = registratoIlRif ? registratoIlRif.slice(11,16) : '';
@@ -3671,7 +3712,7 @@ function viewFoglioModal(id){
     </ul>
   `;
   document.getElementById('view-foglio-content').innerHTML = html;
-  document.getElementById('btn-modifica-da-foglio').style.display = (currentUser.ruolo === 'amministratore') ? 'inline-block' : 'none';
+  document.getElementById('btn-modifica-da-foglio').style.display = (haRuolo('amministratore')) ? 'inline-block' : 'none';
   document.getElementById('view-foglio-modal-backdrop').classList.add('active');
 }
 function closeViewFoglioModal(){
@@ -3809,7 +3850,7 @@ async function eliminaServizioDefinitivoECestino(id, anno){
   renderCestino();
 }
 async function riparaServiziSenzaId(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   if(!confirm('Cercare e riparare i servizi con ID o dati mancanti, in tutti gli anni disponibili? Dopo la riparazione potrai modificarli o eliminarli normalmente.')) return;
   let totaleRiparati = 0;
   for(const anno of anniDisponibiliServizi){
@@ -3838,7 +3879,7 @@ async function riparaServiziSenzaId(){
   renderElenco();
 }
 async function renderCestino(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   await purgaCestinoScaduti();
 
   const formatResiduo = dataIso => {
@@ -3960,7 +4001,7 @@ async function saveFoglio(ev){
   const mezzoId = document.getElementById('fm-mezzoId').value;
   if(!mezzoId){ alert('Seleziona il mezzo.'); return false; }
   const g = id => document.getElementById(id).value.trim();
-  const isAdmin = currentUser.ruolo === 'amministratore';
+  const isAdmin = haRuolo('amministratore');
   const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
   const adesso = new Date().toISOString();
   const data = {
@@ -4194,7 +4235,7 @@ function nomePresidio(id){
   return p ? (p.tipo + ' — ' + p.codice) : '(presidio non trovato)';
 }
 function renderPrestiti(){
-  const isAdmin = currentUser.ruolo === 'amministratore';
+  const isAdmin = haRuolo('amministratore');
 
   const presidiAttivi = presidi.filter(p=>!p.cestinato);
   const nDisponibili = presidiAttivi.filter(p=>p.stato==='disponibile').length;
@@ -4268,7 +4309,7 @@ function presidiOrdinati(lista){
   return [...lista].sort((a,b)=> (a.ordine??0) - (b.ordine??0));
 }
 function renderGestionePresidi(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   const container = document.getElementById('gestione-presidi-container');
   const attivi = presidiOrdinati(presidi.filter(p=>!p.cestinato));
   const cardPresidio = (p, idx, lista) => `
@@ -4397,7 +4438,7 @@ async function openPrestitoModal(id){
   document.getElementById('pr-offertaImporto').value = p?.offertaImporto || '';
   document.getElementById('pr-offerta-campo').style.display = p?.offertaRicevuta ? 'block' : 'none';
 
-  const isAdmin = currentUser.ruolo === 'amministratore';
+  const isAdmin = haRuolo('amministratore');
   document.getElementById('prestito-delete-slot').innerHTML = (p && isAdmin) ? `<button type="button" class="action-btn danger" onclick="deletePrestito('${p.id}')">🗑 Elimina prestito</button>` : '';
 
   document.getElementById('prestito-modal-backdrop').classList.add('active');
@@ -4622,7 +4663,7 @@ async function deletePresidio(id){
 
 /* ============ STATISTICHE ============ */
 async function renderStatistiche(){
-  if(currentUser.ruolo !== 'amministratore') return;
+  if(!haRuolo('amministratore')) return;
   const statoLabel = {verde:'Confermato', giallo:'Da confermare', rosso:'Annullato'};
   const totaleServizi = servizi.length;
 
@@ -4808,7 +4849,7 @@ function openServiceModal(id, prefillDate){
   const delSlot = document.getElementById('modal-delete-slot');
   let delHtml = '';
   if(sv) delHtml += `<button type="button" class="action-btn" onclick="duplicateService('${sv.id}')">⧉ Duplica servizio</button>`;
-  if(sv && currentUser.ruolo==='amministratore') delHtml += ` <button type="button" class="action-btn danger" style="margin-left:10px;" onclick="deleteService()">🗑 Elimina servizio</button>`;
+  if(sv && haRuolo('amministratore')) delHtml += ` <button type="button" class="action-btn danger" style="margin-left:10px;" onclick="deleteService()">🗑 Elimina servizio</button>`;
   delSlot.innerHTML = delHtml;
 
   const ripetizioneAllowed = !sv; // la ripetizione si può impostare solo per nuovi servizi
@@ -4961,7 +5002,7 @@ function viewServiceModal(id){
     </div>
   `;
   document.getElementById('view-sheet-content').innerHTML = html;
-  document.getElementById('btn-stampa-scheda-servizio').style.display = (ruoloBase(currentUser.ruolo) === 'operatore') ? 'none' : 'inline-block';
+  document.getElementById('btn-stampa-scheda-servizio').style.display = (haRuoloBase('operatore')) ? 'none' : 'inline-block';
   document.getElementById('view-modal-backdrop').classList.add('active');
 }
 function closeViewModal(){
@@ -5093,7 +5134,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   const equipaggioAllowed = canEditEquipaggio();
   document.getElementById('fieldset-equipaggio').querySelectorAll('select').forEach(el=>el.disabled = !equipaggioAllowed);
 
-  const locked = sv && sv.chiuso && ruoloBase(currentUser.ruolo) === 'operatore';
+  const locked = sv && sv.chiuso && haRuoloBase('operatore');
   document.getElementById('locked-note-box').innerHTML = locked ? '<div class="locked-note">Questo servizio è stato assegnato: puoi modificare solo lo stato del servizio. Per altre modifiche rivolgiti a un responsabile o a un amministratore.</div>' : '';
   document.getElementById('service-form').querySelectorAll('input,select,textarea').forEach(el=>{
     el.disabled = false;
@@ -5574,7 +5615,7 @@ function populateSimpleSelect(selectId, list, selectedValue){
 }
 function fillPersonSelects118(){
   const ruoliAmmessi = ['eccedenza','responsabile118','responsabile','amministratore'];
-  const idonei = utenti.filter(u=>ruoliAmmessi.includes(u.ruolo));
+  const idonei = utenti.filter(u=>ruoliUtente(u).some(r=>ruoliAmmessi.includes(r)));
   const attivi = idonei.filter(u=>!u.archiviato);
   const archiviati = idonei.filter(u=>u.archiviato);
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
@@ -6475,7 +6516,7 @@ function renderElenco118(){
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
       <td>${validazione}</td>
       <td><div class="row-actions">
-        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && currentUser.ruolo!=='amministratore')?'👁 Visualizza':'✏️ Modifica'}</button>
+        <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && !haRuolo('amministratore'))?'👁 Visualizza':'✏️ Modifica'}</button>
         <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF</button>
         ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
         ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
@@ -6531,7 +6572,7 @@ function openScheda118Modal(id){
   editingScheda118Id = id || null;
   firmaRelazioneInizializzata118 = false;
   const sch = id ? interventi118.find(x=>x.id===id) : null;
-  editingScheda118ReadOnly = !!(sch?.chiuso || sch?.validata) && currentUser.ruolo !== 'amministratore';
+  editingScheda118ReadOnly = !!(sch?.chiuso || sch?.validata) && !haRuolo('amministratore');
   document.getElementById('scheda118-modal-title').textContent = sch ? 'Scheda Eccedenza 118' : 'Nuovo intervento 118';
   document.getElementById('e118-id').value = id || '';
 
@@ -6624,8 +6665,8 @@ function openScheda118Modal(id){
   renderUstioniDiagram();
 
   const isChiuso = !!(sch?.chiuso || sch?.validata);
-  const readOnly = isChiuso && currentUser.ruolo !== 'amministratore';
-  document.getElementById('e118-btn-chiudi').style.display = (canFirmareEccedenza() && (!isChiuso || currentUser.ruolo === 'amministratore')) ? 'inline-block' : 'none';
+  const readOnly = isChiuso && !haRuolo('amministratore');
+  document.getElementById('e118-btn-chiudi').style.display = (canFirmareEccedenza() && (!isChiuso || haRuolo('amministratore'))) ? 'inline-block' : 'none';
   document.getElementById('e118-btn-stampa').style.display = 'inline-block';
   document.getElementById('e118-btn-salva').style.display = readOnly ? 'none' : 'inline-block';
   document.getElementById('e118-stato-label').textContent = isChiuso
@@ -6815,7 +6856,7 @@ async function saveScheda118(event){
   // stato un amministratore a correggerla e salvarla, aggiorniamo comunque il
   // PDF su Drive (stesso file, sovrascritto), senza richiedere un passaggio
   // separato.
-  if(eraGiaValidata && currentUser.ruolo === 'amministratore'){
+  if(eraGiaValidata && haRuolo('amministratore')){
     const schedaSalvata = interventi118.find(x=>x.id===id);
     const esito = await salvaPdfGruppoSuDriveInBackground118(schedaSalvata.gruppoInterventoId, id);
     if(!esito.ok){
