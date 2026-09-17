@@ -245,6 +245,11 @@
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   @media(max-width:680px){.grid3,.grid2,.grid4{grid-template-columns:1fr;}}
   .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
+  #uf-ruoli-checkbox{display:flex;flex-direction:column;gap:2px;}
+  #uf-ruoli-checkbox .ruolo-check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:6px;}
+  #uf-ruoli-checkbox .ruolo-check-row:hover{background:var(--surface-2);}
+  #uf-ruoli-checkbox .ruolo-check-row input[type="checkbox"]{flex:0 0 auto;width:17px;height:17px;margin:0;}
+  #uf-ruoli-checkbox label{display:inline;flex:1 1 auto;font-size:13px;color:var(--ink);margin:0;cursor:pointer;}
   label.presidio-flag{flex:1 1 90px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}
@@ -499,9 +504,50 @@
             <h2>Gestione utenti</h2>
             <p>Crea gli account per operatori e responsabili</p>
           </div>
-          <button class="btn btn-add" onclick="openUserModal()">+ Nuovo utente</button>
+          <div style="display:flex;gap:10px;">
+            <select id="uf-filtro-ruolo" onchange="renderUsers()">
+              <option value="">Tutti i livelli</option>
+              <option value="operatore">Volontario</option>
+              <option value="scu">SCU</option>
+              <option value="responsabile">Responsabile Servizi</option>
+              <option value="eccedenza">Eccedenza 118</option>
+              <option value="responsabile118">Responsabile 118</option>
+              <option value="responsabileScu">Responsabile SCU</option>
+              <option value="amministratore">Amministratore</option>
+            </select>
+            <button class="btn btn-ghost" style="width:auto;" onclick="apriImportUtentiModal()">Importa in blocco</button>
+            <button class="btn btn-add" onclick="openUserModal()">+ Nuovo utente</button>
+          </div>
         </div>
         <div id="users-container"></div>
+      </div>
+
+      <!-- IMPORTAZIONE UTENTI IN BLOCCO -->
+      <div class="modal-backdrop" id="import-utenti-modal-backdrop">
+        <div class="modal" style="max-width:640px;">
+          <button class="close-x" onclick="closeImportUtentiModal()">✕</button>
+          <h3>Importa utenti in blocco</h3>
+          <p class="map-hint">Incolla un elenco con una riga per utente, nel formato <b>Cognome, Nome, Nome utente, Password</b> (separati da tabulazione, punto e virgola o virgola — funziona anche incollando direttamente da Excel/Google Fogli).</p>
+          <div class="field">
+            <textarea id="import-utenti-testo" rows="10" placeholder="Caudullo	Giada	g.caudullo	123456
+Crispi	Antonino Placido	a.crispi	123456"></textarea>
+          </div>
+          <div class="field"><label>Livelli di accesso da assegnare a tutti</label>
+            <div id="import-utenti-ruoli">
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-operatore" class="imp-ruolo-cb" value="operatore" checked><label for="imp-ruolo-operatore">Volontario</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-scu" class="imp-ruolo-cb" value="scu"><label for="imp-ruolo-scu">SCU</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabile" class="imp-ruolo-cb" value="responsabile"><label for="imp-ruolo-responsabile">Responsabile Servizi</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-eccedenza" class="imp-ruolo-cb" value="eccedenza"><label for="imp-ruolo-eccedenza">Eccedenza 118</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabile118" class="imp-ruolo-cb" value="responsabile118"><label for="imp-ruolo-responsabile118">Responsabile 118</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabileScu" class="imp-ruolo-cb" value="responsabileScu"><label for="imp-ruolo-responsabileScu">Responsabile SCU</label></div>
+            </div>
+          </div>
+          <div id="import-utenti-esito" style="margin:10px 0;font-size:13px;"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeImportUtentiModal()">Annulla</button>
+            <button type="button" class="btn btn-primary" style="width:auto;" onclick="eseguiImportUtenti()">Importa</button>
+          </div>
+        </div>
       </div>
 
       <!-- MEZZI -->
@@ -1246,14 +1292,14 @@
         <p class="map-hint" id="uf-password-hint">L'utente dovrà cambiarla al primo accesso.</p>
       </div>
       <div class="field"><label>Livelli di accesso</label>
-        <div id="uf-ruoli-checkbox" style="display:flex;flex-direction:column;gap:4px;">
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="operatore" onchange="onUfRuoloChange()"> Volontario</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="scu" onchange="onUfRuoloChange()"> SCU</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="responsabile" onchange="onUfRuoloChange()"> Responsabile Servizi</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"> Eccedenza 118</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="responsabile118" onchange="onUfRuoloChange()"> Responsabile 118</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="responsabileScu" onchange="onUfRuoloChange()"> Responsabile SCU</label>
-          <label class="checkrow"><input type="checkbox" class="uf-ruolo-cb" value="amministratore" onchange="onUfRuoloChange()"> Amministratore</label>
+        <div id="uf-ruoli-checkbox">
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-operatore" class="uf-ruolo-cb" value="operatore" onchange="onUfRuoloChange()"><label for="uf-ruolo-operatore">Volontario</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-scu" class="uf-ruolo-cb" value="scu" onchange="onUfRuoloChange()"><label for="uf-ruolo-scu">SCU</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabile" class="uf-ruolo-cb" value="responsabile" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabile">Responsabile Servizi</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-eccedenza" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"><label for="uf-ruolo-eccedenza">Eccedenza 118</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabile118" class="uf-ruolo-cb" value="responsabile118" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabile118">Responsabile 118</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabileScu" class="uf-ruolo-cb" value="responsabileScu" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabileScu">Responsabile SCU</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-amministratore" class="uf-ruolo-cb" value="amministratore" onchange="onUfRuoloChange()"><label for="uf-ruolo-amministratore">Amministratore</label></div>
         </div>
         <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenza 118). Eccedenza 118: visualizza e gestisce la scheda Eccedenza 118. Responsabile 118: come Eccedenza 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
       </div>
@@ -2483,6 +2529,10 @@ async function ricaricaDatiCorrenti(){
       presidi = (await kvGet('presidi-magazzino')) || [];
       prestiti = (await kvGet('prestiti-presidi')) || [];
     }
+    if(viewAttiva === 'view-turniscu'){
+      turniScu = (await kvGet('turniScu')) || {};
+      utenti = (await kvGet('utenti')) || [];
+    }
     if(viewAttiva === 'view-elenco'){ renderElenco(); }
     if(viewAttiva === 'view-dashboard'){ renderCalendar(); }
     if(viewAttiva === 'view-fogli'){ renderFogliMarcia(); }
@@ -2491,6 +2541,7 @@ async function ricaricaDatiCorrenti(){
     if(viewAttiva === 'view-eccedenza118'){ renderElenco118(); }
     if(viewAttiva === 'view-presidi'){ aggiornaEDisegnaPrestiti(); }
     if(viewAttiva === 'view-gestionepresidi'){ aggiornaEDisegnaGestionePresidi(); }
+    if(viewAttiva === 'view-turniscu'){ renderTurniScu(); }
   } catch(e){
     // Connessione assente al momento del giro: si ritenta al prossimo intervallo.
   }
@@ -2537,6 +2588,7 @@ function switchView(v){
   if(v === 'statistiche') renderStatistiche();
   if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
+  if(v === 'turniscu') renderTurniScu();
   if(window.innerWidth <= 900) closeSidebarMobile();
 }
 function toggleSidebar(){
@@ -2709,22 +2761,35 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
     return;
   }
   const nomiGiorni = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  let html = '<table class="mini-table"><thead><tr><th></th>';
-  giorni.forEach((d,i)=>{ html += `<th>${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
+  const bordoCol = 'border-left:2px solid var(--line-soft);';
+  let html = '<table class="mini-table" style="border-collapse:collapse;"><thead><tr><th></th>';
+  giorni.forEach((d,i)=>{ html += `<th style="${bordoCol}">${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
   html += '</tr></thead><tbody>';
   FASCE_TURNI_SCU.forEach(fascia => {
-    html += `<tr><td style="font-weight:700;color:var(--navy);white-space:nowrap;">${escapeHtml(fascia.label)}</td>`;
+    html += `<tr><td style="font-weight:700;color:var(--navy);white-space:nowrap;border-top:2px solid var(--line-soft);">${escapeHtml(fascia.label)}</td>`;
     giorni.forEach(d => {
       const dataISO = formatDataISOTurni(d);
-      const nomi = [];
+      // Righe da mostrare in questa cella: { minutiInizio, testo } — ordinate
+      // per orario di inizio (chi comincia prima, in alto). Riposo e Assente
+      // non hanno un orario: compaiono solo nella riga "Mattina", in coda.
+      const righe = [];
       utentiScu.forEach(u => {
         const turno = turnoScuDi(dataISO, u.id);
-        if(turno && turno.tipo === 'orario' && turno.dalle){
+        if(!turno) return;
+        const nota = turno.nota ? ` — ${turno.nota}` : '';
+        if(turno.tipo === 'orario' && turno.dalle){
           const f = fasciaPerOrarioInizio(turno.dalle);
-          if(f && f.chiave === fascia.chiave) nomi.push(`${u.nome} ${u.cognome} (${turno.dalle}–${turno.alle||'?'})`);
+          if(f && f.chiave === fascia.chiave){
+            const [h,m] = turno.dalle.split(':').map(Number);
+            righe.push({ minuti: h*60+(m||0), testo: `${u.nome} ${u.cognome} (${turno.dalle}–${turno.alle||'?'})${nota}` });
+          }
+        } else if((turno.tipo === 'riposo' || turno.tipo === 'assente') && fascia.chiave === 'mattina'){
+          const etichetta = turno.tipo === 'riposo' ? 'Riposo' : 'Assente/Permesso';
+          righe.push({ minuti: 9999, testo: `${u.nome} ${u.cognome} — ${etichetta}${nota}` });
         }
       });
-      html += `<td style="vertical-align:top;font-size:12px;line-height:1.6;">${nomi.map(n=>escapeHtml(n)).join('<br>') || ''}</td>`;
+      righe.sort((a,b) => a.minuti - b.minuti);
+      html += `<td style="vertical-align:top;font-size:12px;line-height:1.6;${bordoCol}">${righe.map(r=>escapeHtml(r.testo)).join('<br>') || ''}</td>`;
     });
     html += '</tr>';
   });
@@ -2735,6 +2800,21 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
 // persona, con selettore di stato e, per i turni a orario, i campi
 // dalle/alle — è lo strumento con cui si impostano i dati che poi
 // alimentano la griglia a fasce qui sopra.
+function opzioniOreMinuti(tipo, valoreAttuale){
+  const max = tipo === 'ore' ? 24 : 60;
+  let opts = '<option value="">--</option>';
+  for(let i=0;i<max;i++){
+    const v = String(i).padStart(2,'0');
+    opts += `<option value="${v}" ${v===valoreAttuale?'selected':''}>${v}</option>`;
+  }
+  return opts;
+}
+function impostaOrarioTurnoScuDaSelect(userId, dataISO, campo, idOre, idMinuti){
+  const h = document.getElementById(idOre).value;
+  const m = document.getElementById(idMinuti).value;
+  const valore = (h && m) ? `${h}:${m}` : '';
+  impostaOrarioTurnoScu(userId, dataISO, campo, valore);
+}
 function renderEditorTurniScu(giorni, utentiScu){
   const container = document.getElementById('turniscu-container');
   if(!container) return;
@@ -2750,14 +2830,20 @@ function renderEditorTurniScu(giorni, utentiScu){
       const tipoCorrente = turno ? (turno.tipo === 'legacy' ? '' : turno.tipo) : '';
       const colore = TURNI_SCU_COLORI[tipoCorrente] || TURNI_SCU_COLORI[''];
       const mostraOrario = tipoCorrente === 'orario';
-      html += `<td style="background:${colore.bg};padding:3px;min-width:110px;">
+      const [dalleH, dalleM] = (turno?.dalle || '').split(':');
+      const [alleH, alleM] = (turno?.alle || '').split(':');
+      const idDalleH = `ts-dh-${u.id}-${dataISO}`, idDalleM = `ts-dm-${u.id}-${dataISO}`;
+      const idAlleH = `ts-ah-${u.id}-${dataISO}`, idAlleM = `ts-am-${u.id}-${dataISO}`;
+      html += `<td style="background:${colore.bg};padding:3px;min-width:130px;">
         <select onchange="impostaStatoTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;border:none;background:transparent;color:${colore.fg};font-weight:600;font-size:11px;">
           ${TURNI_SCU_STATI.map(t=>`<option value="${t.valore}" ${t.valore===tipoCorrente?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
         </select>
-        <div style="display:${mostraOrario?'flex':'none'};gap:2px;margin-top:2px;">
-          <input type="time" value="${turno?.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','dalle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
-          <input type="time" value="${turno?.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','alle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+        <div style="display:${mostraOrario?'flex':'none'};align-items:center;gap:2px;margin-top:2px;font-size:11px;">
+          <select id="${idDalleH}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','dalle','${idDalleH}','${idDalleM}')" style="width:26%;">${opzioniOreMinuti('ore', dalleH)}</select>:<select id="${idDalleM}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','dalle','${idDalleH}','${idDalleM}')" style="width:26%;">${opzioniOreMinuti('minuti', dalleM)}</select>
+          <span>–</span>
+          <select id="${idAlleH}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','alle','${idAlleH}','${idAlleM}')" style="width:26%;">${opzioniOreMinuti('ore', alleH)}</select>:<select id="${idAlleM}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','alle','${idAlleH}','${idAlleM}')" style="width:26%;">${opzioniOreMinuti('minuti', alleM)}</select>
         </div>
+        <input type="text" placeholder="Nota (facoltativa)" value="${escapeHtml(turno?.nota||'')}" onchange="impostaNotaTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;font-size:10.5px;margin-top:3px;border:1px solid var(--line-soft);border-radius:4px;padding:2px 4px;">
       </td>`;
     });
     html += '</tr>';
@@ -2794,6 +2880,16 @@ async function impostaOrarioTurnoScu(userId, dataISO, campo, valore){
   const base = (esistente && esistente.tipo === 'orario') ? esistente : { tipo: 'orario', dalle: '', alle: '' };
   base[campo] = valore;
   turniScu[dataISO][userId] = base;
+  renderTurniScu();
+  await saveTurniScu();
+}
+async function impostaNotaTurnoScu(userId, dataISO, valore){
+  if(!canGestireTurniScu()) return;
+  if(!turniScu[dataISO]) turniScu[dataISO] = {};
+  const esistente = turnoScuDi(dataISO, userId) || { tipo: '' };
+  if(esistente.tipo === 'legacy') return; // valore vecchio formato, non modificabile qui
+  esistente.nota = valore;
+  turniScu[dataISO][userId] = esistente;
   renderTurniScu();
   await saveTurniScu();
 }
@@ -3046,8 +3142,10 @@ let editingUserId = null;
 function renderUsers(){
   if(!canManageUsers()) return;
   const container = document.getElementById('users-container');
-  const attivi = utenti.filter(u=>!u.archiviato && !u.cestinato);
-  const archiviati = utenti.filter(u=>u.archiviato && !u.cestinato);
+  const filtroRuolo = document.getElementById('uf-filtro-ruolo')?.value || '';
+  const perRuolo = u => !filtroRuolo || ruoliUtente(u).includes(filtroRuolo);
+  const attivi = utenti.filter(u=>!u.archiviato && !u.cestinato && perRuolo(u));
+  const archiviati = utenti.filter(u=>u.archiviato && !u.cestinato && perRuolo(u));
   const cardUtente = u => `
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
@@ -3064,6 +3162,9 @@ function renderUsers(){
       </div>
     </div>`;
   let html = '<div class="section-title">Utenti attivi</div><div class="users-grid">' + attivi.map(cardUtente).join('') + '</div>';
+  if(attivi.length === 0){
+    html += `<div class="empty-state">${filtroRuolo ? 'Nessun utente attivo con questo livello di accesso.' : 'Nessun utente attivo.'}</div>`;
+  }
   if(archiviati.length){
     html += '<div class="section-title">Utenti archiviati</div><div class="users-grid">' + archiviati.map(cardUtente).join('') + '</div>';
   }
@@ -3123,6 +3224,71 @@ function onUfRuoloChange(){
   document.getElementById('uf-firma118-wrap').style.display = (ruoli.includes('eccedenza') || ruoli.includes('responsabile118')) ? 'block' : 'none';
 }
 function closeUserModal(){ document.getElementById('user-modal-backdrop').classList.remove('active'); editingUserId = null; }
+function apriImportUtentiModal(){
+  if(!canManageUsers()) return;
+  document.getElementById('import-utenti-testo').value = '';
+  document.getElementById('import-utenti-esito').innerHTML = '';
+  document.querySelectorAll('.imp-ruolo-cb').forEach(cb => cb.checked = (cb.value === 'operatore'));
+  document.getElementById('import-utenti-modal-backdrop').classList.add('active');
+}
+function closeImportUtentiModal(){
+  document.getElementById('import-utenti-modal-backdrop').classList.remove('active');
+}
+// Accetta righe separate da tabulazione (incolla da Excel), punto e virgola
+// o virgola: Cognome, Nome, Nome utente, Password.
+function parsificaRigaImportUtenti(riga){
+  let campi = riga.split('\t');
+  if(campi.length < 4) campi = riga.split(';');
+  if(campi.length < 4) campi = riga.split(',');
+  return campi.map(c => (c||'').trim());
+}
+async function eseguiImportUtenti(){
+  if(!canManageUsers()) return;
+  const testo = document.getElementById('import-utenti-testo').value;
+  const righe = testo.split('\n').map(r=>r.trim()).filter(Boolean);
+  const ruoli = [...document.querySelectorAll('.imp-ruolo-cb:checked')].map(cb=>cb.value);
+  const esitoBox = document.getElementById('import-utenti-esito');
+  if(righe.length === 0){ esitoBox.innerHTML = '<span style="color:#B23A24;">Incolla almeno una riga.</span>'; return; }
+  if(ruoli.length === 0){ esitoBox.innerHTML = '<span style="color:#B23A24;">Seleziona almeno un livello di accesso.</span>'; return; }
+
+  const creati = [], saltati = [];
+  for(const riga of righe){
+    const [cognome, nome, username, password] = parsificaRigaImportUtenti(riga);
+    if(!cognome || !nome || !username || !password){
+      saltati.push(`"${riga}" — riga incompleta (servono 4 valori: cognome, nome, nome utente, password)`);
+      continue;
+    }
+    const duplicato = utenti.some(u=>u.username.toLowerCase()===username.toLowerCase()) || creati.some(u=>u.username.toLowerCase()===username.toLowerCase());
+    if(duplicato){
+      saltati.push(`${nome} ${cognome} (${username}) — nome utente già esistente`);
+      continue;
+    }
+    creati.push({
+      id: 'u-' + Date.now() + '-' + Math.floor(Math.random()*100000),
+      nome, cognome, username,
+      passwordHash: await sha256Hex(String(password)),
+      ruoli: [...ruoli],
+      ruolo: ruoli[0],
+      firma118: null,
+      mustChangePassword: true
+    });
+  }
+
+  if(creati.length){
+    utenti = utenti.concat(creati);
+    await saveUtenti();
+    renderUsers();
+    renderTurniScu();
+  }
+
+  let html = '';
+  if(creati.length) html += `<p style="color:#1E6B45;font-weight:600;">✓ Creati ${creati.length} utenti.</p>`;
+  if(saltati.length) html += `<p style="color:#B23A24;font-weight:600;">Righe saltate (${saltati.length}):</p><ul style="margin:4px 0 0 18px;">${saltati.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ul>`;
+  esitoBox.innerHTML = html || 'Nessun utente creato.';
+  if(creati.length && !saltati.length){
+    setTimeout(closeImportUtentiModal, 1500);
+  }
+}
 async function saveUser(ev){
   ev.preventDefault();
   const username = document.getElementById('uf-username').value.trim();
@@ -3168,6 +3334,7 @@ async function saveUser(ev){
   }
   await saveUtenti();
   renderUsers();
+  renderTurniScu(); // se l'utente è di tipo SCU, aggiorna subito la sezione Turni SCU senza dover uscire e rientrare
   closeUserModal();
   return false;
 }
