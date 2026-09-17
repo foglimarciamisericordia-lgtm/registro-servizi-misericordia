@@ -655,7 +655,11 @@
           <button class="btn btn-ghost" style="width:auto;" onclick="vaiSettimanaCorrenteTurniScu()">Oggi</button>
         </div>
         <p class="map-hint" id="turniscu-legenda"></p>
-        <div id="turniscu-container" style="overflow-x:auto;"></div>
+        <div id="turniscu-griglia-container" style="overflow-x:auto;margin-bottom:24px;"></div>
+        <div id="turniscu-editor-wrap" style="display:none;">
+          <div class="section-title">Imposta i turni per volontario</div>
+          <div id="turniscu-container" style="overflow-x:auto;"></div>
+        </div>
       </div>
 
       <!-- GESTIONE PRESIDI (magazzino, solo amministratore) -->
@@ -2649,12 +2653,30 @@ function formattaTurnoScu(turno){
   return '—';
 }
 async function saveTurniScu(){ await kvSet('turniScu', turniScu); }
+// Fasce orarie della vista "pubblicata" (quella che vede il volontario SCU):
+// un turno viene inserito nella fascia con la soglia più alta che il suo
+// orario di inizio raggiunge o supera (es. inizio 14:00 → Pomeriggio, non
+// Intermedio, perché 14:00 ≥ 13:00 ma la soglia più alta raggiunta è quella
+// del Pomeriggio).
+const FASCE_TURNI_SCU = [
+  { chiave: 'mattina', label: 'Mattina', sogliaMinuti: 1 },
+  { chiave: 'intermedio', label: 'Intermedio', sogliaMinuti: 600 },
+  { chiave: 'pomeriggio', label: 'Pomeriggio', sogliaMinuti: 780 },
+  { chiave: 'sera', label: 'Sera', sogliaMinuti: 960 }
+];
+function fasciaPerOrarioInizio(orarioHHMM){
+  if(!orarioHHMM) return null;
+  const parti = orarioHHMM.split(':').map(Number);
+  const minuti = parti[0]*60 + (parti[1]||0);
+  let trovata = null;
+  for(const f of FASCE_TURNI_SCU){ if(minuti >= f.sogliaMinuti) trovata = f; }
+  return trovata;
+}
 function renderTurniScu(){
   if(!canVedereTurniScu()) return;
-  const container = document.getElementById('turniscu-container');
   const label = document.getElementById('turniscu-settimana-label');
   const legenda = document.getElementById('turniscu-legenda');
-  if(!container) return;
+  const puoModificare = canGestireTurniScu();
 
   const giorni = [];
   for(let i=0;i<7;i++){
@@ -2663,18 +2685,59 @@ function renderTurniScu(){
     giorni.push(d);
   }
   label.textContent = `${giorni[0].toLocaleDateString('it-IT')} — ${giorni[6].toLocaleDateString('it-IT')}`;
-  legenda.textContent = 'Per ogni giorno si può impostare un turno con orario libero (dalle-alle), oppure segnare Riposo o Assente/Permesso.';
+  legenda.textContent = 'I volontari sono elencati nella fascia corrispondente all\'orario di inizio del loro turno.';
 
   // Il calendario mostra tutti gli utenti di tipo SCU attivi (non
   // archiviati): sia i colleghi sia l'utente stesso, se lui stesso è SCU.
   const utentiScu = utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'));
-  const puoModificare = canGestireTurniScu();
 
+  renderGrigliaFasceTurniScu(giorni, utentiScu);
+
+  document.getElementById('turniscu-editor-wrap').style.display = puoModificare ? 'block' : 'none';
+  if(puoModificare) renderEditorTurniScu(giorni, utentiScu);
+}
+// Vista "pubblicata": una riga per fascia oraria (Mattina/Intermedio/
+// Pomeriggio/Sera), una colonna per giorno, con l'elenco dei volontari il
+// cui turno inizia in quella fascia — ricalca il classico foglio turni
+// stampato. Riposo e Assente/Permesso non compaiono qui (non sono orari di
+// lavoro): restano visibili solo nell'editor per volontario, sotto.
+function renderGrigliaFasceTurniScu(giorni, utentiScu){
+  const container = document.getElementById('turniscu-griglia-container');
+  if(!container) return;
   if(utentiScu.length === 0){
     container.innerHTML = '<div class="empty-state">Nessun utente di tipo SCU attivo trovato. Assegna il livello "SCU" a un utente da Gestione utenti per farlo comparire qui.</div>';
     return;
   }
-
+  const nomiGiorni = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+  let html = '<table class="mini-table"><thead><tr><th></th>';
+  giorni.forEach((d,i)=>{ html += `<th>${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
+  html += '</tr></thead><tbody>';
+  FASCE_TURNI_SCU.forEach(fascia => {
+    html += `<tr><td style="font-weight:700;color:var(--navy);white-space:nowrap;">${escapeHtml(fascia.label)}</td>`;
+    giorni.forEach(d => {
+      const dataISO = formatDataISOTurni(d);
+      const nomi = [];
+      utentiScu.forEach(u => {
+        const turno = turnoScuDi(dataISO, u.id);
+        if(turno && turno.tipo === 'orario' && turno.dalle){
+          const f = fasciaPerOrarioInizio(turno.dalle);
+          if(f && f.chiave === fascia.chiave) nomi.push(`${u.nome} ${u.cognome} (${turno.dalle}–${turno.alle||'?'})`);
+        }
+      });
+      html += `<td style="vertical-align:top;font-size:12px;line-height:1.6;">${nomi.map(n=>escapeHtml(n)).join('<br>') || ''}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+// Editor per volontario (solo Responsabile SCU/Amministratore): una riga per
+// persona, con selettore di stato e, per i turni a orario, i campi
+// dalle/alle — è lo strumento con cui si impostano i dati che poi
+// alimentano la griglia a fasce qui sopra.
+function renderEditorTurniScu(giorni, utentiScu){
+  const container = document.getElementById('turniscu-container');
+  if(!container) return;
   const nomiGiorni = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   let html = '<table class="mini-table"><thead><tr><th>Volontario</th>';
   giorni.forEach((d,i)=>{ html += `<th>${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
@@ -2686,20 +2749,16 @@ function renderTurniScu(){
       const turno = turnoScuDi(dataISO, u.id);
       const tipoCorrente = turno ? (turno.tipo === 'legacy' ? '' : turno.tipo) : '';
       const colore = TURNI_SCU_COLORI[tipoCorrente] || TURNI_SCU_COLORI[''];
-      if(puoModificare){
-        const mostraOrario = tipoCorrente === 'orario';
-        html += `<td style="background:${colore.bg};padding:3px;min-width:110px;">
-          <select onchange="impostaStatoTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;border:none;background:transparent;color:${colore.fg};font-weight:600;font-size:11px;">
-            ${TURNI_SCU_STATI.map(t=>`<option value="${t.valore}" ${t.valore===tipoCorrente?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
-          </select>
-          <div style="display:${mostraOrario?'flex':'none'};gap:2px;margin-top:2px;">
-            <input type="time" value="${turno?.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','dalle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
-            <input type="time" value="${turno?.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','alle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
-          </div>
-        </td>`;
-      } else {
-        html += `<td style="background:${colore.bg};color:${colore.fg};font-weight:600;text-align:center;font-size:12px;">${escapeHtml(formattaTurnoScu(turno))}</td>`;
-      }
+      const mostraOrario = tipoCorrente === 'orario';
+      html += `<td style="background:${colore.bg};padding:3px;min-width:110px;">
+        <select onchange="impostaStatoTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;border:none;background:transparent;color:${colore.fg};font-weight:600;font-size:11px;">
+          ${TURNI_SCU_STATI.map(t=>`<option value="${t.valore}" ${t.valore===tipoCorrente?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
+        </select>
+        <div style="display:${mostraOrario?'flex':'none'};gap:2px;margin-top:2px;">
+          <input type="time" value="${turno?.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','dalle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+          <input type="time" value="${turno?.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','alle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+        </div>
+      </td>`;
     });
     html += '</tr>';
   });
