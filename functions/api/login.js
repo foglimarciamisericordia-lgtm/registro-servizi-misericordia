@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
     const hash = await sha256Hex('admin123');
     utenti = [{
       id: 'admin-1', username: 'admin', passwordHash: hash,
-      nome: 'Amministratore', cognome: 'Sistema', ruolo: 'amministratore',
+      nome: 'Amministratore', cognome: 'Sistema', ruolo: 'amministratore', ruoli: ['amministratore'],
       mustChangePassword: true
     }];
     await env.REGISTRO_KV.put('utenti', JSON.stringify(utenti));
@@ -83,9 +83,13 @@ export async function onRequestPost(context) {
   const sessione = { userId: utente.id, creatoIl: Date.now() };
   await env.REGISTRO_KV.put('session:' + token, JSON.stringify(sessione), { expirationTtl: DURATA_SESSIONE_SECONDI });
 
+  // IMPORTANTE: includiamo anche "ruoli" (l'elenco di più livelli di accesso),
+  // non solo il vecchio campo singolo "ruolo" — altrimenti un utente con più
+  // livelli assegnati (es. Volontario + Responsabile Servizi) risulterebbe,
+  // dopo il login, come se ne avesse soltanto uno.
   const utenteSicuro = {
     id: utente.id, username: utente.username, nome: utente.nome,
-    cognome: utente.cognome, ruolo: utente.ruolo,
+    cognome: utente.cognome, ruolo: utente.ruolo, ruoli: utente.ruoli,
     mustChangePassword: !!utente.mustChangePassword
   };
 
