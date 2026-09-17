@@ -3073,12 +3073,16 @@ function renderGuastiMezzi(){
   const isAdmin = haRuolo('amministratore');
   container.innerHTML = elenco.map(g => {
     const colGravita = GRAVITA_GUASTO_COLORE[g.gravita] || { bg:'#E2E3E5', fg:'#333' };
+    const mezzo = mezzi.find(m=>m.id===g.mezzoId);
+    const mezzoBloccato = !!mezzo?.bloccato;
     return `
     <div class="user-card" style="border-left:4px solid ${g.stato==='aperto' ? '#B23A24' : '#1E6B45'};">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
-        <div class="nm">${escapeHtml(nomeMezzoPerGuasto(g.mezzoId))}</div>
-        <div style="display:flex;gap:8px;">
-          <span style="display:inline-block;padding:5px 14px;border-radius:8px;background:${colGravita.bg};color:${colGravita.fg};font-weight:700;font-size:13px;">${GRAVITA_GUASTO_LABEL[g.gravita]||g.gravita}</span>
+        <div class="nm">${escapeHtml(nomeMezzoPerGuasto(g.mezzoId))}${mezzoBloccato ? ' <span style="color:#B23A24;font-weight:700;font-size:12px;">(mezzo bloccato)</span>' : ''}</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select onchange="cambiaGravitaGuasto('${g.id}',this.value)" style="padding:5px 10px;border-radius:8px;border:none;background:${colGravita.bg};color:${colGravita.fg};font-weight:700;font-size:13px;">
+            ${Object.keys(GRAVITA_GUASTO_LABEL).map(k=>`<option value="${k}" ${k===g.gravita?'selected':''}>${GRAVITA_GUASTO_LABEL[k]}</option>`).join('')}
+          </select>
           <span style="display:inline-block;padding:5px 14px;border-radius:8px;background:${g.stato==='risolto' ? '#DCEBE1' : '#FBE1DC'};color:${g.stato==='risolto' ? '#1E6B45' : '#B23A24'};font-weight:700;font-size:13px;">${g.stato==='risolto' ? 'Risolto' : 'Aperto'}</span>
         </div>
       </div>
@@ -3087,11 +3091,39 @@ function renderGuastiMezzi(){
       ${g.stato==='risolto' ? `<p class="map-hint">Risolto da ${escapeHtml(g.risoltoDa||'—')} il ${g.risoltoIl ? new Date(g.risoltoIl).toLocaleString('it-IT') : '—'}${g.notaRisoluzione ? ' — '+escapeHtml(g.notaRisoluzione) : ''}</p>` : ''}
       <div class="row-actions" style="margin-top:8px;">
         ${g.stato==='aperto' ? `<button class="action-btn primary" onclick="apriRisolviGuastoModal('${g.id}')">✓ Segna come risolto</button>` : ''}
+        ${mezzo ? (mezzoBloccato
+          ? `<button class="action-btn" onclick="sbloccaMezzo('${mezzo.id}')">✓ Sblocca mezzo</button>`
+          : `<button class="action-btn danger" onclick="bloccaMezzo('${mezzo.id}')">🚫 Blocca mezzo</button>`) : ''}
         ${isAdmin && g.stato==='risolto' ? `<button class="action-btn" onclick="riapriGuasto('${g.id}')">↺ Riapri</button>` : ''}
         ${isAdmin ? `<button class="action-btn danger" onclick="eliminaGuasto('${g.id}')">🗑 Elimina</button>` : ''}
       </div>
     </div>
   `;}).join('');
+}
+async function cambiaGravitaGuasto(id, nuovaGravita){
+  if(!canGestireGuastiMezzi()) return;
+  const guasto = guastiMezzi.find(g=>g.id===id);
+  if(!guasto) return;
+  guasto.gravita = nuovaGravita;
+  await saveGuastiMezzi();
+  renderGuastiMezzi();
+}
+async function bloccaMezzo(mezzoId){
+  if(!canGestireGuastiMezzi()) return;
+  const mezzo = mezzi.find(m=>m.id===mezzoId);
+  if(!mezzo) return;
+  if(!confirm(`Bloccare "${mezzo.tipo}${mezzo.codice?' '+mezzo.codice:''} — ${mezzo.targa}"? Non comparirà più tra i mezzi assegnabili finché non lo sblocchi.`)) return;
+  mezzo.bloccato = true;
+  await saveMezzi();
+  renderGuastiMezzi();
+}
+async function sbloccaMezzo(mezzoId){
+  if(!canGestireGuastiMezzi()) return;
+  const mezzo = mezzi.find(m=>m.id===mezzoId);
+  if(!mezzo) return;
+  mezzo.bloccato = false;
+  await saveMezzi();
+  renderGuastiMezzi();
 }
 let guastoInSospesoId = null;
 function apriRisolviGuastoModal(id){
@@ -3116,6 +3148,18 @@ async function confermaRisolviGuasto(){
   guasto.risoltoDa = currentUser.nome + ' ' + currentUser.cognome;
   guasto.risoltoIl = new Date().toISOString();
   guasto.notaRisoluzione = nota; // salvata anche se vuota: confermare con "Ok" chiude comunque la segnalazione
+  // Sblocca il mezzo in automatico, a meno che non resti ancora aperta
+  // un'ALTRA segnalazione di gravità "bloccante" per lo stesso mezzo: altre
+  // segnalazioni aperte ma non bloccanti (bassa/media) non impediscono lo
+  // sblocco.
+  const mezzo = mezzi.find(m=>m.id===guasto.mezzoId);
+  if(mezzo && mezzo.bloccato){
+    const restaUnaBloccanteAperta = guastiMezzi.some(g => g.id!==guasto.id && g.mezzoId===guasto.mezzoId && g.stato==='aperto' && g.gravita==='bloccante');
+    if(!restaUnaBloccanteAperta){
+      mezzo.bloccato = false;
+      await saveMezzi();
+    }
+  }
   await saveGuastiMezzi();
   renderGuastiMezzi();
   aggiornaBadgeGuastiMezzi();
@@ -3916,12 +3960,12 @@ async function eliminaMezzoDefinitivo(id){
 }
 function fillMezzoSelect(valoreCorrente){
   const sel = document.getElementById('sf-mezzo');
-  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato));
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.bloccato));
   if(mezzi.length === 0){
     sel.innerHTML = '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
     return;
   }
-  const opt = m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}</option>`;
+  const opt = m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}${m.bloccato?' (bloccato per guasto)':''}</option>`;
   let elenco = attivi;
   if(valoreCorrente && !attivi.some(m=>m.id===valoreCorrente)){
     const storico = mezzi.find(m=>m.id===valoreCorrente);
