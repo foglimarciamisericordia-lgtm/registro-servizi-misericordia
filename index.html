@@ -245,11 +245,11 @@
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   @media(max-width:680px){.grid3,.grid2,.grid4{grid-template-columns:1fr;}}
   .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
-  #uf-ruoli-checkbox{display:flex;flex-direction:column;gap:2px;}
-  #uf-ruoli-checkbox .ruolo-check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:6px;}
-  #uf-ruoli-checkbox .ruolo-check-row:hover{background:var(--surface-2);}
-  #uf-ruoli-checkbox .ruolo-check-row input[type="checkbox"]{flex:0 0 auto;width:17px;height:17px;margin:0;}
-  #uf-ruoli-checkbox label{display:inline;flex:1 1 auto;font-size:13px;color:var(--ink);margin:0;cursor:pointer;}
+  #uf-ruoli-checkbox, #import-utenti-ruoli{display:flex;flex-direction:column;gap:2px;}
+  #uf-ruoli-checkbox .ruolo-check-row, #import-utenti-ruoli .ruolo-check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:6px;}
+  #uf-ruoli-checkbox .ruolo-check-row:hover, #import-utenti-ruoli .ruolo-check-row:hover{background:var(--surface-2);}
+  #uf-ruoli-checkbox .ruolo-check-row input[type="checkbox"], #import-utenti-ruoli .ruolo-check-row input[type="checkbox"]{flex:0 0 auto;width:17px;height:17px;margin:0;}
+  #uf-ruoli-checkbox label, #import-utenti-ruoli label{display:inline;flex:1 1 auto;font-size:13px;color:var(--ink);margin:0;cursor:pointer;}
   label.presidio-flag{flex:1 1 90px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}
@@ -2800,21 +2800,6 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
 // persona, con selettore di stato e, per i turni a orario, i campi
 // dalle/alle — è lo strumento con cui si impostano i dati che poi
 // alimentano la griglia a fasce qui sopra.
-function opzioniOreMinuti(tipo, valoreAttuale){
-  const max = tipo === 'ore' ? 24 : 60;
-  let opts = '<option value="">--</option>';
-  for(let i=0;i<max;i++){
-    const v = String(i).padStart(2,'0');
-    opts += `<option value="${v}" ${v===valoreAttuale?'selected':''}>${v}</option>`;
-  }
-  return opts;
-}
-function impostaOrarioTurnoScuDaSelect(userId, dataISO, campo, idOre, idMinuti){
-  const h = document.getElementById(idOre).value;
-  const m = document.getElementById(idMinuti).value;
-  const valore = (h && m) ? `${h}:${m}` : '';
-  impostaOrarioTurnoScu(userId, dataISO, campo, valore);
-}
 function renderEditorTurniScu(giorni, utentiScu){
   const container = document.getElementById('turniscu-container');
   if(!container) return;
@@ -2830,18 +2815,13 @@ function renderEditorTurniScu(giorni, utentiScu){
       const tipoCorrente = turno ? (turno.tipo === 'legacy' ? '' : turno.tipo) : '';
       const colore = TURNI_SCU_COLORI[tipoCorrente] || TURNI_SCU_COLORI[''];
       const mostraOrario = tipoCorrente === 'orario';
-      const [dalleH, dalleM] = (turno?.dalle || '').split(':');
-      const [alleH, alleM] = (turno?.alle || '').split(':');
-      const idDalleH = `ts-dh-${u.id}-${dataISO}`, idDalleM = `ts-dm-${u.id}-${dataISO}`;
-      const idAlleH = `ts-ah-${u.id}-${dataISO}`, idAlleM = `ts-am-${u.id}-${dataISO}`;
-      html += `<td style="background:${colore.bg};padding:3px;min-width:130px;">
+      html += `<td style="background:${colore.bg};padding:3px;min-width:110px;">
         <select onchange="impostaStatoTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;border:none;background:transparent;color:${colore.fg};font-weight:600;font-size:11px;">
           ${TURNI_SCU_STATI.map(t=>`<option value="${t.valore}" ${t.valore===tipoCorrente?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
         </select>
-        <div style="display:${mostraOrario?'flex':'none'};align-items:center;gap:2px;margin-top:2px;font-size:11px;">
-          <select id="${idDalleH}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','dalle','${idDalleH}','${idDalleM}')" style="width:26%;">${opzioniOreMinuti('ore', dalleH)}</select>:<select id="${idDalleM}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','dalle','${idDalleH}','${idDalleM}')" style="width:26%;">${opzioniOreMinuti('minuti', dalleM)}</select>
-          <span>–</span>
-          <select id="${idAlleH}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','alle','${idAlleH}','${idAlleM}')" style="width:26%;">${opzioniOreMinuti('ore', alleH)}</select>:<select id="${idAlleM}" onchange="impostaOrarioTurnoScuDaSelect('${u.id}','${dataISO}','alle','${idAlleH}','${idAlleM}')" style="width:26%;">${opzioniOreMinuti('minuti', alleM)}</select>
+        <div style="display:${mostraOrario?'flex':'none'};gap:2px;margin-top:2px;">
+          <input type="time" value="${turno?.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','dalle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+          <input type="time" value="${turno?.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','alle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
         </div>
         <input type="text" placeholder="Nota (facoltativa)" value="${escapeHtml(turno?.nota||'')}" onchange="impostaNotaTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;font-size:10.5px;margin-top:3px;border:1px solid var(--line-soft);border-radius:4px;padding:2px 4px;">
       </td>`;
