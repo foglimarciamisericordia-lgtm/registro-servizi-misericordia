@@ -2741,7 +2741,9 @@ function renderTurniScu(){
 
   // Il calendario mostra tutti gli utenti di tipo SCU attivi (non
   // archiviati): sia i colleghi sia l'utente stesso, se lui stesso è SCU.
-  const utentiScu = utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'));
+  // Ordinati per cognome.
+  const utentiScu = utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'))
+    .sort((a,b) => (a.cognome||'').localeCompare(b.cognome||'') || (a.nome||'').localeCompare(b.nome||''));
 
   renderGrigliaFasceTurniScu(giorni, utentiScu);
 
@@ -2761,8 +2763,11 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
     return;
   }
   const nomiGiorni = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  const bordoCol = 'border-left:2px solid var(--line-soft);';
-  let html = '<table class="mini-table" style="border-collapse:collapse;"><thead><tr><th></th>';
+  // Colonna delle fasce stretta e a misura del contenuto, i 7 giorni si
+  // dividono equamente lo spazio restante.
+  const colgroup = '<colgroup><col style="width:110px;">' + giorni.map(()=>'<col style="width:calc((100% - 110px)/7);">').join('') + '</colgroup>';
+  const bordoCol = 'border-left:1px solid var(--line);';
+  let html = `<table class="mini-table" style="border-collapse:collapse;table-layout:fixed;">${colgroup}<thead><tr><th></th>`;
   giorni.forEach((d,i)=>{ html += `<th style="${bordoCol}">${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
   html += '</tr></thead><tbody>';
   FASCE_TURNI_SCU.forEach(fascia => {
@@ -2781,11 +2786,11 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
           const f = fasciaPerOrarioInizio(turno.dalle);
           if(f && f.chiave === fascia.chiave){
             const [h,m] = turno.dalle.split(':').map(Number);
-            righe.push({ minuti: h*60+(m||0), testo: `${u.nome} ${u.cognome} (${turno.dalle}–${turno.alle||'?'})${nota}` });
+            righe.push({ minuti: h*60+(m||0), testo: `${u.cognome} ${u.nome} (${turno.dalle}–${turno.alle||'?'})${nota}` });
           }
         } else if((turno.tipo === 'riposo' || turno.tipo === 'assente') && fascia.chiave === 'mattina'){
           const etichetta = turno.tipo === 'riposo' ? 'Riposo' : 'Assente/Permesso';
-          righe.push({ minuti: 9999, testo: `${u.nome} ${u.cognome} — ${etichetta}${nota}` });
+          righe.push({ minuti: 9999, testo: `${u.cognome} ${u.nome} — ${etichetta}${nota}` });
         }
       });
       righe.sort((a,b) => a.minuti - b.minuti);
@@ -2804,11 +2809,17 @@ function renderEditorTurniScu(giorni, utentiScu){
   const container = document.getElementById('turniscu-container');
   if(!container) return;
   const nomiGiorni = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  let html = '<table class="mini-table"><thead><tr><th>Volontario</th>';
-  giorni.forEach((d,i)=>{ html += `<th>${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
+  const colgroup = '<colgroup><col style="width:140px;">' + giorni.map(()=>'<col style="width:calc((100% - 140px)/7);">').join('') + '</colgroup>';
+  let html = `<table class="mini-table" style="table-layout:fixed;">${colgroup}<thead><tr><th>Volontario</th>`;
+  giorni.forEach((d,i)=>{
+    const dataISO = formatDataISOTurni(d);
+    html += `<th>${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}<br>
+      <button type="button" class="action-btn" style="margin-top:4px;" onclick="cancellaGiornoTurniScu('${dataISO}')">🗑 Cancella</button>
+    </th>`;
+  });
   html += '</tr></thead><tbody>';
   utentiScu.forEach(u => {
-    html += `<tr><td>${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</td>`;
+    html += `<tr><td>${escapeHtml(u.cognome)} ${escapeHtml(u.nome)}</td>`;
     giorni.forEach(d => {
       const dataISO = formatDataISOTurni(d);
       const turno = turnoScuDi(dataISO, u.id);
@@ -2870,6 +2881,16 @@ async function impostaNotaTurnoScu(userId, dataISO, valore){
   if(esistente.tipo === 'legacy') return; // valore vecchio formato, non modificabile qui
   esistente.nota = valore;
   turniScu[dataISO][userId] = esistente;
+  renderTurniScu();
+  await saveTurniScu();
+}
+// Azzera tutti i turni di TUTTI i volontari per un intero giorno, in un
+// colpo solo (es. per ricominciare da capo la programmazione di quel giorno).
+async function cancellaGiornoTurniScu(dataISO){
+  if(!canGestireTurniScu()) return;
+  const dataLeggibile = new Date(dataISO + 'T00:00:00').toLocaleDateString('it-IT');
+  if(!confirm(`Cancellare tutti i turni impostati per ${dataLeggibile}? L'operazione non è reversibile.`)) return;
+  delete turniScu[dataISO];
   renderTurniScu();
   await saveTurniScu();
 }
