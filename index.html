@@ -1193,12 +1193,12 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
 
         <div class="field" id="campo-tipoTrasporto">
           <label>Tipo di trasporto *</label>
-          <select id="sf-tipoTrasporto" required><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Terapia riabilitativa</option><option>Trasporto sangue</option><option>Altro</option></select>
+          <select id="sf-tipoTrasporto" required><option value="">-- seleziona --</option><option>Dimissione</option><option>Visita ambulatoriale</option><option>Ricovero</option><option>Visita invalidità</option><option>Terapia riabilitativa</option><option>Trasporto sangue</option><option>Day Hospital</option><option>Intervento chirurgico</option><option>Terapia</option><option>Chemioterapia</option><option>Radiografia</option><option>Tac</option><option>RMN</option><option>Altro</option></select>
         </div>
 
         <div id="campi-trasporto-evento" style="display:none;">
           <div class="grid2">
-            <div class="field"><label>Su luogo dell'evento</label>
+            <div class="field" id="campo-suLuogoEvento"><label>Su luogo dell'evento</label>
               <select id="sf-suLuogoEvento"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
             </div>
             <div class="field"><label>Luogo evento</label><input type="text" id="sf-luogoEvento" placeholder="es. Piazza Duomo" oninput="scheduleGeoPreviewEvento();"></div>
@@ -1255,7 +1255,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="field"><label>Presenza di scale *</label><select id="sf-scale" required onchange="togglePianoScale()"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field"><label>Ascensore *</label><select id="sf-ascensore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
           <div class="field" id="piano-scale-box" style="display:none;"><label>Indicare piano e condizione scale</label><input type="text" id="sf-pianoScale"></div>
-          <div class="field"><label>Presenza accompagnatore *</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option></select></div>
+          <div class="field"><label>Presenza accompagnatore *</label><select id="sf-accompagnatore" required><option value="">-- non specificato --</option><option>Si</option><option>No</option><option>Non sa</option></select></div>
         </div>
         <div class="field"><label>Affetto da *</label><input type="text" id="sf-affettoDa" required></div>
         <div class="field">
@@ -1264,6 +1264,8 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-sedia" onchange="gestisciPresidioSelezionato(this)">Sedia a rotelle</label>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-portantina" onchange="gestisciPresidioSelezionato(this)">Portantina</label>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-spinale" onchange="gestisciPresidioSelezionato(this)">Barella spinale</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-cucchiaio" onchange="gestisciPresidioSelezionato(this)">Barella a cucchiaio</label>
+            <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-autocaricante" onchange="gestisciPresidioSelezionato(this)">Barella autocaricante</label>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-saliscale" onchange="gestisciPresidioSelezionato(this)">Saliscale elettrico</label>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-telo" onchange="gestisciPresidioSelezionato(this)">Telo</label>
             <label class="checkrow presidio-flag" style="margin:0;"><input type="checkbox" id="sf-presidio-nessuna" onchange="gestisciPresidioNessuna(this)">Nessuno</label>
@@ -1459,6 +1461,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeViewModal()">Chiudi</button>
         <button type="button" class="btn btn-ghost" id="btn-stampa-scheda-servizio" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-ghost" onclick="duplicaDaVisualizzazione()">⧉ Duplica</button>
         <button type="button" class="btn btn-primary" style="width:auto;" onclick="modificaDaVisualizzazione()">Modifica</button>
       </div>
     </div>
@@ -5498,7 +5501,8 @@ function toggleTipoScheda(){
   document.getElementById('campo-tipoTrasporto').style.display = mostraTipoTrasporto ? 'block' : 'none';
   document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
-  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : 'Orario visita *';
+  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita *');
+  document.getElementById('campo-suLuogoEvento').style.display = (tipo === 'evento') ? 'block' : 'none';
 
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
@@ -5566,7 +5570,12 @@ function openServiceModal(id, prefillDate){
   if(sv && haRuolo('amministratore')) delHtml += ` <button type="button" class="action-btn danger" style="margin-left:10px;" onclick="deleteService()">🗑 Elimina servizio</button>`;
   delSlot.innerHTML = delHtml;
 
-  const ripetizioneAllowed = !sv; // la ripetizione si può impostare solo per nuovi servizi
+  // La ricorrenza si può impostare/modificare liberamente per i nuovi
+  // servizi. Per un servizio già esistente resta bloccata (per non
+  // disallineare una serie già creata) — tranne per i Servizi in
+  // convenzione, dove va sempre permesso aggiungerla o modificarla anche in
+  // modifica.
+  const ripetizioneAllowed = !sv || sv.tipoScheda === 'convenzione';
   document.getElementById('fieldset-ripetizione').style.display = ripetizioneAllowed ? 'block' : 'none';
 
   document.getElementById('service-modal-backdrop').classList.add('active');
@@ -5727,6 +5736,11 @@ function modificaDaVisualizzazione(){
   closeViewModal();
   if(id) openServiceModal(id);
 }
+function duplicaDaVisualizzazione(){
+  const id = currentViewServiceId;
+  closeViewModal();
+  if(id) duplicateService(id);
+}
 
 function gestisciPresidioSelezionato(checkbox){
   if(checkbox.checked){
@@ -5738,6 +5752,8 @@ function gestisciPresidioNessuna(checkbox){
     document.getElementById('sf-presidio-sedia').checked = false;
     document.getElementById('sf-presidio-portantina').checked = false;
     document.getElementById('sf-presidio-spinale').checked = false;
+    document.getElementById('sf-presidio-cucchiaio').checked = false;
+    document.getElementById('sf-presidio-autocaricante').checked = false;
     document.getElementById('sf-presidio-saliscale').checked = false;
     document.getElementById('sf-presidio-telo').checked = false;
     document.getElementById('sf-presidiAltro').value = '';
@@ -5817,6 +5833,8 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-presidio-sedia').checked = !!(data?.presidi||[]).includes('Sedia a rotelle');
   document.getElementById('sf-presidio-portantina').checked = !!(data?.presidi||[]).includes('Portantina');
   document.getElementById('sf-presidio-spinale').checked = !!(data?.presidi||[]).includes('Barella spinale');
+  document.getElementById('sf-presidio-cucchiaio').checked = !!(data?.presidi||[]).includes('Barella a cucchiaio');
+  document.getElementById('sf-presidio-autocaricante').checked = !!(data?.presidi||[]).includes('Barella autocaricante');
   document.getElementById('sf-presidio-saliscale').checked = !!(data?.presidi||[]).includes('Saliscale elettrico');
   document.getElementById('sf-presidio-telo').checked = !!(data?.presidi||[]).includes('Telo');
   document.getElementById('sf-presidio-nessuna').checked = !!(data?.presidi||[]).includes('Nessuno');
@@ -5987,6 +6005,52 @@ function calcolaModificheServizio(vecchio, nuovo){
   return cambi;
 }
 
+// Crea i servizi ricorrenti per le date indicate, con lo stesso schema dati
+// e lo stesso gruppoRipetizione: usata sia per un nuovo servizio ricorrente
+// sia per aggiungere la ricorrenza a un Servizio in convenzione già
+// esistente, in modifica.
+async function generaServiziRicorrentiPerDate(data, dateList, gruppoId){
+  // Un bucket fresco per ogni anno coinvolto, letto una sola volta dal
+  // server: dato che sono tutte righe generate da questo stesso salvataggio,
+  // non c'è rischio di conflitto interno, ma la lettura resta comunque
+  // "fresca" rispetto a eventuali altre postazioni collegate.
+  const bucketCache = {};
+  for(let i=0;i<dateList.length;i++){
+    const dk = dateList[i];
+    const anno = new Date(dk+'T00:00:00').getFullYear();
+    if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
+    // Calcoliamo il numero libero direttamente sul bucket locale (che include
+    // già le righe appena generate in questo stesso ciclo): interrogare di
+    // nuovo il server, come fa prossimoNumeroServizio(), restituirebbe sempre
+    // lo stesso numero perché il salvataggio avviene solo alla fine del ciclo.
+    const usati = new Set(bucketCache[anno].filter(s => !s.cestinato && s.numeroProgressivo).map(s => s.numeroProgressivo));
+    let numeroProgressivo = 1;
+    while(usati.has(numeroProgressivo)) numeroProgressivo++;
+    const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
+    bucketCache[anno].push(nuovoServizio);
+  }
+  for(const anno in bucketCache){
+    await kvSet('servizi-' + anno, bucketCache[anno]);
+    await aggiornaIndiceServizi(parseInt(anno));
+    let contenuto = bucketCache[anno];
+    // Stesso controllo di sicurezza: se una delle righe appena create
+    // condivide un numero con un servizio già presente (scritto da
+    // un'altra postazione tra la nostra lettura e la nostra scrittura),
+    // la rinumeriamo al volo.
+    const contatiNumeri = {};
+    contenuto.forEach(s=>{ contatiNumeri[s.numeroProgressivo] = (contatiNumeri[s.numeroProgressivo]||0)+1; });
+    let daRisalvare = false;
+    for(const s of contenuto){
+      if(s.gruppoRipetizione && contatiNumeri[s.numeroProgressivo] > 1){
+        s.numeroProgressivo = await prossimoNumeroServizio(parseInt(anno));
+        contatiNumeri[s.numeroProgressivo] = 1;
+        daRisalvare = true;
+      }
+    }
+    if(daRisalvare) await kvSet('servizi-' + anno, contenuto);
+    if(parseInt(anno) === annoCorrenteServizi) servizi = contenuto;
+  }
+}
 async function saveService(ev){
   ev.preventDefault();
   if(salvataggioServizioInCorso) return false;
@@ -6002,6 +6066,8 @@ async function saveService(ev){
   if(document.getElementById('sf-presidio-sedia').checked) presidi.push('Sedia a rotelle');
   if(document.getElementById('sf-presidio-portantina').checked) presidi.push('Portantina');
   if(document.getElementById('sf-presidio-spinale').checked) presidi.push('Barella spinale');
+  if(document.getElementById('sf-presidio-cucchiaio').checked) presidi.push('Barella a cucchiaio');
+  if(document.getElementById('sf-presidio-autocaricante').checked) presidi.push('Barella autocaricante');
   if(document.getElementById('sf-presidio-saliscale').checked) presidi.push('Saliscale elettrico');
   if(document.getElementById('sf-presidio-telo').checked) presidi.push('Telo');
   if(document.getElementById('sf-presidio-nessuna').checked) presidi.push('Nessuno');
@@ -6086,7 +6152,24 @@ async function saveService(ev){
   if(existing){
     data.numeroProgressivo = existing.numeroProgressivo;
     data.numeroAnno = existing.numeroAnno;
-    await salvaUnServizio(data, existing.numeroAnno);
+    // Per i Servizi in convenzione, se in modifica si spunta "Servizio
+    // ricorrente" e il servizio non faceva già parte di una serie, la
+    // generiamo ora: il servizio corrente resta il primo della serie, e
+    // creiamo i servizi per le date successive.
+    const aggiungiRicorrenzaOra = data.tipoScheda === 'convenzione' && document.getElementById('sf-ripetitivo').checked && !document.getElementById('sf-ripetitivo').disabled && !existing.gruppoRipetizione;
+    if(aggiungiRicorrenzaOra){
+      const freq = document.getElementById('sf-frequenza').value;
+      const finoAl = document.getElementById('sf-ripetiFinoAl').value;
+      const giorniSel = [];
+      ['lun','mar','mer','gio','ven','sab','dom'].forEach((c,idx)=>{ if(document.getElementById('sf-giorno-'+c).checked) giorniSel.push(idx); });
+      const dateFuture = generaDateRipetizione(data.perGiorno, finoAl, freq, giorniSel).filter(dk => dk !== data.perGiorno);
+      const gruppoId = 'grp-' + Date.now();
+      data.gruppoRipetizione = gruppoId;
+      await salvaUnServizio(data, existing.numeroAnno);
+      if(dateFuture.length > 0) await generaServiziRicorrentiPerDate(data, dateFuture, gruppoId);
+    } else {
+      await salvaUnServizio(data, existing.numeroAnno);
+    }
   } else if(document.getElementById('sf-ripetitivo').checked && !document.getElementById('sf-ripetitivo').disabled){
     const freq = document.getElementById('sf-frequenza').value;
     const finoAl = document.getElementById('sf-ripetiFinoAl').value;
@@ -6098,46 +6181,7 @@ async function saveService(ev){
       return false;
     }
     const gruppoId = 'grp-' + Date.now();
-    // Un bucket fresco per ogni anno coinvolto, letto una sola volta dal
-    // server: dato che sono tutte righe generate da questo stesso salvataggio,
-    // non c'è rischio di conflitto interno, ma la lettura resta comunque
-    // "fresca" rispetto a eventuali altre postazioni collegate.
-    const bucketCache = {};
-    for(let i=0;i<dateList.length;i++){
-      const dk = dateList[i];
-      const anno = new Date(dk+'T00:00:00').getFullYear();
-      if(!bucketCache[anno]) bucketCache[anno] = await fetchServiziAnno(anno);
-      // Calcoliamo il numero libero direttamente sul bucket locale (che include
-      // già le righe appena generate in questo stesso ciclo): interrogare di
-      // nuovo il server, come fa prossimoNumeroServizio(), restituirebbe sempre
-      // lo stesso numero perché il salvataggio avviene solo alla fine del ciclo.
-      const usati = new Set(bucketCache[anno].filter(s => !s.cestinato && s.numeroProgressivo).map(s => s.numeroProgressivo));
-      let numeroProgressivo = 1;
-      while(usati.has(numeroProgressivo)) numeroProgressivo++;
-      const nuovoServizio = {...data, id: 's-' + Date.now() + '-' + i, perGiorno: dk, gruppoRipetizione: gruppoId, numeroAnno: anno, numeroProgressivo, cronologia: [...data.cronologia], presidi: [...data.presidi]};
-      bucketCache[anno].push(nuovoServizio);
-    }
-    for(const anno in bucketCache){
-      await kvSet('servizi-' + anno, bucketCache[anno]);
-      await aggiornaIndiceServizi(parseInt(anno));
-      let contenuto = bucketCache[anno];
-      // Stesso controllo di sicurezza: se una delle righe appena create
-      // condivide un numero con un servizio già presente (scritto da
-      // un'altra postazione tra la nostra lettura e la nostra scrittura),
-      // la rinumeriamo al volo.
-      const contatiNumeri = {};
-      contenuto.forEach(s=>{ contatiNumeri[s.numeroProgressivo] = (contatiNumeri[s.numeroProgressivo]||0)+1; });
-      let daRisalvare = false;
-      for(const s of contenuto){
-        if(s.gruppoRipetizione && contatiNumeri[s.numeroProgressivo] > 1){
-          s.numeroProgressivo = await prossimoNumeroServizio(parseInt(anno));
-          contatiNumeri[s.numeroProgressivo] = 1;
-          daRisalvare = true;
-        }
-      }
-      if(daRisalvare) await kvSet('servizi-' + anno, contenuto);
-      if(parseInt(anno) === annoCorrenteServizi) servizi = contenuto;
-    }
+    await generaServiziRicorrentiPerDate(data, dateList, gruppoId);
   } else {
     const anno = data.perGiorno ? new Date(data.perGiorno+'T00:00:00').getFullYear() : new Date().getFullYear();
     data.numeroAnno = anno;
