@@ -175,6 +175,7 @@
   .role-chip.responsabile118{background:#DCEBE1;color:#1E6B45;}
   .role-chip.scu{background:#EDE7F6;color:#5E35B1;}
   .role-chip.responsabileScu{background:#EDE7F6;color:#4527A0;}
+  .role-chip.responsabileMezzi{background:#FFE0B2;color:#8A4B00;}
   .checkbox-grid{display:flex;flex-wrap:wrap;gap:5px 20px;font-size:12.5px;margin-bottom:10px;}
   .checkbox-grid.cols3{gap:5px 16px;}
   .checkbox-grid label{display:inline-flex;align-items:center;gap:5px;font-weight:400;white-space:nowrap;flex:0 0 auto;}
@@ -434,6 +435,7 @@
       <div class="nav-item" id="nav-presidi" data-view="presidi" onclick="switchView('presidi')" style="display:none;">🦽 Prestito presidi</div>
       <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenza 118</div>
       <div class="nav-item" id="nav-turniscu" data-view="turniscu" onclick="switchView('turniscu')" style="display:none;">🗓️ Turni SCU</div>
+      <div class="nav-item" id="nav-guastimezzi" data-view="guastimezzi" onclick="switchView('guastimezzi')" style="display:none;">⚠️ Guasti mezzi <span id="nav-guastimezzi-badge" style="display:none;background:#B23A24;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;"></span></div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
       <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
       <div class="nav-spacer"></div>
@@ -513,6 +515,7 @@
               <option value="eccedenza">Eccedenza 118</option>
               <option value="responsabile118">Responsabile 118</option>
               <option value="responsabileScu">Responsabile SCU</option>
+              <option value="responsabileMezzi">Responsabile Mezzi</option>
               <option value="amministratore">Amministratore</option>
             </select>
             <button class="btn btn-ghost" style="width:auto;" onclick="apriImportUtentiModal()">Importa in blocco</button>
@@ -540,6 +543,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-eccedenza" class="imp-ruolo-cb" value="eccedenza"><label for="imp-ruolo-eccedenza">Eccedenza 118</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabile118" class="imp-ruolo-cb" value="responsabile118"><label for="imp-ruolo-responsabile118">Responsabile 118</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabileScu" class="imp-ruolo-cb" value="responsabileScu"><label for="imp-ruolo-responsabileScu">Responsabile SCU</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabileMezzi" class="imp-ruolo-cb" value="responsabileMezzi"><label for="imp-ruolo-responsabileMezzi">Responsabile Mezzi</label></div>
             </div>
           </div>
           <div id="import-utenti-esito" style="margin:10px 0;font-size:13px;"></div>
@@ -706,6 +710,24 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="section-title">Imposta i turni per volontario</div>
           <div id="turniscu-container" style="overflow-x:auto;"></div>
         </div>
+      </div>
+
+      <!-- GUASTI MEZZI -->
+      <div class="view" id="view-guastimezzi">
+        <div class="page-head">
+          <div>
+            <h2>Guasti mezzi</h2>
+            <p>Segnalazioni di guasto inviate dal foglio di marcia</p>
+          </div>
+        </div>
+        <div class="filters" style="align-items:center;">
+          <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
+            <option value="aperto">Solo aperti</option>
+            <option value="">Tutti</option>
+            <option value="risolto">Solo risolti</option>
+          </select>
+        </div>
+        <div id="guastimezzi-container"></div>
       </div>
 
       <!-- GESTIONE PRESIDI (magazzino, solo amministratore) -->
@@ -904,6 +926,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
     <button class="close-x" onclick="closeFoglioModal()">✕</button>
     <h3 id="foglio-modal-title">Compila foglio di marcia</h3>
     <p class="modal-sub" id="foglio-modal-sub">Seleziona il mezzo e compila i dati dell'uscita</p>
+    <button type="button" class="btn btn-ghost" style="width:auto;margin-bottom:14px;color:#B23A24;border-color:#F3C6BC;" onclick="apriSegnalaGuastoModal()">⚠️ Segnala guasto</button>
     <form id="foglio-form" onsubmit="return saveFoglio(event)">
       <div class="grid2">
         <div class="field"><label>Mezzo</label><select id="fm-mezzoId" onchange="onFoglioMezzoChange()"></select></div>
@@ -985,6 +1008,30 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <button type="button" class="btn btn-ghost" onclick="closeFoglioModal()">Annulla</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="foglio-save-btn">Salva riga</button>
         </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SEGNALA GUASTO MEZZO -->
+<div class="modal-backdrop" id="segnala-guasto-modal-backdrop">
+  <div class="modal" style="max-width:480px;">
+    <button class="close-x" onclick="closeSegnalaGuastoModal()">✕</button>
+    <h3>Segnala guasto</h3>
+    <p class="modal-sub">Il Responsabile Mezzi riceverà un avviso e potrà segnare la riparazione una volta risolto.</p>
+    <form id="segnala-guasto-form" onsubmit="return salvaSegnalazioneGuasto(event)">
+      <div class="field"><label>Mezzo *</label><select id="gm-mezzoId" required></select></div>
+      <div class="field"><label>Descrizione del guasto *</label><textarea id="gm-descrizione" rows="4" required placeholder="Cosa non funziona, da quando, eventuali dettagli utili"></textarea></div>
+      <div class="field"><label>Gravità</label>
+        <select id="gm-gravita">
+          <option value="bassa">Bassa — non impedisce l'uso del mezzo</option>
+          <option value="media" selected>Media</option>
+          <option value="bloccante">Bloccante — il mezzo non può essere usato</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeSegnalaGuastoModal()">Annulla</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Invia segnalazione</button>
       </div>
     </form>
   </div>
@@ -1299,9 +1346,10 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-eccedenza" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"><label for="uf-ruolo-eccedenza">Eccedenza 118</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabile118" class="uf-ruolo-cb" value="responsabile118" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabile118">Responsabile 118</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabileScu" class="uf-ruolo-cb" value="responsabileScu" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabileScu">Responsabile SCU</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabileMezzi" class="uf-ruolo-cb" value="responsabileMezzi" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabileMezzi">Responsabile Mezzi</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-amministratore" class="uf-ruolo-cb" value="amministratore" onchange="onUfRuoloChange()"><label for="uf-ruolo-amministratore">Amministratore</label></div>
         </div>
-        <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenza 118). Eccedenza 118: visualizza e gestisce la scheda Eccedenza 118. Responsabile 118: come Eccedenza 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
+        <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenza 118). Eccedenza 118: visualizza e gestisce la scheda Eccedenza 118. Responsabile 118: come Eccedenza 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Responsabile Mezzi: gestisce i guasti segnalati sui mezzi. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
       </div>
       <div class="field" id="uf-firma118-wrap" style="display:none;">
         <label>Firma per la scheda Eccedenza 118</label>
@@ -1885,6 +1933,10 @@ let interventi118 = [];
 let editingScheda118Id = null;
 // Turni SCU: oggetto { "2026-09-14": { "userId1": "mattina", "userId2": "riposo" } }.
 let turniScu = {};
+// Guasti segnalati sui mezzi, dal Foglio di marcia. Array di record:
+// { id, mezzoId, descrizione, gravita, segnalatoDa, segnalatoIl, stato:
+// 'aperto'|'risolto', risoltoDa, risoltoIl, notaRisoluzione }
+let guastiMezzi = [];
 let settimanaTurniScu = lunediSettimanaCorrente();
 function lunediSettimanaCorrente(d){
   const data = d ? new Date(d) : new Date();
@@ -2141,7 +2193,7 @@ async function loadData(){
   // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
   // invece che una dopo l'altra — l'attesa totale diventa quella della
   // richiesta più lenta, non la somma di tutte quante.
-  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes] = await Promise.all([
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes, guastiMezziRes] = await Promise.all([
     kvGet('utenti'),
     kvGet('mezzi'),
     kvGet('rimborsi'),
@@ -2153,7 +2205,8 @@ async function loadData(){
     kvGet('prestiti-presidi'),
     kvGet('tipiPresidio'),
     kvGet('interventi118'),
-    kvGet('turniScu')
+    kvGet('turniScu'),
+    kvGet('guastiMezzi')
   ]);
 
   utenti = utentiRes || [];
@@ -2164,6 +2217,7 @@ async function loadData(){
   prestiti = prestitiRes || [];
   interventi118 = interventi118Res || [];
   turniScu = turniScuRes || {};
+  guastiMezzi = guastiMezziRes || [];
   if(tipiPresidioRes && tipiPresidioRes.length){
     tipiPresidio = tipiPresidioRes;
   } else {
@@ -2473,12 +2527,14 @@ async function doLogin(){
   document.getElementById('nav-cestino').style.display = (haRuolo('amministratore')) ? 'flex' : 'none';
   document.getElementById('nav-eccedenza118').style.display = canVedereEccedenza() ? 'flex' : 'none';
   document.getElementById('nav-turniscu').style.display = canVedereTurniScu() ? 'flex' : 'none';
+  document.getElementById('nav-guastimezzi').style.display = canGestireGuastiMezzi() ? 'flex' : 'none';
   // Al primo accesso mostriamo la prima sezione a cui questo utente ha
   // davvero accesso, invece di dare per scontato che veda la Dashboard.
   const primaVistaDisponibile =
     canVedereServizi() ? 'dashboard' :
     canVedereEccedenza() ? 'eccedenza118' :
     canVedereTurniScu() ? 'turniscu' :
+    canGestireGuastiMezzi() ? 'guastimezzi' :
     haRuolo('amministratore') ? 'utenti' : 'dashboard';
   switchView(primaVistaDisponibile);
   renderCalendar();
@@ -2488,6 +2544,7 @@ async function doLogin(){
   renderRimborsi();
   renderTurniScu();
   renderFogliMarcia();
+  aggiornaBadgeGuastiMezzi();
   if(currentUser.mustChangePassword){
     openAccountModal(true);
   }
@@ -2533,6 +2590,12 @@ async function ricaricaDatiCorrenti(){
       turniScu = (await kvGet('turniScu')) || {};
       utenti = (await kvGet('utenti')) || [];
     }
+    // Il numero di guasti aperti sul contatore del menu deve restare
+    // aggiornato anche quando non si è sulla pagina "Guasti mezzi".
+    if(canGestireGuastiMezzi()){
+      guastiMezzi = (await kvGet('guastiMezzi')) || [];
+      aggiornaBadgeGuastiMezzi();
+    }
     if(viewAttiva === 'view-elenco'){ renderElenco(); }
     if(viewAttiva === 'view-dashboard'){ renderCalendar(); }
     if(viewAttiva === 'view-fogli'){ renderFogliMarcia(); }
@@ -2542,6 +2605,7 @@ async function ricaricaDatiCorrenti(){
     if(viewAttiva === 'view-presidi'){ aggiornaEDisegnaPrestiti(); }
     if(viewAttiva === 'view-gestionepresidi'){ aggiornaEDisegnaGestionePresidi(); }
     if(viewAttiva === 'view-turniscu'){ renderTurniScu(); }
+    if(viewAttiva === 'view-guastimezzi'){ renderGuastiMezzi(); }
   } catch(e){
     // Connessione assente al momento del giro: si ritenta al prossimo intervallo.
   }
@@ -2573,6 +2637,7 @@ function switchView(v){
   if(richiedeEccedenza && !canVedereEccedenza()) return;
   if(v === 'fogli' && !canVedereServizi() && !canVedereEccedenza()) return;
   if(v === 'turniscu' && !canVedereTurniScu()) return;
+  if(v === 'guastimezzi' && !canGestireGuastiMezzi()) return;
   if(richiedeAdmin && !haRuolo('amministratore')) return;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === v));
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
@@ -2589,6 +2654,7 @@ function switchView(v){
   if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
   if(v === 'turniscu') renderTurniScu();
+  if(v === 'guastimezzi') renderGuastiMezzi();
   if(window.innerWidth <= 900) closeSidebarMobile();
 }
 function toggleSidebar(){
@@ -2607,7 +2673,7 @@ function closeSidebarMobile(){
 // selezionarne uno non ne attiva mai un altro automaticamente (a parte
 // Amministratore, che dà comunque accesso a tutto).
 function ruoloLabel(ruolo){
-  return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenza 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', responsabileScu:'Responsabile SCU', amministratore:'Amministratore'}[ruolo] || ruolo;
+  return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenza 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', responsabileScu:'Responsabile SCU', responsabileMezzi:'Responsabile Mezzi', amministratore:'Amministratore'}[ruolo] || ruolo;
 }
 // Un utente può avere più livelli di accesso contemporaneamente (es.
 // "Responsabile Servizi" + "Eccedenza 118"): i ruoli sono salvati come
@@ -2665,6 +2731,11 @@ function canDeleteScheda118(){ return haRuolo('amministratore'); }
 // impostare i turni.
 function canVedereTurniScu(){ return haRuolo('scu') || haRuolo('responsabileScu'); }
 function canGestireTurniScu(){ return haRuolo('responsabileScu'); }
+// --- Permessi Guasti Mezzi ---
+// Chiunque compili un foglio di marcia può segnalare un guasto (non serve un
+// livello dedicato). Solo Responsabile Mezzi (o Amministratore) vede
+// l'elenco completo dei guasti e può segnarli come risolti.
+function canGestireGuastiMezzi(){ return haRuolo('responsabileMezzi'); }
 
 /* ============ TURNI SCU ============ */
 // Ogni turno è un orario libero (dalle-alle), non una fascia fissa: i
@@ -2893,6 +2964,98 @@ async function cancellaGiornoTurniScu(dataISO){
   delete turniScu[dataISO];
   renderTurniScu();
   await saveTurniScu();
+}
+
+/* ============ GUASTI MEZZI ============ */
+async function saveGuastiMezzi(){ await kvSet('guastiMezzi', guastiMezzi); }
+// Aggiorna il contatore rosso sulla voce di menu "Guasti mezzi" con il
+// numero di segnalazioni ancora aperte: è il modo con cui il Responsabile
+// Mezzi si accorge subito, appena entra, che c'è qualcosa da vedere.
+function aggiornaBadgeGuastiMezzi(){
+  const badge = document.getElementById('nav-guastimezzi-badge');
+  if(!badge) return;
+  const aperti = guastiMezzi.filter(g => g.stato === 'aperto').length;
+  badge.style.display = aperti > 0 ? 'inline-block' : 'none';
+  badge.textContent = aperti;
+}
+function apriSegnalaGuastoModal(){
+  document.getElementById('gm-mezzoId').innerHTML = mezziOrdinati(mezzi.filter(m=>!m.archiviato))
+    .map(m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  const mezzoCorrente = document.getElementById('fm-mezzoId').value;
+  if(mezzoCorrente) document.getElementById('gm-mezzoId').value = mezzoCorrente;
+  document.getElementById('gm-descrizione').value = '';
+  document.getElementById('gm-gravita').value = 'media';
+  document.getElementById('segnala-guasto-modal-backdrop').classList.add('active');
+}
+function closeSegnalaGuastoModal(){
+  document.getElementById('segnala-guasto-modal-backdrop').classList.remove('active');
+}
+async function salvaSegnalazioneGuasto(ev){
+  ev.preventDefault();
+  const guasto = {
+    id: 'guasto-' + Date.now(),
+    mezzoId: document.getElementById('gm-mezzoId').value,
+    descrizione: document.getElementById('gm-descrizione').value.trim(),
+    gravita: document.getElementById('gm-gravita').value,
+    segnalatoDa: currentUser.nome + ' ' + currentUser.cognome,
+    segnalatoIl: new Date().toISOString(),
+    stato: 'aperto',
+    risoltoDa: null, risoltoIl: null, notaRisoluzione: ''
+  };
+  guastiMezzi.push(guasto);
+  await saveGuastiMezzi();
+  aggiornaBadgeGuastiMezzi();
+  closeSegnalaGuastoModal();
+  alert('Segnalazione inviata. Il Responsabile Mezzi la vedrà al prossimo accesso.');
+  return false;
+}
+function nomeMezzoPerGuasto(mezzoId){
+  const m = mezzi.find(x=>x.id===mezzoId);
+  if(!m) return 'Mezzo non più presente';
+  return `${m.tipo}${m.codice?' '+m.codice:''} — ${m.targa}`;
+}
+const GRAVITA_GUASTO_LABEL = { bassa: 'Bassa', media: 'Media', bloccante: 'Bloccante' };
+const GRAVITA_GUASTO_COLORE = { bassa: '#E2E3E5', media: '#FFF3CD', bloccante: '#F8D7DA' };
+function renderGuastiMezzi(){
+  if(!canGestireGuastiMezzi()) return;
+  const container = document.getElementById('guastimezzi-container');
+  if(!container) return;
+  const filtro = document.getElementById('gm-filtro-stato')?.value || 'aperto';
+  const elenco = guastiMezzi
+    .filter(g => !filtro || g.stato === filtro)
+    .sort((a,b) => new Date(b.segnalatoIl) - new Date(a.segnalatoIl));
+  if(elenco.length === 0){
+    container.innerHTML = '<div class="empty-state">Nessuna segnalazione da mostrare.</div>';
+    return;
+  }
+  container.innerHTML = elenco.map(g => `
+    <div class="user-card" style="border-left:4px solid ${g.stato==='aperto' ? '#B23A24' : '#1E6B45'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div>
+          <div class="nm">${escapeHtml(nomeMezzoPerGuasto(g.mezzoId))}</div>
+          <span class="role-chip" style="background:${GRAVITA_GUASTO_COLORE[g.gravita]||'#E2E3E5'};color:#333;">${GRAVITA_GUASTO_LABEL[g.gravita]||g.gravita}</span>
+          ${g.stato==='risolto' ? '<span class="role-chip responsabile118">Risolto</span>' : '<span class="role-chip eccedenza">Aperto</span>'}
+        </div>
+      </div>
+      <p style="margin:8px 0;font-size:13.5px;">${escapeHtml(g.descrizione)}</p>
+      <p class="map-hint">Segnalato da ${escapeHtml(g.segnalatoDa)} il ${new Date(g.segnalatoIl).toLocaleString('it-IT')}</p>
+      ${g.stato==='risolto' ? `<p class="map-hint">Risolto da ${escapeHtml(g.risoltoDa||'—')} il ${g.risoltoIl ? new Date(g.risoltoIl).toLocaleString('it-IT') : '—'}${g.notaRisoluzione ? ' — '+escapeHtml(g.notaRisoluzione) : ''}</p>` : ''}
+      ${g.stato==='aperto' ? `<div class="row-actions" style="margin-top:8px;"><button class="action-btn primary" onclick="segnaGuastoRisolto('${g.id}')">✓ Segna come risolto</button></div>` : ''}
+    </div>
+  `).join('');
+}
+async function segnaGuastoRisolto(id){
+  if(!canGestireGuastiMezzi()) return;
+  const guasto = guastiMezzi.find(g=>g.id===id);
+  if(!guasto) return;
+  const nota = prompt('Nota sulla riparazione (facoltativa):', '') || '';
+  guasto.stato = 'risolto';
+  guasto.risoltoDa = currentUser.nome + ' ' + currentUser.cognome;
+  guasto.risoltoIl = new Date().toISOString();
+  guasto.notaRisoluzione = nota;
+  await saveGuastiMezzi();
+  renderGuastiMezzi();
+  aggiornaBadgeGuastiMezzi();
 }
 
 /* ============ CALENDARIO ============ */
