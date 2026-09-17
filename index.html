@@ -723,11 +723,28 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         <div class="filters" style="align-items:center;">
           <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
             <option value="aperto">Solo aperti</option>
-            <option value="">Tutti</option>
+            <option value="tutti">Tutti</option>
             <option value="risolto">Solo risolti</option>
+          </select>
+          <select id="gm-filtro-mezzo" onchange="renderGuastiMezzi()">
+            <option value="">Tutti i mezzi</option>
           </select>
         </div>
         <div id="guastimezzi-container"></div>
+      </div>
+
+      <!-- RISOLVI GUASTO -->
+      <div class="modal-backdrop" id="risolvi-guasto-modal-backdrop">
+        <div class="modal" style="max-width:440px;">
+          <button class="close-x" onclick="closeRisolviGuastoModal()">✕</button>
+          <h3>Segna come risolto</h3>
+          <p class="modal-sub">Annotazioni sulla riparazione</p>
+          <div class="field"><textarea id="rg-nota" rows="4" placeholder="Facoltativo — es. cosa è stato sostituito o riparato"></textarea></div>
+          <div class="modal-actions" style="justify-content:flex-end;gap:8px;">
+            <button type="button" class="btn btn-ghost" onclick="closeRisolviGuastoModal()">Annulla</button>
+            <button type="button" class="btn btn-primary" style="width:auto;" onclick="confermaRisolviGuasto()">Ok</button>
+          </div>
+        </div>
       </div>
 
       <!-- GESTIONE PRESIDI (magazzino, solo amministratore) -->
@@ -926,7 +943,6 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
     <button class="close-x" onclick="closeFoglioModal()">✕</button>
     <h3 id="foglio-modal-title">Compila foglio di marcia</h3>
     <p class="modal-sub" id="foglio-modal-sub">Seleziona il mezzo e compila i dati dell'uscita</p>
-    <button type="button" class="btn btn-ghost" style="width:auto;margin-bottom:14px;color:#B23A24;border-color:#F3C6BC;" onclick="apriSegnalaGuastoModal()">⚠️ Segnala guasto</button>
     <form id="foglio-form" onsubmit="return saveFoglio(event)">
       <div class="grid2">
         <div class="field"><label>Mezzo</label><select id="fm-mezzoId" onchange="onFoglioMezzoChange()"></select></div>
@@ -1006,6 +1022,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         <div id="foglio-delete-slot"></div>
         <div style="display:flex;gap:10px;">
           <button type="button" class="btn btn-ghost" onclick="closeFoglioModal()">Annulla</button>
+          <button type="button" class="btn btn-ghost" style="width:auto;color:#B23A24;border-color:#F3C6BC;" onclick="apriSegnalaGuastoModal()">⚠️ Segnala guasto</button>
           <button type="submit" class="btn btn-primary" style="width:auto;" id="foglio-save-btn">Salva riga</button>
         </div>
       </div>
@@ -1031,7 +1048,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeSegnalaGuastoModal()">Annulla</button>
-        <button type="submit" class="btn btn-primary" style="width:auto;">Invia segnalazione</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Invia segnalazione e salva</button>
       </div>
     </form>
   </div>
@@ -3006,7 +3023,20 @@ async function salvaSegnalazioneGuasto(ev){
   await saveGuastiMezzi();
   aggiornaBadgeGuastiMezzi();
   closeSegnalaGuastoModal();
-  alert('Segnalazione inviata. Il Responsabile Mezzi la vedrà al prossimo accesso.');
+  // Salviamo anche il foglio di marcia sottostante. Controlliamo prima i
+  // campi obbligatori "a mano" (invece di affidarci al solo requestSubmit
+  // del form, che in alcuni contesti non attiva in modo affidabile il
+  // salvataggio) e mostriamo comunque il normale avviso nativo del browser
+  // se manca qualcosa, così l'operatore sa cosa completare.
+  const foglioForm = document.getElementById('foglio-form');
+  if(foglioForm){
+    if(!foglioForm.checkValidity()){
+      foglioForm.reportValidity();
+      alert('Segnalazione inviata. Completa anche i campi obbligatori del foglio di marcia evidenziati per salvarlo.');
+    } else {
+      await saveFoglio({ preventDefault(){} });
+    }
+  }
   return false;
 }
 function nomeMezzoPerGuasto(mezzoId){
@@ -3015,47 +3045,99 @@ function nomeMezzoPerGuasto(mezzoId){
   return `${m.tipo}${m.codice?' '+m.codice:''} — ${m.targa}`;
 }
 const GRAVITA_GUASTO_LABEL = { bassa: 'Bassa', media: 'Media', bloccante: 'Bloccante' };
-const GRAVITA_GUASTO_COLORE = { bassa: '#E2E3E5', media: '#FFF3CD', bloccante: '#F8D7DA' };
+const GRAVITA_GUASTO_COLORE = { bassa: { bg:'#D4EDDA', fg:'#1E6B45' }, media: { bg:'#FFF3CD', fg:'#8A6D00' }, bloccante: { bg:'#F8D7DA', fg:'#B23A24' } };
+function popolaFiltroMezzoGuasti(){
+  const sel = document.getElementById('gm-filtro-mezzo');
+  if(!sel) return;
+  const valorePrecedente = sel.value;
+  const mezziConGuasti = mezzi.filter(m => guastiMezzi.some(g=>g.mezzoId===m.id));
+  sel.innerHTML = '<option value="">Tutti i mezzi</option>' + mezziOrdinati(mezziConGuasti)
+    .map(m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  sel.value = valorePrecedente;
+}
 function renderGuastiMezzi(){
   if(!canGestireGuastiMezzi()) return;
   const container = document.getElementById('guastimezzi-container');
   if(!container) return;
-  const filtro = document.getElementById('gm-filtro-stato')?.value || 'aperto';
+  popolaFiltroMezzoGuasti();
+  const filtroStato = document.getElementById('gm-filtro-stato')?.value || 'aperto';
+  const filtroMezzo = document.getElementById('gm-filtro-mezzo')?.value || '';
   const elenco = guastiMezzi
-    .filter(g => !filtro || g.stato === filtro)
+    .filter(g => filtroStato === 'tutti' || g.stato === filtroStato)
+    .filter(g => !filtroMezzo || g.mezzoId === filtroMezzo)
     .sort((a,b) => new Date(b.segnalatoIl) - new Date(a.segnalatoIl));
   if(elenco.length === 0){
     container.innerHTML = '<div class="empty-state">Nessuna segnalazione da mostrare.</div>';
     return;
   }
-  container.innerHTML = elenco.map(g => `
+  const isAdmin = haRuolo('amministratore');
+  container.innerHTML = elenco.map(g => {
+    const colGravita = GRAVITA_GUASTO_COLORE[g.gravita] || { bg:'#E2E3E5', fg:'#333' };
+    return `
     <div class="user-card" style="border-left:4px solid ${g.stato==='aperto' ? '#B23A24' : '#1E6B45'};">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <div>
-          <div class="nm">${escapeHtml(nomeMezzoPerGuasto(g.mezzoId))}</div>
-          <span class="role-chip" style="background:${GRAVITA_GUASTO_COLORE[g.gravita]||'#E2E3E5'};color:#333;">${GRAVITA_GUASTO_LABEL[g.gravita]||g.gravita}</span>
-          ${g.stato==='risolto' ? '<span class="role-chip responsabile118">Risolto</span>' : '<span class="role-chip eccedenza">Aperto</span>'}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div class="nm">${escapeHtml(nomeMezzoPerGuasto(g.mezzoId))}</div>
+        <div style="display:flex;gap:8px;">
+          <span style="display:inline-block;padding:5px 14px;border-radius:8px;background:${colGravita.bg};color:${colGravita.fg};font-weight:700;font-size:13px;">${GRAVITA_GUASTO_LABEL[g.gravita]||g.gravita}</span>
+          <span style="display:inline-block;padding:5px 14px;border-radius:8px;background:${g.stato==='risolto' ? '#DCEBE1' : '#FBE1DC'};color:${g.stato==='risolto' ? '#1E6B45' : '#B23A24'};font-weight:700;font-size:13px;">${g.stato==='risolto' ? 'Risolto' : 'Aperto'}</span>
         </div>
       </div>
-      <p style="margin:8px 0;font-size:13.5px;">${escapeHtml(g.descrizione)}</p>
+      <p style="margin:10px 0;font-size:13.5px;">${escapeHtml(g.descrizione)}</p>
       <p class="map-hint">Segnalato da ${escapeHtml(g.segnalatoDa)} il ${new Date(g.segnalatoIl).toLocaleString('it-IT')}</p>
       ${g.stato==='risolto' ? `<p class="map-hint">Risolto da ${escapeHtml(g.risoltoDa||'—')} il ${g.risoltoIl ? new Date(g.risoltoIl).toLocaleString('it-IT') : '—'}${g.notaRisoluzione ? ' — '+escapeHtml(g.notaRisoluzione) : ''}</p>` : ''}
-      ${g.stato==='aperto' ? `<div class="row-actions" style="margin-top:8px;"><button class="action-btn primary" onclick="segnaGuastoRisolto('${g.id}')">✓ Segna come risolto</button></div>` : ''}
+      <div class="row-actions" style="margin-top:8px;">
+        ${g.stato==='aperto' ? `<button class="action-btn primary" onclick="apriRisolviGuastoModal('${g.id}')">✓ Segna come risolto</button>` : ''}
+        ${isAdmin && g.stato==='risolto' ? `<button class="action-btn" onclick="riapriGuasto('${g.id}')">↺ Riapri</button>` : ''}
+        ${isAdmin ? `<button class="action-btn danger" onclick="eliminaGuasto('${g.id}')">🗑 Elimina</button>` : ''}
+      </div>
     </div>
-  `).join('');
+  `;}).join('');
 }
-async function segnaGuastoRisolto(id){
+let guastoInSospesoId = null;
+function apriRisolviGuastoModal(id){
   if(!canGestireGuastiMezzi()) return;
-  const guasto = guastiMezzi.find(g=>g.id===id);
+  guastoInSospesoId = id;
+  document.getElementById('rg-nota').value = '';
+  document.getElementById('risolvi-guasto-modal-backdrop').classList.add('active');
+}
+function closeRisolviGuastoModal(){
+  // Annullare deve solo chiudere il popup, senza toccare la segnalazione.
+  guastoInSospesoId = null;
+  document.getElementById('risolvi-guasto-modal-backdrop').classList.remove('active');
+}
+async function confermaRisolviGuasto(){
+  if(!guastoInSospesoId) return;
+  const guasto = guastiMezzi.find(g=>g.id===guastoInSospesoId);
+  const nota = document.getElementById('rg-nota').value.trim();
+  document.getElementById('risolvi-guasto-modal-backdrop').classList.remove('active');
+  guastoInSospesoId = null;
   if(!guasto) return;
-  const nota = prompt('Nota sulla riparazione (facoltativa):', '') || '';
   guasto.stato = 'risolto';
   guasto.risoltoDa = currentUser.nome + ' ' + currentUser.cognome;
   guasto.risoltoIl = new Date().toISOString();
-  guasto.notaRisoluzione = nota;
+  guasto.notaRisoluzione = nota; // salvata anche se vuota: confermare con "Ok" chiude comunque la segnalazione
   await saveGuastiMezzi();
   renderGuastiMezzi();
   aggiornaBadgeGuastiMezzi();
+}
+async function riapriGuasto(id){
+  if(!haRuolo('amministratore')) return;
+  const guasto = guastiMezzi.find(g=>g.id===id);
+  if(!guasto) return;
+  if(!confirm('Riaprire questa segnalazione di guasto?')) return;
+  guasto.stato = 'aperto';
+  guasto.risoltoDa = null; guasto.risoltoIl = null; guasto.notaRisoluzione = '';
+  await saveGuastiMezzi();
+  renderGuastiMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+async function eliminaGuasto(id){
+  if(!haRuolo('amministratore')) return;
+  if(!confirm('Eliminare definitivamente questa segnalazione di guasto?')) return;
+  guastiMezzi = guastiMezzi.filter(g=>g.id!==id);
+  renderGuastiMezzi();
+  aggiornaBadgeGuastiMezzi();
+  await saveGuastiMezzi();
 }
 
 /* ============ CALENDARIO ============ */
