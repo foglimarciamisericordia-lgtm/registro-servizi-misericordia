@@ -2854,12 +2854,13 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
     return;
   }
   const nomiGiorni = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  // Colonna delle fasce stretta e a misura del contenuto, i 7 giorni si
-  // dividono equamente lo spazio restante.
-  const colgroup = '<colgroup><col style="width:110px;">' + giorni.map(()=>'<col style="width:calc((100% - 110px)/7);">').join('') + '</colgroup>';
   const bordoCol = 'border-left:1px solid var(--line);';
-  let html = `<table class="mini-table" style="border-collapse:collapse;table-layout:fixed;">${colgroup}<thead><tr><th></th>`;
-  giorni.forEach((d,i)=>{ html += `<th style="${bordoCol}">${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
+  // table-layout:auto (il normale, nessuna larghezza fissa sulle colonne):
+  // ogni colonna si allarga quanto serve al suo contenuto più lungo, invece
+  // di dividersi lo spazio in parti uguali e tagliare il testo.
+  let html = `<table class="mini-table" style="border-collapse:collapse;width:auto;">`;
+  html += '<thead><tr><th></th>';
+  giorni.forEach((d,i)=>{ html += `<th style="${bordoCol}white-space:nowrap;">${nomiGiorni[i]}<br>${d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</th>`; });
   html += '</tr></thead><tbody>';
   FASCE_TURNI_SCU.forEach(fascia => {
     html += `<tr><td style="font-weight:700;color:var(--navy);white-space:nowrap;border-top:2px solid var(--line-soft);">${escapeHtml(fascia.label)}</td>`;
@@ -2872,20 +2873,26 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
       utentiScu.forEach(u => {
         const turno = turnoScuDi(dataISO, u.id);
         if(!turno) return;
-        const nota = turno.nota ? ` — ${turno.nota}` : '';
         if(turno.tipo === 'orario' && turno.dalle){
           const f = fasciaPerOrarioInizio(turno.dalle);
           if(f && f.chiave === fascia.chiave){
             const [h,m] = turno.dalle.split(':').map(Number);
-            righe.push({ minuti: h*60+(m||0), testo: `${u.cognome} ${u.nome} (${turno.dalle}–${turno.alle||'?'})${nota}` });
+            righe.push({ minuti: h*60+(m||0), titolo: `${u.cognome} ${u.nome} (${turno.dalle}–${turno.alle||'?'})`, nota: turno.nota || '' });
           }
         } else if((turno.tipo === 'riposo' || turno.tipo === 'assente') && fascia.chiave === 'mattina'){
           const etichetta = turno.tipo === 'riposo' ? 'Riposo' : 'Assente/Permesso';
-          righe.push({ minuti: 9999, testo: `${u.cognome} ${u.nome} — ${etichetta}${nota}` });
+          righe.push({ minuti: 9999, titolo: `${u.cognome} ${u.nome} — ${etichetta}`, nota: turno.nota || '' });
         }
       });
       righe.sort((a,b) => a.minuti - b.minuti);
-      html += `<td style="vertical-align:top;font-size:12px;line-height:1.6;${bordoCol}">${righe.map(r=>escapeHtml(r.testo)).join('<br>') || ''}</td>`;
+      // white-space:nowrap senza overflow/ellipsi: il contenuto non va mai a
+      // capo né viene tagliato, è la colonna che si allarga per contenerlo.
+      const contenutoCelle = righe.map(r => `
+        <div style="margin-bottom:4px;">
+          <div style="white-space:nowrap;">${escapeHtml(r.titolo)}</div>
+          ${r.nota ? `<div style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${escapeHtml(r.nota)}</div>` : ''}
+        </div>`).join('');
+      html += `<td style="vertical-align:top;font-size:12px;line-height:1.4;white-space:nowrap;${bordoCol}">${contenutoCelle}</td>`;
     });
     html += '</tr>';
   });
