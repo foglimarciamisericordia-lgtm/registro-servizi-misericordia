@@ -1253,6 +1253,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="field" id="flusso-ossigeno-box" style="display:none;"><label>Flusso ossigeno (L/min)</label>
             <select id="sf-flussoOssigeno" onchange="scheduleRimborsoCalc()">
               <option value="">-- seleziona --</option>
+              <option value="0">0</option>
               <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
               <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
             </select>
@@ -2505,6 +2506,27 @@ async function aggiornaUltimoKm(mezzoId, km){
   if(!km) return;
   const mappa = (await kvGet('fogli-ultimo-km')) || {};
   mappa[mezzoId] = km;
+  await kvSet('fogli-ultimo-km', mappa);
+}
+// Ricalcola da zero il valore "ultimo km" di un mezzo, scandendo tutti i
+// fogli di marcia non cestinati (di ogni anno disponibile) e prendendo il
+// km finale del più recente per data/ora di registrazione. Necessario dopo
+// aver cestinato, ripristinato o eliminato definitivamente un foglio,
+// altrimenti il valore resta quello di una riga cancellata (es. righe di
+// prova con km fittizi) e continua a precompilare erroneamente i "Km
+// iniziali" dei fogli successivi.
+async function ricalcolaUltimoKmMezzo(mezzoId){
+  let migliore = null;
+  for(const anno of [...anniDisponibiliFogli].sort((a,b)=>b-a)){
+    const lista = anno === annoCorrenteFogli ? fogliMarcia : ((await kvGet('fogli-' + anno)) || []);
+    lista.forEach(f => {
+      if(f.mezzoId === mezzoId && !f.cestinato && f.kmFinali){
+        if(!migliore || (f.registratoIl||'') > (migliore.registratoIl||'')) migliore = f;
+      }
+    });
+  }
+  const mappa = (await kvGet('fogli-ultimo-km')) || {};
+  if(migliore){ mappa[mezzoId] = migliore.kmFinali; } else { delete mappa[mezzoId]; }
   await kvSet('fogli-ultimo-km', mappa);
 }
 async function cambiaAnnoFogli(anno){
@@ -4452,9 +4474,16 @@ async function openFoglioModal(id){
   document.getElementById('fm-compilatore').value = f ? f.compilatore : (currentUser.nome + ' ' + currentUser.cognome);
 
   const isAdmin = haRuolo('amministratore');
-  const registratoIlRif = f ? f.registratoIl : new Date().toISOString();
-  document.getElementById('fm-dataRegistrazione').value = registratoIlRif ? registratoIlRif.slice(0,10) : '';
-  document.getElementById('fm-oraRegistrazione').value = registratoIlRif ? registratoIlRif.slice(11,16) : '';
+  // registratoIl è salvato in UTC (come fa new Date().toISOString());
+  // vanno quindi letti data e ora LOCALI (getDate/getHours), non i
+  // caratteri grezzi della stringa, altrimenti il modulo mostra un orario
+  // sbagliato di 1-2 ore rispetto a quello reale italiano (a seconda del
+  // periodo dell'anno, ora solare o legale).
+  const registratoIlRifData = f && f.registratoIl ? new Date(f.registratoIl) : new Date();
+  const dataRegLocale = !isNaN(registratoIlRifData) ? `${registratoIlRifData.getFullYear()}-${String(registratoIlRifData.getMonth()+1).padStart(2,'0')}-${String(registratoIlRifData.getDate()).padStart(2,'0')}` : '';
+  const oraRegLocale = !isNaN(registratoIlRifData) ? `${String(registratoIlRifData.getHours()).padStart(2,'0')}:${String(registratoIlRifData.getMinutes()).padStart(2,'0')}` : '';
+  document.getElementById('fm-dataRegistrazione').value = dataRegLocale;
+  document.getElementById('fm-oraRegistrazione').value = oraRegLocale;
   document.getElementById('fm-registrazione-hint').style.display = isAdmin ? 'block' : 'none';
 
   const soloLettura = !!f && !isAdmin;
@@ -4935,9 +4964,17 @@ async function saveFoglio(ev){
   // "Registrato il" è modificabile solo dall'admin (il campo resta bloccato
   // per chiunque altro): se l'admin lo cambia rispetto al valore che avrebbe
   // avuto normalmente, useremo quello e riordineremo/rinumereremo di conseguenza.
-  const registratoIlManuale = isAdmin && g('fm-dataRegistrazione')
-    ? g('fm-dataRegistrazione') + 'T' + (g('fm-oraRegistrazione') || '00:00') + ':00.000Z'
-    : null;
+  // Data e ora inserite nel modulo sono orario LOCALE italiano: le
+  // convertiamo in UTC costruendo un Date coi componenti locali (anno, mese,
+  // giorno, ore, minuti), che gestisce automaticamente l'ora solare/legale,
+  // invece di limitarsi ad appendere "Z" al testo digitato (che altrimenti
+  // verrebbe letto come se fosse già UTC, sfasando il dato di 1-2 ore).
+  let registratoIlManuale = null;
+  if(isAdmin && g('fm-dataRegistrazione')){
+    const [yy, mm, dd] = g('fm-dataRegistrazione').split('-').map(Number);
+    const [hh, mi] = (g('fm-oraRegistrazione') || '00:00').split(':').map(Number);
+    registratoIlManuale = new Date(yy, mm - 1, dd, hh, mi, 0).toISOString();
+  }
 
   if(editingFoglioId){
     const existing = fogliMarcia.find(f=>f.id===editingFoglioId);
@@ -5000,6 +5037,7 @@ async function deleteFoglio(id){
   f.cestinato = true;
   f.cestinatoIl = new Date().toISOString();
   await saveFogliMarciaData();
+  await ricalcolaUltimoKmMezzo(f.mezzoId);
   closeFoglioModal();
   renderFogliMarcia();
 }
@@ -5012,12 +5050,15 @@ async function ripristinaFoglioCestino(id){
   }
   f.cestinato = false; f.cestinatoIl = null;
   await saveFogliMarciaData();
+  await ricalcolaUltimoKmMezzo(f.mezzoId);
   renderFogliMarcia(); renderCestino();
 }
 async function eliminaFoglioDefinitivo(id){
   if(!confirm('Eliminare definitivamente questa riga del foglio di marcia?')) return;
-  fogliMarcia = fogliMarcia.filter(f=>f.id!==id);
+  const f = fogliMarcia.find(x=>x.id===id);
+  fogliMarcia = fogliMarcia.filter(x=>x.id!==id);
   await saveFogliMarciaData();
+  if(f) await ricalcolaUltimoKmMezzo(f.mezzoId);
   renderCestino();
 }
 function exportFogliExcel(){
