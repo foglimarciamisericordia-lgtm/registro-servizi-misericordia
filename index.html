@@ -6626,7 +6626,11 @@ function fillPersonSelects118(){
 }
 function ultimoKmFinaleMezzo118(mezzoId){
   if(!mezzoId) return null;
-  const fogliMezzo = fogliMarcia.filter(f => f.mezzoId === mezzoId && f.kmFinali !== '' && f.kmFinali !== undefined && f.kmFinali !== null);
+  // BUG corretto: mancava il controllo "!f.cestinato", quindi una riga
+  // spostata nel cestino (es. una riga di prova con km fittizi) continuava
+  // comunque a essere usata per precompilare "Km iniziali" nella scheda
+  // Eccedenza 118, anche se non compariva più nell'elenco fogli di marcia.
+  const fogliMezzo = fogliMarcia.filter(f => f.mezzoId === mezzoId && !f.cestinato && f.kmFinali !== '' && f.kmFinali !== undefined && f.kmFinali !== null);
   if(!fogliMezzo.length) return null;
   fogliMezzo.sort((a,b) => {
     const chiaveA = (a.dataPartenza||'') + ' ' + (a.orarioPartenza||'');
