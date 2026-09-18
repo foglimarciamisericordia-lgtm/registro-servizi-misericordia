@@ -1173,14 +1173,19 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno *</label><input type="date" id="sf-perGiorno" required></div>
-          <div class="field"><label id="label-orario-visita">Orario visita *</label><input type="time" id="sf-alleOre" required></div>
+          <div class="field"><label id="label-orario-visita">Orario visita/dimissione/terapia *</label><input type="time" id="sf-alleOre" required></div>
         </div>
 
         <div id="campi-trasporto-secondario">
-          <div class="grid3">
-            <div class="field"><label>Orario sul posto *</label>
+          <div class="grid2">
+            <div class="field"><label>Orario partenza sede *</label>
+              <input type="time" id="sf-orarioPartenzaSede" required>
+            </div>
+            <div class="field"><label>Orario casa pz/luogo dimissione *</label>
               <input type="time" id="sf-aCasa" required>
             </div>
+          </div>
+          <div class="grid2">
             <div class="field"><label>Trasportare da (città, via, n.) *</label><input type="text" id="sf-partenza" placeholder="es. propria abitazione" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
             <div class="field"><label>A (destinazione) *</label><input type="text" id="sf-destinazione" placeholder="es. Ospedale Garibaldi - Ortopedia" oninput="scheduleGeoPreview();scheduleRimborsoCalc();" required></div>
           </div>
@@ -1314,7 +1319,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         <legend>Stato del servizio</legend>
         <div class="grid2">
           <div class="field"><label>Stato</label>
-            <select id="sf-stato">
+            <select id="sf-stato" onchange="toggleMotivazioneAnnullamento()">
               <option value="giallo">Da confermare</option>
               <option value="verde">Confermato</option>
               <option value="rosso">Annullato</option>
@@ -1327,6 +1332,10 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="field" id="apertura-toggle-box" style="display:none;">
             <label>Gestione assegnazione</label>
             <button type="button" class="btn btn-toggle-chiuso" id="btn-toggle-chiuso" onclick="toggleChiusoStato()"></button>
+          </div>
+          <div class="field" id="campo-motivazione-annullamento" style="display:none;">
+            <label>Motivazione annullamento *</label>
+            <input type="text" id="sf-motivazioneAnnullamento" placeholder="es. Paziente non più disponibile, richiesta ritirata, ecc.">
           </div>
         </div>
       </fieldset>
@@ -2818,8 +2827,23 @@ function formattaTurnoScu(turno){
   if(turno.tipo === 'riposo') return 'Riposo';
   if(turno.tipo === 'assente') return 'Assente';
   if(turno.tipo === 'legacy') return turno.testo;
-  if(turno.tipo === 'orario') return (turno.dalle || '?') + '–' + (turno.alle || '?');
+  if(turno.tipo === 'orario'){
+    const fasce = fasceOrarioTurno(turno);
+    if(!fasce.length) return '?–?';
+    return fasce.map(f => (f.dalle || '?') + '–' + (f.alle || '?')).join(', ');
+  }
   return '—';
+}
+// Un turno a orario può avere più fasce nella stessa giornata (es. 07:00–10:00,
+// 13:00–15:00, 20:00–21:00). Questa funzione normalizza sia il nuovo formato
+// (turno.fasce: [{dalle,alle}, ...]) sia i turni salvati con il vecchio
+// formato a fascia singola (turno.dalle/turno.alle in cima all'oggetto), così
+// tutto il resto del codice può sempre leggere turno.fasce.
+function fasceOrarioTurno(turno){
+  if(!turno) return [];
+  if(Array.isArray(turno.fasce)) return turno.fasce;
+  if(turno.dalle || turno.alle) return [{ dalle: turno.dalle || '', alle: turno.alle || '' }];
+  return [];
 }
 async function saveTurniScu(){ await kvSet('turniScu', turniScu); }
 // Fasce orarie della vista "pubblicata" (quella che vede il volontario SCU):
@@ -2841,31 +2865,55 @@ function fasciaPerOrarioInizio(orarioHHMM){
   for(const f of FASCE_TURNI_SCU){ if(minuti >= f.sogliaMinuti) trovata = f; }
   return trovata;
 }
-function renderTurniScu(){
-  if(!canVedereTurniScu()) return;
-  const label = document.getElementById('turniscu-settimana-label');
-  const legenda = document.getElementById('turniscu-legenda');
-  const puoModificare = canGestireTurniScu();
-
+// Estratte in funzioni a parte (invece che calcolate solo dentro
+// renderTurniScu) così un aggiornamento "leggero" — solo la griglia di sola
+// lettura, senza toccare l'editor — può ricalcolarle senza dover rifare
+// l'intero render della tabella modificabile. Vedi impostaOrarioTurnoScu.
+function calcolaGiorniTurniScu(){
   const giorni = [];
   for(let i=0;i<7;i++){
     const d = new Date(settimanaTurniScu);
     d.setDate(d.getDate()+i);
     giorni.push(d);
   }
-  label.textContent = `${giorni[0].toLocaleDateString('it-IT')} — ${giorni[6].toLocaleDateString('it-IT')}`;
-  legenda.textContent = 'I volontari sono elencati nella fascia corrispondente all\'orario di inizio del loro turno.';
-
+  return giorni;
+}
+function calcolaUtentiScuAttivi(){
   // Il calendario mostra tutti gli utenti di tipo SCU attivi (non
   // archiviati): sia i colleghi sia l'utente stesso, se lui stesso è SCU.
   // Ordinati per cognome.
-  const utentiScu = utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'))
+  return utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'))
     .sort((a,b) => (a.cognome||'').localeCompare(b.cognome||'') || (a.nome||'').localeCompare(b.nome||''));
+}
+function renderTurniScu(){
+  if(!canVedereTurniScu()) return;
+  const label = document.getElementById('turniscu-settimana-label');
+  const legenda = document.getElementById('turniscu-legenda');
+  const puoModificare = canGestireTurniScu();
+
+  const giorni = calcolaGiorniTurniScu();
+  label.textContent = `${giorni[0].toLocaleDateString('it-IT')} — ${giorni[6].toLocaleDateString('it-IT')}`;
+  legenda.textContent = 'I volontari sono elencati nella fascia corrispondente all\'orario di inizio del loro turno.';
+
+  const utentiScu = calcolaUtentiScuAttivi();
 
   renderGrigliaFasceTurniScu(giorni, utentiScu);
 
   document.getElementById('turniscu-editor-wrap').style.display = puoModificare ? 'block' : 'none';
   if(puoModificare) renderEditorTurniScu(giorni, utentiScu);
+}
+// Aggiorna SOLO la griglia di sola lettura (quella pubblicata a fasce),
+// senza ricostruire la tabella dell'editor: usata dopo aver digitato un
+// orario, per non distruggere e ricreare l'<input type="time"> che
+// l'operatore sta ancora usando — ricrearlo a ogni carattere digitato
+// interrompe l'attesa nativa del browser per il secondo carattere dei
+// minuti (es. digitando "3" per ottenere "30", il campo si blocca su "03"
+// e passa oltre). È lo stesso motivo per cui i campi orario della scheda
+// "Nuovo Servizio" non hanno questo problema: quel form non si ridisegna
+// mentre l'operatore digita.
+function aggiornaSoloGrigliaTurniScu(){
+  if(!canVedereTurniScu()) return;
+  renderGrigliaFasceTurniScu(calcolaGiorniTurniScu(), calcolaUtentiScuAttivi());
 }
 // Vista "pubblicata": una riga per fascia oraria (Mattina/Intermedio/
 // Pomeriggio/Sera), una colonna per giorno, con l'elenco dei volontari il
@@ -2899,12 +2947,19 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
       utentiScu.forEach(u => {
         const turno = turnoScuDi(dataISO, u.id);
         if(!turno) return;
-        if(turno.tipo === 'orario' && turno.dalle){
-          const f = fasciaPerOrarioInizio(turno.dalle);
-          if(f && f.chiave === fascia.chiave){
-            const [h,m] = turno.dalle.split(':').map(Number);
-            righe.push({ minuti: h*60+(m||0), titolo: `${u.cognome} ${u.nome} (${turno.dalle}–${turno.alle||'?'})`, nota: turno.nota || '' });
-          }
+        if(turno.tipo === 'orario'){
+          // Più fasce nello stesso giorno per la stessa persona sono trattate
+          // come turni indipendenti ai fini della distribuzione: ciascuna
+          // finisce nella riga (Mattina/Intermedio/Pomeriggio/Sera) del suo
+          // proprio orario di inizio, con lo stesso criterio di sempre.
+          fasceOrarioTurno(turno).forEach(seg => {
+            if(!seg.dalle) return;
+            const f = fasciaPerOrarioInizio(seg.dalle);
+            if(f && f.chiave === fascia.chiave){
+              const [h,m] = seg.dalle.split(':').map(Number);
+              righe.push({ minuti: h*60+(m||0), titolo: `${u.cognome} ${u.nome} (${seg.dalle}–${seg.alle||'?'})`, nota: turno.nota || '' });
+            }
+          });
         } else if((turno.tipo === 'riposo' || turno.tipo === 'assente') && fascia.chiave === 'mattina'){
           const etichetta = turno.tipo === 'riposo' ? 'Riposo' : 'Assente/Permesso';
           righe.push({ minuti: 9999, titolo: `${u.cognome} ${u.nome} — ${etichetta}`, nota: turno.nota || '' });
@@ -2950,13 +3005,23 @@ function renderEditorTurniScu(giorni, utentiScu){
       const tipoCorrente = turno ? (turno.tipo === 'legacy' ? '' : turno.tipo) : '';
       const colore = TURNI_SCU_COLORI[tipoCorrente] || TURNI_SCU_COLORI[''];
       const mostraOrario = tipoCorrente === 'orario';
+      // Una o più fasce orarie per la stessa giornata (es. 07:00–10:00,
+      // 13:00–15:00): sempre almeno una riga (anche vuota) quando il tipo è
+      // "orario", più un pulsante per aggiungerne altre.
+      const fasceCorrenti = mostraOrario ? (fasceOrarioTurno(turno).length ? fasceOrarioTurno(turno) : [{dalle:'',alle:''}]) : [];
+      const righeFasce = fasceCorrenti.map((f, idx) => `
+          <div style="display:flex;gap:2px;align-items:center;margin-top:2px;">
+            <input type="time" value="${f.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}',${idx},'dalle',this.value)" style="width:42%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+            <input type="time" value="${f.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}',${idx},'alle',this.value)" style="width:42%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+            ${fasceCorrenti.length > 1 ? `<button type="button" onclick="rimuoviFasciaTurnoScu('${u.id}','${dataISO}',${idx})" title="Rimuovi questo orario" style="border:none;background:transparent;color:#B23A24;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;">✕</button>` : ''}
+          </div>`).join('');
       html += `<td style="background:${colore.bg};padding:3px;min-width:110px;">
         <select onchange="impostaStatoTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;border:none;background:transparent;color:${colore.fg};font-weight:600;font-size:11px;">
           ${TURNI_SCU_STATI.map(t=>`<option value="${t.valore}" ${t.valore===tipoCorrente?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
         </select>
-        <div style="display:${mostraOrario?'flex':'none'};gap:2px;margin-top:2px;">
-          <input type="time" value="${turno?.dalle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','dalle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
-          <input type="time" value="${turno?.alle||''}" onchange="impostaOrarioTurnoScu('${u.id}','${dataISO}','alle',this.value)" style="width:50%;font-size:11px;border:1px solid var(--line-soft);border-radius:4px;">
+        <div style="display:${mostraOrario?'block':'none'};">
+          ${righeFasce}
+          <button type="button" class="action-btn" style="font-size:10px;padding:2px 6px;margin-top:3px;" onclick="aggiungiFasciaTurnoScu('${u.id}','${dataISO}')">+ Aggiungi orario</button>
         </div>
         <input type="text" placeholder="Nota (facoltativa)" value="${escapeHtml(turno?.nota||'')}" onchange="impostaNotaTurnoScu('${u.id}','${dataISO}',this.value)" style="width:100%;font-size:10.5px;margin-top:3px;border:1px solid var(--line-soft);border-radius:4px;padding:2px 4px;">
       </td>`;
@@ -2981,20 +3046,48 @@ async function impostaStatoTurnoScu(userId, dataISO, tipo){
     delete turniScu[dataISO][userId];
   } else if(tipo === 'orario'){
     const esistente = turnoScuDi(dataISO, userId) || {};
-    turniScu[dataISO][userId] = { tipo: 'orario', dalle: esistente.dalle || '', alle: esistente.alle || '' };
+    const fasce = fasceOrarioTurno(esistente);
+    turniScu[dataISO][userId] = { tipo: 'orario', fasce: fasce.length ? fasce : [{ dalle: '', alle: '' }], nota: esistente.nota || '' };
   } else {
     turniScu[dataISO][userId] = { tipo };
   }
   renderTurniScu(); // aggiornamento immediato, il salvataggio remoto avviene subito dopo in background
   await saveTurniScu();
 }
-async function impostaOrarioTurnoScu(userId, dataISO, campo, valore){
+// Legge/scrive l'orario di UNA specifica fascia (indiceFascia: 0, 1, 2...)
+// del turno del giorno, per supportare più fasce nella stessa giornata.
+async function impostaOrarioTurnoScu(userId, dataISO, indiceFascia, campo, valore){
   if(!canGestireTurniScu()) return;
   if(!turniScu[dataISO]) turniScu[dataISO] = {};
   const esistente = turnoScuDi(dataISO, userId);
-  const base = (esistente && esistente.tipo === 'orario') ? esistente : { tipo: 'orario', dalle: '', alle: '' };
-  base[campo] = valore;
-  turniScu[dataISO][userId] = base;
+  const fasce = ((esistente && esistente.tipo === 'orario') ? fasceOrarioTurno(esistente) : []).map(f => ({...f}));
+  if(!fasce[indiceFascia]) fasce[indiceFascia] = { dalle: '', alle: '' };
+  fasce[indiceFascia][campo] = valore;
+  turniScu[dataISO][userId] = { tipo: 'orario', fasce, nota: (esistente && esistente.nota) || '' };
+  aggiornaSoloGrigliaTurniScu();
+  await saveTurniScu();
+}
+// Aggiunge una nuova fascia oraria vuota alla stessa giornata/volontario,
+// così il Responsabile SCU può inserire più turni separati (es. mattina +
+// pomeriggio + sera) per la stessa persona nello stesso giorno.
+async function aggiungiFasciaTurnoScu(userId, dataISO){
+  if(!canGestireTurniScu()) return;
+  if(!turniScu[dataISO]) turniScu[dataISO] = {};
+  const esistente = turnoScuDi(dataISO, userId);
+  const fasce = ((esistente && esistente.tipo === 'orario') ? fasceOrarioTurno(esistente) : []).map(f => ({...f}));
+  fasce.push({ dalle: '', alle: '' });
+  turniScu[dataISO][userId] = { tipo: 'orario', fasce, nota: (esistente && esistente.nota) || '' };
+  renderTurniScu();
+  await saveTurniScu();
+}
+async function rimuoviFasciaTurnoScu(userId, dataISO, indiceFascia){
+  if(!canGestireTurniScu()) return;
+  if(!turniScu[dataISO]) turniScu[dataISO] = {};
+  const esistente = turnoScuDi(dataISO, userId);
+  if(!esistente || esistente.tipo !== 'orario') return;
+  const fasce = fasceOrarioTurno(esistente).map(f => ({...f}));
+  fasce.splice(indiceFascia, 1);
+  turniScu[dataISO][userId] = { tipo: 'orario', fasce: fasce.length ? fasce : [{ dalle: '', alle: '' }], nota: esistente.nota || '' };
   renderTurniScu();
   await saveTurniScu();
 }
@@ -3005,7 +3098,7 @@ async function impostaNotaTurnoScu(userId, dataISO, valore){
   if(esistente.tipo === 'legacy') return; // valore vecchio formato, non modificabile qui
   esistente.nota = valore;
   turniScu[dataISO][userId] = esistente;
-  renderTurniScu();
+  aggiornaSoloGrigliaTurniScu(); // non ricostruisce l'editor: vedi impostaOrarioTurnoScu
   await saveTurniScu();
 }
 // Azzera tutti i turni di TUTTI i volontari per un intero giorno, in un
@@ -5548,7 +5641,7 @@ function toggleTipoScheda(){
   document.getElementById('campo-tipoTrasporto').style.display = mostraTipoTrasporto ? 'block' : 'none';
   document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
-  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita *');
+  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita/dimissione/terapia *');
   document.getElementById('campo-suLuogoEvento').style.display = (tipo === 'evento') ? 'block' : 'none';
 
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
@@ -5565,7 +5658,7 @@ function toggleTipoScheda(){
   // convalida del browser: togliamo proprio l'attributo "required" dai campi
   // dell'altra modalità, così il salvataggio non può mai restare bloccato
   // da un campo che l'utente non vede nemmeno.
-  const campiSoloSecondario = ['sf-cognome','sf-nome','sf-aCasa','sf-partenza','sf-destinazione','sf-peso','sf-deambula','sf-ossigeno','sf-scale','sf-ascensore','sf-accompagnatore','sf-affettoDa'];
+  const campiSoloSecondario = ['sf-cognome','sf-nome','sf-orarioPartenzaSede','sf-aCasa','sf-partenza','sf-destinazione','sf-peso','sf-deambula','sf-ossigeno','sf-scale','sf-ascensore','sf-accompagnatore','sf-affettoDa'];
   campiSoloSecondario.forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.required = !modalitaRichiedente;
@@ -5699,13 +5792,14 @@ function viewServiceModal(id){
     <div class="view-grid">
       ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
-      ${item('Orario visita', s.alleOre)}
+      ${item('Orario visita/dimissione/terapia', s.alleOre)}
       ${isModalitaRichiedente(s.tipoScheda) ? `
         ${item('Su luogo dell\'evento', s.suLuogoEvento)}
         ${item('Luogo evento', s.luogoEvento)}
         ${item('Ulteriori dettagli evento', s.dettagliEvento)}
       ` : `
-        ${item('Orario sul posto', s.aCasa)}
+        ${item('Orario partenza sede', s.orarioPartenzaSede)}
+        ${item('Orario casa pz/luogo dimissione', s.aCasa)}
         ${item('Partenza', s.partenza)}
         ${item('Destinazione', s.destinazione)}
         ${item('Reparto/Padiglione', s.repartoDestinazione)}
@@ -5824,6 +5918,15 @@ function toggleRelazioneRichiedente(){
   if(!on) document.getElementById('sf-relazione').value = '';
 }
 
+// Mostra/nasconde e rende obbligatorio il campo "Motivazione annullamento"
+// in base allo stato scelto: serve solo quando il servizio viene messo
+// (o si trova già) in stato "Annullato".
+function toggleMotivazioneAnnullamento(){
+  const annullato = document.getElementById('sf-stato').value === 'rosso';
+  document.getElementById('campo-motivazione-annullamento').style.display = annullato ? 'block' : 'none';
+  document.getElementById('sf-motivazioneAnnullamento').required = annullato;
+  if(!annullato) document.getElementById('sf-motivazioneAnnullamento').value = '';
+}
 function toggleChiusoStato(){
   const stoAssegnando = !currentChiusoState;
   if(stoAssegnando && canCloseService()){
@@ -5868,7 +5971,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-mezzo', data?.mezzoId); set('sf-perGiorno', data?.perGiorno || prefillDate); set('sf-alleOre', data?.alleOre);
   document.getElementById('sf-tipoMezzoRichiesto').innerHTML = '<option value="">-- seleziona --</option>' + tipiMezzo.map(t=>`<option>${escapeHtml(t)}</option>`).join('');
   document.getElementById('sf-tipoMezzoRichiesto').value = data?.tipoMezzoRichiesto || '';
-  set('sf-aCasa', data?.aCasa); set('sf-partenza', data?.partenza); set('sf-destinazione', data?.destinazione);
+  set('sf-orarioPartenzaSede', data?.orarioPartenzaSede); set('sf-aCasa', data?.aCasa); set('sf-partenza', data?.partenza); set('sf-destinazione', data?.destinazione);
   set('sf-repartoDestinazione', data?.repartoDestinazione); set('sf-tipoTrasporto', data?.tipoTrasporto);
   set('sf-peso', data?.peso); set('sf-deambula', data?.deambula); set('sf-posizioneTrasporto', data?.posizioneTrasporto); set('sf-ossigeno', data?.ossigeno); set('sf-scale', data?.scale);
   set('sf-pianoScale', data?.pianoScale); togglePianoScale();
@@ -5889,6 +5992,8 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-note', data?.note);
   set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2); set('sf-soccorritore3', data?.soccorritore3);
   document.getElementById('sf-stato').value = data?.stato || 'giallo';
+  set('sf-motivazioneAnnullamento', data?.motivazioneAnnullamento);
+  toggleMotivazioneAnnullamento();
   rimborsoManuallyEdited = false;
   document.getElementById('sf-rimborsoSuggerito').value = data?.rimborsoSuggerito || '';
   document.getElementById('sf-offertaLibera').checked = !!data?.offertaLibera;
@@ -6024,14 +6129,25 @@ function computeRimborsoSuggerito(){
   const fmt = n => '€ ' + n.toFixed(2).replace('.', ',');
   document.getElementById('rd-tratta').textContent = fmt(base);
   document.getElementById('rd-ossigeno').textContent = fmt(maggiorazione);
-  document.getElementById('rd-totale').textContent = fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
+  // Tratta+mezzo compilati ma nessun importo trovato nel listino "Rimborso
+  // per tratta": il campo Totale segnala di contattare un responsabile,
+  // finché quest'ultimo non comunica un importo e l'operatore lo inserisce
+  // a mano nel campo "Rimborso spesa tratta" — a quel punto rimborsoManuallyEdited
+  // diventa true (vedi l'oninput del campo) e il messaggio sparisce subito,
+  // sostituito dall'importo digitato.
+  const trattaSenzaRimborso = !matched && partenza && destinazione && tipoMezzo;
+  if(trattaSenzaRimborso && !rimborsoManuallyEdited){
+    document.getElementById('rd-totale').textContent = 'Contatta un responsabile';
+  } else {
+    document.getElementById('rd-totale').textContent = fmt(parseFloat(document.getElementById('sf-rimborsoSuggerito').value) || totale);
+  }
 }
 
 const CAMPI_LABEL_SERVIZIO = {
   enteSig:'Ente/Nome e Cognome richiedente', telRichiedente:'Telefono contatto principale', telRichiedente2:'Telefono ulteriore contatto', relazione:'Relazione col paziente',
   cognome:'Cognome', nome:'Nome', natoA:'Nato a', natoIl:'Nato il',
   dataRicezione:'Data di ricezione', oraRicezione:'Ora di ricezione',
-  mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Orario visita', aCasa:'Orario sul posto',
+  mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Orario visita/dimissione/terapia', orarioPartenzaSede:'Orario partenza sede', aCasa:'Orario casa pz/luogo dimissione',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
   scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
@@ -6124,6 +6240,11 @@ async function saveService(ev){
     alert('Seleziona almeno un presidio richiesto (o specifica "Altri presidi").');
     return false;
   }
+  if(document.getElementById('sf-stato').value === 'rosso' && !g('sf-motivazioneAnnullamento')){
+    document.getElementById('sf-motivazioneAnnullamento').classList.add('campo-invalido');
+    alert('Indica la motivazione dell\'annullamento.');
+    return false;
+  }
   const data = {
     id: editingServiceId || ('s-' + Date.now()),
     tipoScheda,
@@ -6133,7 +6254,7 @@ async function saveService(ev){
     cognome: g('sf-cognome'), nome: g('sf-nome'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
     dataRicezione: g('sf-dataRicezione'), oraRicezione: g('sf-oraRicezione'),
     mezzoId: g('sf-mezzo'), tipoMezzoRichiesto: document.getElementById('sf-tipoMezzoRichiesto').value, perGiorno: g('sf-perGiorno'), alleOre: g('sf-alleOre'),
-    aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
+    orarioPartenzaSede: g('sf-orarioPartenzaSede'), aCasa: g('sf-aCasa'), partenza: g('sf-partenza'), destinazione: g('sf-destinazione'),
     repartoDestinazione: g('sf-repartoDestinazione'), tipoTrasporto: g('sf-tipoTrasporto'),
     peso: g('sf-peso'), deambula: g('sf-deambula'), posizioneTrasporto: g('sf-posizioneTrasporto'), ossigeno: g('sf-ossigeno'),
     flussoOssigeno: g('sf-flussoOssigeno'), scale: g('sf-scale'), pianoScale: g('sf-pianoScale'),
@@ -6149,6 +6270,7 @@ async function saveService(ev){
     rimborsoBase: (document.getElementById('rd-tratta').textContent||'').includes('€') ? document.getElementById('rd-tratta').textContent.replace('€','').replace(',','.').trim() : '0',
     rimborsoMaggiorazione: (document.getElementById('rd-ossigeno').textContent||'').includes('€') ? document.getElementById('rd-ossigeno').textContent.replace('€','').replace(',','.').trim() : '0',
     stato: document.getElementById('sf-stato').value,
+    motivazioneAnnullamento: g('sf-motivazioneAnnullamento'),
   };
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
   if(canEditEquipaggio()){
