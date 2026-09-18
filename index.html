@@ -2498,24 +2498,15 @@ async function prossimoNumeroFoglio(mezzoId, anno){
   while(usati.has(n)) n++;
   return n;
 }
+// Il "km iniziali" suggerito per un nuovo foglio non è più letto da una
+// cache separata ("fogli-ultimo-km"): quella cache poteva restare
+// disallineata dai dati reali in vari scenari (righe cancellate prima che
+// esistesse questa correzione, o altre operazioni non coperte), mostrando
+// km fittizi anche quando in realtà non esiste più nessun foglio per quel
+// mezzo. Ora si scandisce sempre dal vivo l'elenco reale dei fogli non
+// cestinati (di tutti gli anni disponibili) e si prende il km finale del
+// più recente: nessuna cache, nessun disallineamento possibile.
 async function ultimoKmFinaliAsync(mezzoId){
-  const mappa = (await kvGet('fogli-ultimo-km')) || {};
-  return mappa[mezzoId] || '';
-}
-async function aggiornaUltimoKm(mezzoId, km){
-  if(!km) return;
-  const mappa = (await kvGet('fogli-ultimo-km')) || {};
-  mappa[mezzoId] = km;
-  await kvSet('fogli-ultimo-km', mappa);
-}
-// Ricalcola da zero il valore "ultimo km" di un mezzo, scandendo tutti i
-// fogli di marcia non cestinati (di ogni anno disponibile) e prendendo il
-// km finale del più recente per data/ora di registrazione. Necessario dopo
-// aver cestinato, ripristinato o eliminato definitivamente un foglio,
-// altrimenti il valore resta quello di una riga cancellata (es. righe di
-// prova con km fittizi) e continua a precompilare erroneamente i "Km
-// iniziali" dei fogli successivi.
-async function ricalcolaUltimoKmMezzo(mezzoId){
   let migliore = null;
   for(const anno of [...anniDisponibiliFogli].sort((a,b)=>b-a)){
     const lista = anno === annoCorrenteFogli ? fogliMarcia : ((await kvGet('fogli-' + anno)) || []);
@@ -2525,9 +2516,7 @@ async function ricalcolaUltimoKmMezzo(mezzoId){
       }
     });
   }
-  const mappa = (await kvGet('fogli-ultimo-km')) || {};
-  if(migliore){ mappa[mezzoId] = migliore.kmFinali; } else { delete mappa[mezzoId]; }
-  await kvSet('fogli-ultimo-km', mappa);
+  return migliore ? migliore.kmFinali : '';
 }
 async function cambiaAnnoFogli(anno){
   anno = parseInt(anno);
@@ -5018,7 +5007,6 @@ async function saveFoglio(ev){
       await kvSet('fogli-' + annoRiga, bucket);
       await aggiornaIndiceFogli(annoRiga);
     }
-    await aggiornaUltimoKm(mezzoId, data.kmFinali);
     if(data.servizioId){
       await registraFoglioInCronologiaServizio(data.servizioId, data.servizioAnno);
     }
@@ -5037,7 +5025,6 @@ async function deleteFoglio(id){
   f.cestinato = true;
   f.cestinatoIl = new Date().toISOString();
   await saveFogliMarciaData();
-  await ricalcolaUltimoKmMezzo(f.mezzoId);
   closeFoglioModal();
   renderFogliMarcia();
 }
@@ -5050,15 +5037,12 @@ async function ripristinaFoglioCestino(id){
   }
   f.cestinato = false; f.cestinatoIl = null;
   await saveFogliMarciaData();
-  await ricalcolaUltimoKmMezzo(f.mezzoId);
   renderFogliMarcia(); renderCestino();
 }
 async function eliminaFoglioDefinitivo(id){
   if(!confirm('Eliminare definitivamente questa riga del foglio di marcia?')) return;
-  const f = fogliMarcia.find(x=>x.id===id);
   fogliMarcia = fogliMarcia.filter(x=>x.id!==id);
   await saveFogliMarciaData();
-  if(f) await ricalcolaUltimoKmMezzo(f.mezzoId);
   renderCestino();
 }
 function exportFogliExcel(){
