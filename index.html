@@ -8471,18 +8471,25 @@ const EMAIL_INVIO_ENDPOINT = 'https://backup-worker-misericordia.foglimarciamise
 async function inviaEmailViaWorker(destinatario, oggetto, testo, allegatoBase64, nomeAllegato, destinatarioFisso){
   const risposta = await fetch(EMAIL_INVIO_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
     body: JSON.stringify({ destinatario, oggetto, testo, allegatoBase64, nomeAllegato, destinatarioFisso })
   });
   const dati = await risposta.json().catch(()=>({}));
   if(!risposta.ok || !dati.ok) throw new Error(dati.errore || 'invio email fallito');
   return dati;
 }
-const FOTO_UPLOAD_TOKEN = 'r25hAWxrIsT1JJ1Wate4wNInwNXi0MNjadJxTgtA65Q';
+// NOTA DI SICUREZZA: qui c'era prima una chiave fissa (FOTO_UPLOAD_TOKEN)
+// scritta in chiaro nel codice pubblico del sito — chiunque visualizzasse
+// il sorgente della pagina poteva copiarla e usarla per inviare email o
+// caricare file sul Drive dell'associazione, anche senza mai essersi
+// autenticato. È stata rimossa: le chiamate qui sotto usano ora authToken,
+// il token di sessione reale ottenuto al login (variabile in memoria, mai
+// scritto nel codice della pagina), che il Worker verifica controllando la
+// stessa sessione usata da /api/kv (vedi functions/api/kv.js).
 async function caricaFotoSuWorker(dataUrl, nomeFile, cartella, fileIdEsistente){
   const risposta = await fetch(FOTO_UPLOAD_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
     body: JSON.stringify({ dataUrl, nomeFile, cartella, fileIdEsistente })
   });
   if(!risposta.ok) throw new Error('upload fallito');
@@ -8499,7 +8506,7 @@ function caricaFotoSuWorkerConProgresso(dataUrl, nomeFile, cartella, onProgress)
     const xhr = new XMLHttpRequest();
     xhr.open('POST', FOTO_UPLOAD_ENDPOINT);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + FOTO_UPLOAD_TOKEN);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
     xhr.upload.onprogress = e => {
       if(e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
     };
@@ -8521,7 +8528,7 @@ function caricaFotoSuWorkerConProgresso(dataUrl, nomeFile, cartella, onProgress)
 }
 async function scaricaFotoDaWorker(fileId){
   const risposta = await fetch(FOTO_UPLOAD_ENDPOINT + '/' + fileId, {
-    headers: { 'Authorization': 'Bearer ' + FOTO_UPLOAD_TOKEN }
+    headers: { 'Authorization': 'Bearer ' + authToken }
   });
   if(!risposta.ok) throw new Error('download fallito');
   const blob = await risposta.blob();
