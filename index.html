@@ -703,6 +703,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <span id="turniscu-settimana-label" style="font-weight:600;color:var(--navy);"></span>
           <button class="btn btn-ghost" style="width:auto;" onclick="cambiaSettimanaTurniScu(1)">Settimana succ. →</button>
           <button class="btn btn-ghost" style="width:auto;" onclick="vaiSettimanaCorrenteTurniScu()">Oggi</button>
+          <button class="btn btn-ghost" style="width:auto;" id="btn-stampa-turniscu" onclick="stampaPdfGrigliaTurniScu()">📄 Stampa PDF griglia</button>
         </div>
         <p class="map-hint" id="turniscu-legenda"></p>
         <div id="turniscu-griglia-container" style="overflow-x:auto;margin-bottom:24px;"></div>
@@ -2926,6 +2927,75 @@ function aggiornaSoloGrigliaTurniScu(){
   if(!canVedereTurniScu()) return;
   renderGrigliaFasceTurniScu(calcolaGiorniTurniScu(), calcolaUtentiScuAttivi());
 }
+// Genera un PDF della sola griglia pubblicata (non dell'editor sotto),
+// catturandola come immagine (html2canvas, come già fatto altrove nel sito
+// per le schede stampabili) e inserendola in un'unica pagina A4 orizzontale,
+// ridimensionata per rientrare interamente nei margini della pagina.
+// Calcola le dimensioni finali (mantenendo le proporzioni originali) per
+// far rientrare un'immagine nello spazio disponibile di una pagina,
+// scegliendo il vincolo più stringente tra larghezza e altezza. Estratta a
+// parte (invece che scritta inline) per poterla verificare con un test
+// automatico indipendente da html2canvas/jsPDF.
+function calcolaDimensioniFitPagina(larghezzaImg, altezzaImg, larghezzaDisponibile, altezzaDisponibile){
+  const rapporto = larghezzaImg / altezzaImg;
+  let larghezzaFinale = larghezzaDisponibile;
+  let altezzaFinale = larghezzaFinale / rapporto;
+  if (altezzaFinale > altezzaDisponibile) {
+    altezzaFinale = altezzaDisponibile;
+    larghezzaFinale = altezzaFinale * rapporto;
+  }
+  return { larghezza: larghezzaFinale, altezza: altezzaFinale };
+}
+async function stampaPdfGrigliaTurniScu(){
+  const container = document.getElementById('turniscu-griglia-container');
+  const tabella = container ? container.querySelector('table') : null;
+  if(!tabella){
+    alert('Nessuna griglia da stampare per questa settimana.');
+    return;
+  }
+  const btn = document.getElementById('btn-stampa-turniscu');
+  const testoOriginale = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generazione PDF...';
+  try {
+    const canvas = await html2canvas(tabella, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    const larghezzaPagina = pdf.internal.pageSize.getWidth();
+    const altezzaPagina = pdf.internal.pageSize.getHeight();
+    const margine = 8;
+    const altezzaTitolo = 12;
+    const larghezzaDisponibile = larghezzaPagina - margine * 2;
+    const altezzaDisponibile = altezzaPagina - margine * 2 - altezzaTitolo;
+
+    // Scala l'immagine mantenendo le proporzioni originali, così da
+    // rientrare sia in larghezza sia in altezza nello spazio disponibile
+    // (qualunque sia la forma della griglia: poche o molte colonne/righe).
+    const { larghezza: larghezzaFinale, altezza: altezzaFinale } = calcolaDimensioniFitPagina(canvas.width, canvas.height, larghezzaDisponibile, altezzaDisponibile);
+    const x = (larghezzaPagina - larghezzaFinale) / 2;
+    const y = margine + altezzaTitolo;
+
+    const etichettaSettimana = (document.getElementById('turniscu-settimana-label') || {}).textContent || '';
+    pdf.setFontSize(13);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Turni SCU — Fraternita di Misericordia di S.M. di Licodia ODV', margine, margine + 4);
+    pdf.setFontSize(10);
+    pdf.setFont(undefined, 'normal');
+    pdf.text('Settimana: ' + etichettaSettimana, margine, margine + 9);
+
+    const immagineDati = canvas.toDataURL('image/png');
+    pdf.addImage(immagineDati, 'PNG', x, y, larghezzaFinale, altezzaFinale);
+
+    const nomeFile = 'turni-scu-' + etichettaSettimana.replace(/[^0-9a-zA-Z]+/g, '_') + '.pdf';
+    pdf.save(nomeFile);
+  } catch (errore) {
+    alert('Errore durante la generazione del PDF: ' + errore.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = testoOriginale;
+  }
+}
+
 // Vista "pubblicata": una riga per fascia oraria (Mattina/Intermedio/
 // Pomeriggio/Sera), una colonna per giorno, con l'elenco dei volontari il
 // cui turno inizia in quella fascia — ricalca il classico foglio turni
