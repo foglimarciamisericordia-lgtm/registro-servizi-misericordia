@@ -704,7 +704,9 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <button class="btn btn-ghost" style="width:auto;" onclick="cambiaSettimanaTurniScu(1)">Settimana succ. →</button>
           <button class="btn btn-ghost" style="width:auto;" onclick="vaiSettimanaCorrenteTurniScu()">Oggi</button>
           <button class="btn btn-ghost" style="width:auto;" id="btn-stampa-turniscu" onclick="stampaPdfGrigliaTurniScu()">📄 Stampa PDF griglia</button>
+          <button class="btn btn-primary" style="width:auto;display:none;" id="btn-convalida-turniscu" onclick="convalidaTurniScu()">✅ Convalida turni</button>
         </div>
+        <p class="map-hint" id="turniscu-stato-convalida" style="display:none;"></p>
         <p class="map-hint" id="turniscu-legenda"></p>
         <div id="turniscu-griglia-container" style="overflow-x:auto;margin-bottom:24px;"></div>
         <div id="turniscu-editor-wrap" style="display:none;">
@@ -1984,6 +1986,12 @@ let interventi118 = [];
 let editingScheda118Id = null;
 // Turni SCU: oggetto { "2026-09-14": { "userId1": "mattina", "userId2": "riposo" } }.
 let turniScu = {};
+// Copia "pubblicata" dei turni SCU: è quella che vedono i volontari SCU
+// semplici. Il Responsabile SCU lavora sempre su turniScu (la bozza) e la
+// vede riflessa subito nella propria griglia/editor; i volontari vedono
+// invece solo l'ultima versione convalidata, finché il Responsabile non
+// clicca "Convalida turni".
+let turniScuPubblicati = {};
 // Guasti segnalati sui mezzi, dal Foglio di marcia. Array di record:
 // { id, mezzoId, descrizione, gravita, segnalatoDa, segnalatoIl, stato:
 // 'aperto'|'risolto', risoltoDa, risoltoIl, notaRisoluzione }
@@ -2244,7 +2252,7 @@ async function loadData(){
   // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
   // invece che una dopo l'altra — l'attesa totale diventa quella della
   // richiesta più lenta, non la somma di tutte quante.
-  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes, guastiMezziRes] = await Promise.all([
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes, turniScuPubblicatiRes, guastiMezziRes] = await Promise.all([
     kvGet('utenti'),
     kvGet('mezzi'),
     kvGet('rimborsi'),
@@ -2257,6 +2265,7 @@ async function loadData(){
     kvGet('tipiPresidio'),
     kvGet('interventi118'),
     kvGet('turniScu'),
+    kvGet('turniScuPubblicati'),
     kvGet('guastiMezzi')
   ]);
 
@@ -2268,6 +2277,7 @@ async function loadData(){
   prestiti = prestitiRes || [];
   interventi118 = interventi118Res || [];
   turniScu = turniScuRes || {};
+  turniScuPubblicati = turniScuPubblicatiRes || {};
   guastiMezzi = guastiMezziRes || [];
   if(tipiPresidioRes && tipiPresidioRes.length){
     tipiPresidio = tipiPresidioRes;
@@ -2649,6 +2659,7 @@ async function ricaricaDatiCorrenti(){
     }
     if(viewAttiva === 'view-turniscu'){
       turniScu = (await kvGet('turniScu')) || {};
+      turniScuPubblicati = (await kvGet('turniScuPubblicati')) || {};
       utenti = (await kvGet('utenti')) || [];
     }
     // Il numero di guasti aperti sul contatore del menu deve restare
@@ -2825,8 +2836,9 @@ function formatDataISOTurni(d){
   const anno = d.getFullYear(), mese = String(d.getMonth()+1).padStart(2,'0'), giorno = String(d.getDate()).padStart(2,'0');
   return `${anno}-${mese}-${giorno}`;
 }
-function turnoScuDi(dataISO, userId){
-  const voce = turniScu[dataISO] && turniScu[dataISO][userId];
+function turnoScuDi(dataISO, userId, fonte){
+  const origine = fonte || turniScu;
+  const voce = origine[dataISO] && origine[dataISO][userId];
   if(!voce) return null;
   // Compatibilità con la primissima versione (un'unica parola tipo
   // "mattina"/"pomeriggio"): la trattiamo come testo libero non modificabile
@@ -2858,6 +2870,41 @@ function fasceOrarioTurno(turno){
   return [];
 }
 async function saveTurniScu(){ await kvSet('turniScu', turniScu); }
+// Copia la bozza corrente (turniScu) nella versione pubblicata: da questo
+// momento i volontari SCU (che non gestiscono i turni) vedranno queste
+// modifiche nella loro griglia. Finché il Responsabile non convalida, i
+// volontari continuano a vedere l'ultima versione convalidata in precedenza.
+async function convalidaTurniScu(){
+  if(!canGestireTurniScu()) return;
+  const btn = document.getElementById('btn-convalida-turniscu');
+  const testoOriginale = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Convalida in corso...';
+  try {
+    turniScuPubblicati = JSON.parse(JSON.stringify(turniScu));
+    await kvSet('turniScuPubblicati', turniScuPubblicati);
+    aggiornaStatoConvalidaTurniScu();
+  } catch(errore) {
+    alert('Errore durante la convalida dei turni: ' + errore.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = testoOriginale;
+  }
+}
+// Confronta bozza e versione pubblicata per mostrare al Responsabile se ci
+// sono modifiche non ancora visibili ai volontari SCU.
+function aggiornaStatoConvalidaTurniScu(){
+  const stato = document.getElementById('turniscu-stato-convalida');
+  if(!stato || !canGestireTurniScu()) return;
+  stato.style.display = 'block';
+  if(JSON.stringify(turniScu) === JSON.stringify(turniScuPubblicati)){
+    stato.textContent = '✅ I volontari vedono la versione più aggiornata dei turni.';
+    stato.style.color = 'var(--ink-soft)';
+  } else {
+    stato.textContent = '⚠️ Ci sono modifiche non ancora convalidate: i volontari SCU vedono ancora la versione precedente finché non premi "Convalida turni".';
+    stato.style.color = '#B23A24';
+  }
+}
 // Fasce orarie della vista "pubblicata" (quella che vede il volontario SCU):
 // un turno viene inserito nella fascia con la soglia più alta che il suo
 // orario di inizio raggiunge o supera (es. inizio 14:00 → Pomeriggio, non
@@ -2902,6 +2949,8 @@ function renderTurniScu(){
   const label = document.getElementById('turniscu-settimana-label');
   const legenda = document.getElementById('turniscu-legenda');
   const puoModificare = canGestireTurniScu();
+  const btnConvalida = document.getElementById('btn-convalida-turniscu');
+  const statoConvalida = document.getElementById('turniscu-stato-convalida');
 
   const giorni = calcolaGiorniTurniScu();
   label.textContent = `${giorni[0].toLocaleDateString('it-IT')} — ${giorni[6].toLocaleDateString('it-IT')}`;
@@ -2909,10 +2958,20 @@ function renderTurniScu(){
 
   const utentiScu = calcolaUtentiScuAttivi();
 
-  renderGrigliaFasceTurniScu(giorni, utentiScu);
+  // Il Responsabile SCU vede sempre la propria bozza (turniScu), riflessa
+  // qui in tempo reale mentre modifica. Il volontario SCU semplice vede
+  // invece solo l'ultima versione convalidata (turniScuPubblicati), finché
+  // il Responsabile non preme "Convalida turni".
+  renderGrigliaFasceTurniScu(giorni, utentiScu, puoModificare ? turniScu : turniScuPubblicati);
 
   document.getElementById('turniscu-editor-wrap').style.display = puoModificare ? 'block' : 'none';
-  if(puoModificare) renderEditorTurniScu(giorni, utentiScu);
+  btnConvalida.style.display = puoModificare ? 'inline-block' : 'none';
+  if(puoModificare){
+    renderEditorTurniScu(giorni, utentiScu);
+    aggiornaStatoConvalidaTurniScu();
+  } else {
+    statoConvalida.style.display = 'none';
+  }
 }
 // Aggiorna SOLO la griglia di sola lettura (quella pubblicata a fasce),
 // senza ricostruire la tabella dell'editor: usata dopo aver digitato un
@@ -2925,7 +2984,10 @@ function renderTurniScu(){
 // mentre l'operatore digita.
 function aggiornaSoloGrigliaTurniScu(){
   if(!canVedereTurniScu()) return;
-  renderGrigliaFasceTurniScu(calcolaGiorniTurniScu(), calcolaUtentiScuAttivi());
+  // Chiamata solo da azioni dell'editor (sempre gestito dal Responsabile):
+  // la griglia di riferimento durante la modifica è sempre la bozza.
+  renderGrigliaFasceTurniScu(calcolaGiorniTurniScu(), calcolaUtentiScuAttivi(), turniScu);
+  aggiornaStatoConvalidaTurniScu();
 }
 // Genera un PDF della sola griglia pubblicata (non dell'editor sotto),
 // catturandola come immagine (html2canvas, come già fatto altrove nel sito
@@ -3020,7 +3082,7 @@ async function stampaPdfGrigliaTurniScu(){
 // cui turno inizia in quella fascia — ricalca il classico foglio turni
 // stampato. Riposo e Assente/Permesso non compaiono qui (non sono orari di
 // lavoro): restano visibili solo nell'editor per volontario, sotto.
-function renderGrigliaFasceTurniScu(giorni, utentiScu){
+function renderGrigliaFasceTurniScu(giorni, utentiScu, fonte){
   const container = document.getElementById('turniscu-griglia-container');
   if(!container) return;
   if(utentiScu.length === 0){
@@ -3045,7 +3107,7 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu){
       // non hanno un orario: compaiono solo nella riga "Mattina", in coda.
       const righe = [];
       utentiScu.forEach(u => {
-        const turno = turnoScuDi(dataISO, u.id);
+        const turno = turnoScuDi(dataISO, u.id, fonte);
         if(!turno) return;
         if(turno.tipo === 'orario'){
           // Più fasce nello stesso giorno per la stessa persona sono trattate
