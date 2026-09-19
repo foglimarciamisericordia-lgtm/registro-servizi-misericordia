@@ -507,6 +507,7 @@
             <p>Crea gli account per operatori e responsabili</p>
           </div>
           <div style="display:flex;gap:10px;">
+            <input type="text" id="uf-filtro-testo" placeholder="Cerca per cognome o nome..." oninput="renderUsers()">
             <select id="uf-filtro-ruolo" onchange="renderUsers()">
               <option value="">Tutti i livelli</option>
               <option value="operatore">Volontario</option>
@@ -3788,9 +3789,12 @@ function renderUsers(){
   if(!canManageUsers()) return;
   const container = document.getElementById('users-container');
   const filtroRuolo = document.getElementById('uf-filtro-ruolo')?.value || '';
+  const testoRicerca = (document.getElementById('uf-filtro-testo')?.value || '').trim().toLowerCase();
   const perRuolo = u => !filtroRuolo || ruoliUtente(u).includes(filtroRuolo);
-  const attivi = utenti.filter(u=>!u.archiviato && !u.cestinato && perRuolo(u));
-  const archiviati = utenti.filter(u=>u.archiviato && !u.cestinato && perRuolo(u));
+  const perTesto = u => !testoRicerca || (u.cognome + ' ' + u.nome).toLowerCase().includes(testoRicerca);
+  const perCognomeNome = (a,b) => (a.cognome||'').localeCompare(b.cognome||'', 'it') || (a.nome||'').localeCompare(b.nome||'', 'it');
+  const attivi = utenti.filter(u=>!u.archiviato && !u.cestinato && perRuolo(u) && perTesto(u)).sort(perCognomeNome);
+  const archiviati = utenti.filter(u=>u.archiviato && !u.cestinato && perRuolo(u) && perTesto(u)).sort(perCognomeNome);
   const cardUtente = u => `
     <div class="user-card">
       <div class="nm">${escapeHtml(u.nome)} ${escapeHtml(u.cognome)}</div>
@@ -3808,7 +3812,7 @@ function renderUsers(){
     </div>`;
   let html = '<div class="section-title">Utenti attivi</div><div class="users-grid">' + attivi.map(cardUtente).join('') + '</div>';
   if(attivi.length === 0){
-    html += `<div class="empty-state">${filtroRuolo ? 'Nessun utente attivo con questo livello di accesso.' : 'Nessun utente attivo.'}</div>`;
+    html += `<div class="empty-state">${(filtroRuolo || testoRicerca) ? 'Nessun utente attivo corrisponde ai filtri applicati.' : 'Nessun utente attivo.'}</div>`;
   }
   if(archiviati.length){
     html += '<div class="section-title">Utenti archiviati</div><div class="users-grid">' + archiviati.map(cardUtente).join('') + '</div>';
