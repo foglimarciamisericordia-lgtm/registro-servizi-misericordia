@@ -4919,6 +4919,10 @@ async function purgaCestinoScaduti(){
     maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m => !(m.cestinato && scaduto(m.cestinatoIl)));
     await saveMaggiorazioni();
   }
+  if(interventi118.some(s=>s.cestinato && scaduto(s.cestinatoIl))){
+    interventi118 = interventi118.filter(s => !(s.cestinato && scaduto(s.cestinatoIl)));
+    await saveInterventi118();
+  }
 }
 async function ripristinaServizioECestino(id, anno){
   await ripristinaServizio(id, anno);
@@ -5009,6 +5013,12 @@ async function renderCestino(){
     <td>${m.flussoDa}-${m.flussoA} L/min</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(m.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaMaggiorazioneCestino('${m.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaMaggiorazioneDefinitivo('${m.id}')">🗑 Elimina definitivo</button></div></td>
+  </tr>`);
+
+  html += sezione('Schede 118', interventi118.filter(s=>s.cestinato), s => `<tr>
+    <td>${formattaNumeroScheda118(s)} — ${escapeHtml(((s.cognome||'')+' '+(s.nome||'')).trim() || 'Paziente non indicato')}</td>
+    <td class="mono" style="font-size:11.5px;">${formatResiduo(s.cestinatoIl)}</td>
+    <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaSchedaCestino118('${s.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaSchedaDefinitivo118('${s.id}')">🗑 Elimina definitivo</button></div></td>
   </tr>`);
 
   document.getElementById('cestino-container').innerHTML = html;
@@ -7498,8 +7508,9 @@ function onRifFotoChange(event, lato){
         <div style="font-size:11px;color:#2E7D32;font-weight:700;margin-top:4px;">✓ Caricata</div>`;
     } catch(e){
       if(lato==='fronte') rifiutoFotoFronte = dataUrl; else rifiutoFotoRetro = dataUrl;
+      console.warn('Upload foto documento su Drive non riuscito:', e.message);
       previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;display:block;">
-        <div style="font-size:11px;color:#B23A24;font-weight:700;margin-top:4px;">✓ Salvata nella scheda (upload su Drive non riuscito — resterà comunque allegata al PDF)</div>`;
+        <div style="font-size:11px;color:#B23A24;font-weight:700;margin-top:4px;">✓ Salvata nella scheda (upload su Drive non riuscito: ${escapeHtml(e.message)} — resterà comunque allegata al PDF)</div>`;
     } finally {
       rifiutoUploadInCorso[lato] = false;
     }
@@ -7610,7 +7621,7 @@ function renderElenco118(){
   if(!canVedereEccedenza()) return;
   const stato = document.getElementById('e118f-stato')?.value || '';
   const cerca = (document.getElementById('e118f-cerca')?.value || '').toLowerCase();
-  let righe = interventi118.slice().sort((a,b) => (b.data||'').localeCompare(a.data||''));
+  let righe = interventi118.filter(s=>!s.cestinato).sort((a,b) => (b.data||'').localeCompare(a.data||''));
   if(stato === 'aperta') righe = righe.filter(s=>!(s.chiuso || s.validata));
   if(stato === 'chiusa') righe = righe.filter(s=>s.chiuso || s.validata);
   if(cerca) righe = righe.filter(s => ((s.cognome||'')+' '+(s.nome||'')+' '+(s.numeroScheda||'')).toLowerCase().includes(cerca));
@@ -7621,7 +7632,7 @@ function renderElenco118(){
   // funzione, che non hanno ancora quel flag salvato.
   const eCollegata = s => {
     if(!s.gruppoInterventoId) return false;
-    const membri = interventi118.filter(x => x.gruppoInterventoId === s.gruppoInterventoId);
+    const membri = interventi118.filter(x => x.gruppoInterventoId === s.gruppoInterventoId && !x.cestinato);
     if(membri.length < 2) return false;
     const capostipite = membri.reduce((m,c) => (new Date(c.creatoIl||0) < new Date(m.creatoIl||0)) ? c : m);
     return capostipite.id !== s.id;
@@ -7696,12 +7707,12 @@ async function deleteScheda118(id, bottone){
   // prima del gruppo), eliminandola si eliminano anche tutte le schede
   // collegate: da sola non avrebbe più senso, essendo le altre agganciate ai
   // suoi dati. Eliminando invece una scheda "figlia", si elimina solo quella.
-  const membriGruppo = scheda.gruppoInterventoId ? interventi118.filter(x=>x.gruppoInterventoId===scheda.gruppoInterventoId) : [];
+  const membriGruppo = scheda.gruppoInterventoId ? interventi118.filter(x=>x.gruppoInterventoId===scheda.gruppoInterventoId && !x.cestinato) : [];
   const eLaMadre = membriGruppo.length > 1 && membriGruppo.reduce((m,c)=>(new Date(c.creatoIl||0)<new Date(m.creatoIl||0)?c:m)).id === id;
   const idsDaEliminare = eLaMadre ? membriGruppo.map(x=>x.id) : [id];
   const messaggio = eLaMadre
-    ? `Questa è la prima scheda di un intervento con ${membriGruppo.length} pazienti: eliminandola verranno eliminate anche le ${membriGruppo.length-1} schede collegate. Procedere?`
-    : 'Eliminare definitivamente questa scheda 118?';
+    ? `Questa è la prima scheda di un intervento con ${membriGruppo.length} pazienti: spostando nel cestino verranno spostate anche le ${membriGruppo.length-1} schede collegate. Potrai ripristinarle entro 7 giorni dal Cestino. Procedere?`
+    : 'Spostare questa scheda 118 nel cestino? Potrai ripristinarla entro 7 giorni dal Cestino.';
   if(!confirm(messaggio)) return;
   transizionePaziente118InCorso = true; // riusiamo la stessa protezione: evita che un aggiornamento automatico dei dati, in corso proprio ora, ripristini per errore ciò che stiamo eliminando
   try {
@@ -7719,12 +7730,28 @@ async function deleteScheda118(id, bottone){
         if(riga) riga.remove();
       });
     });
-    interventi118 = interventi118.filter(x=>!idsDaEliminare.includes(x.id));
+    // Cestinata, non eliminata definitivamente: come per servizi/mezzi/utenti,
+    // resta recuperabile per 7 giorni dalla sezione Cestino in caso di errore.
+    const adesso = new Date().toISOString();
+    interventi118.forEach(x => { if(idsDaEliminare.includes(x.id)){ x.cestinato = true; x.cestinatoIl = adesso; } });
     renderElenco118(); // riallinea comunque tutta la lista (es. se era rimasta una sola scheda in un gruppo)
     await saveInterventi118();
   } finally {
     transizionePaziente118InCorso = false;
   }
+}
+async function ripristinaSchedaCestino118(id){
+  const s = interventi118.find(x=>x.id===id);
+  if(!s) return;
+  s.cestinato = false; s.cestinatoIl = null;
+  await saveInterventi118();
+  renderCestino(); renderElenco118();
+}
+async function eliminaSchedaDefinitivo118(id){
+  if(!confirm('Eliminare definitivamente questa scheda 118? L\'azione non è reversibile.')) return;
+  interventi118 = interventi118.filter(x=>x.id!==id);
+  await saveInterventi118();
+  renderCestino();
 }
 
 /* --- Apertura / chiusura modal --- */
@@ -8198,7 +8225,7 @@ async function generaCanvasScheda118(s){
   let canvasPrincipale;
   const canvasExtra = [];
   try {
-    canvasPrincipale = await html2canvas(scalabile, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    canvasPrincipale = await html2canvas(scalabile, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
     document.body.removeChild(scalabile);
 
     for(const sezioneHtml of sezioniExtra){
@@ -8207,7 +8234,7 @@ async function generaCanvasScheda118(s){
       paginaExtra.innerHTML = intestazionePdf118(logoSrc, true, sPerStampa) + sezioneHtml;
       document.body.appendChild(paginaExtra);
       await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const canvasSezione = await html2canvas(paginaExtra, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      const canvasSezione = await html2canvas(paginaExtra, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
       document.body.removeChild(paginaExtra);
       canvasExtra.push(canvasSezione);
     }
@@ -8242,13 +8269,14 @@ function aggiungiCanvasSetAPdf118(pdf, canvasSet, isPrimaPagina){
   // l'immagine con un'altezza diversa dalle sue proporzioni naturali — jsPDF
   // lo fa in modo affidabile, a differenza di un CSS transform prima della
   // cattura, che alcune versioni di html2canvas non rendono correttamente.
-  // JPEG ad alta qualità invece di PNG: a parità di nitidezza (la risoluzione
-  // di cattura è già tripla, vedi generaCanvasScheda118) pesa una frazione,
-  // il che conta soprattutto per le pagine extra che contengono foto vere
-  // (rifiuto soccorso): PNG su una fotografia reale può pesare 5-10 volte di
-  // più di un JPEG praticamente indistinguibile a occhio.
+  // JPEG a qualità 0.8 invece di PNG/qualità massima: a doppia risoluzione di
+  // cattura (vedi generaCanvasScheda118) il testo resta perfettamente
+  // leggibile, ma il file pesa una frazione — conta soprattutto quando la
+  // scheda ha più pagine extra con foto vere (rifiuto soccorso) o più
+  // pazienti nello stesso PDF: con qualità 0.95 un PDF con allegati poteva
+  // arrivare a diversi MB, difficili da allegare via email o sincronizzare.
   const canvasPrincipale = canvasSet.principale || canvasSet;
-  const datiImgPrincipale = canvasPrincipale.toDataURL('image/jpeg', 0.95);
+  const datiImgPrincipale = canvasPrincipale.toDataURL('image/jpeg', 0.8);
   pdf.addImage(datiImgPrincipale, 'JPEG', 6, 6, larghezzaPagina, altezzaPagina, undefined, 'FAST');
 
   // Pagine extra (rifiuto soccorso, relazione di servizio): ciascuna ha già la
@@ -8259,7 +8287,7 @@ function aggiungiCanvasSetAPdf118(pdf, canvasSet, isPrimaPagina){
   for(const canvasSezione of canvasExtra){
     const larghezzaImg = larghezzaPagina;
     const altezzaImg = (canvasSezione.height * larghezzaImg) / canvasSezione.width;
-    const datiImg = canvasSezione.toDataURL('image/jpeg', 0.95);
+    const datiImg = canvasSezione.toDataURL('image/jpeg', 0.8);
     let restante = altezzaImg, offsetY = 0;
     while(restante > 0){
       pdf.addPage();
@@ -8308,7 +8336,7 @@ async function salvaPdfSchedaSuDriveInBackground118(id){
 async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
   try {
     const pazienti = gruppoId
-      ? interventi118.filter(x=>x.gruppoInterventoId===gruppoId).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl))
+      ? interventi118.filter(x=>x.gruppoInterventoId===gruppoId && !x.cestinato).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl))
       : [interventi118.find(x=>x.id===idRiferimento)].filter(Boolean);
     if(pazienti.length === 0) return { ok: false, errore: 'scheda non trovata' };
     const canvasSets = [];
@@ -8355,7 +8383,7 @@ function generaFoglioDaScheda118(schedaId){
   document.getElementById('fm-motivazioneServizio').value = 'Eccedenze 118';
   let nomePaziente = '';
   if(s.gruppoInterventoId){
-    const pazientiGruppo = interventi118.filter(x=>x.gruppoInterventoId === s.gruppoInterventoId);
+    const pazientiGruppo = interventi118.filter(x=>x.gruppoInterventoId === s.gruppoInterventoId && !x.cestinato);
     nomePaziente = pazientiGruppo.map(p=>((p.cognome||'')+' '+(p.nome||'')).trim()).filter(Boolean).join(' / ');
   }
   document.getElementById('fm-paziente').value = nomePaziente || ((s.cognome||'')+' '+(s.nome||'')).trim() || 'Paziente scheda 118';
@@ -8647,7 +8675,11 @@ async function caricaFotoSuWorker(dataUrl, nomeFile, cartella, fileIdEsistente){
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
     body: JSON.stringify({ dataUrl, nomeFile, cartella, fileIdEsistente })
   });
-  if(!risposta.ok) throw new Error('upload fallito');
+  if(!risposta.ok){
+    let motivo = 'upload fallito (' + risposta.status + ')';
+    try { const dati = await risposta.json(); if(dati.errore) motivo = dati.errore; } catch(e){}
+    throw new Error(motivo);
+  }
   const dati = await risposta.json();
   if(!dati.fileId) throw new Error('risposta senza fileId');
   return dati.fileId;
@@ -8674,7 +8706,14 @@ function caricaFotoSuWorkerConProgresso(dataUrl, nomeFile, cartella, onProgress)
           resolve(dati.fileId);
         } catch(errore){ reject(errore); }
       } else {
-        reject(new Error('upload fallito (' + xhr.status + ')'));
+        // Recupera il motivo REALE dell'errore restituito dal worker (es.
+        // "Cartella Drive non configurata", "Non autorizzato", un errore
+        // dell'API Google...) invece del generico "upload fallito (500)":
+        // senza questo dettaglio, un problema di configurazione lato server
+        // sembra un errore di rete casuale e diventa impossibile da diagnosticare.
+        let motivo = 'upload fallito (' + xhr.status + ')';
+        try { const dati = JSON.parse(xhr.responseText); if(dati.errore) motivo = dati.errore; } catch(e){}
+        reject(new Error(motivo));
       }
     };
     xhr.onerror = () => reject(new Error('errore di rete durante il caricamento'));
