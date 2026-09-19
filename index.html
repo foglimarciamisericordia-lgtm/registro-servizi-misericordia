@@ -2946,6 +2946,19 @@ function calcolaDimensioniFitPagina(larghezzaImg, altezzaImg, larghezzaDisponibi
   }
   return { larghezza: larghezzaFinale, altezza: altezzaFinale };
 }
+function intestazionePdfTurniScu(logoSrc, etichettaSettimana){
+  return `
+    <div style="display:flex;gap:10px;align-items:center;padding:4px 0 6px;">
+      <img src="${logoSrc||''}" style="width:52px;height:52px;object-fit:contain;">
+      <div>
+        <div class="plh-org" style="font-size:15px;">Fraternita di Misericordia di S.M. di Licodia ODV</div>
+        <div class="plh-sub" style="font-size:9px;margin-top:1px;">Turni SCU — Servizio Civile Universale</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;border-top:1px solid #999;border-bottom:1px solid #999;padding:5px 0;margin-bottom:8px;">
+      Settimana: ${escapeHtml(etichettaSettimana)}
+    </div>`;
+}
 async function stampaPdfGrigliaTurniScu(){
   const container = document.getElementById('turniscu-griglia-container');
   const tabella = container ? container.querySelector('table') : null;
@@ -2957,31 +2970,36 @@ async function stampaPdfGrigliaTurniScu(){
   const testoOriginale = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Generazione PDF...';
+  const logoImg = document.querySelector('.print-letterhead img');
+  const logoSrc = logoImg ? logoImg.src : '';
+  const etichettaSettimana = (document.getElementById('turniscu-settimana-label') || {}).textContent || '';
+
+  // La griglia viene catturata insieme alla sua intestazione (logo,
+  // nome associazione, settimana), esattamente come le altre stampe
+  // dell'app (es. scheda 118): un'unica immagine coerente con il resto
+  // dei documenti, invece di un titolo aggiunto separatamente nel PDF.
+  const paginaCattura = document.createElement('div');
+  paginaCattura.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;padding:6px;';
+  paginaCattura.innerHTML = intestazionePdfTurniScu(logoSrc, etichettaSettimana);
+  paginaCattura.appendChild(tabella.cloneNode(true));
+  document.body.appendChild(paginaCattura);
   try {
-    const canvas = await html2canvas(tabella, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const canvas = await html2canvas(paginaCattura, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
     const larghezzaPagina = pdf.internal.pageSize.getWidth();
     const altezzaPagina = pdf.internal.pageSize.getHeight();
     const margine = 8;
-    const altezzaTitolo = 12;
     const larghezzaDisponibile = larghezzaPagina - margine * 2;
-    const altezzaDisponibile = altezzaPagina - margine * 2 - altezzaTitolo;
+    const altezzaDisponibile = altezzaPagina - margine * 2;
 
     // Scala l'immagine mantenendo le proporzioni originali, così da
     // rientrare sia in larghezza sia in altezza nello spazio disponibile
     // (qualunque sia la forma della griglia: poche o molte colonne/righe).
     const { larghezza: larghezzaFinale, altezza: altezzaFinale } = calcolaDimensioniFitPagina(canvas.width, canvas.height, larghezzaDisponibile, altezzaDisponibile);
     const x = (larghezzaPagina - larghezzaFinale) / 2;
-    const y = margine + altezzaTitolo;
-
-    const etichettaSettimana = (document.getElementById('turniscu-settimana-label') || {}).textContent || '';
-    pdf.setFontSize(13);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Turni SCU — Fraternita di Misericordia di S.M. di Licodia ODV', margine, margine + 4);
-    pdf.setFontSize(10);
-    pdf.setFont(undefined, 'normal');
-    pdf.text('Settimana: ' + etichettaSettimana, margine, margine + 9);
+    const y = margine;
 
     const immagineDati = canvas.toDataURL('image/png');
     pdf.addImage(immagineDati, 'PNG', x, y, larghezzaFinale, altezzaFinale);
@@ -2991,6 +3009,7 @@ async function stampaPdfGrigliaTurniScu(){
   } catch (errore) {
     alert('Errore durante la generazione del PDF: ' + errore.message);
   } finally {
+    document.body.removeChild(paginaCattura);
     btn.disabled = false;
     btn.textContent = testoOriginale;
   }
