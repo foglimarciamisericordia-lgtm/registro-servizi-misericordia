@@ -5959,7 +5959,7 @@ function isModalitaRichiedente(tipoScheda){
 function toggleTipoScheda(){
   const tipo = document.getElementById('sf-tipoScheda').value;
   const modalitaRichiedente = isModalitaRichiedente(tipo);
-  const mostraRipetizione = (tipo === 'secondario' || tipo === 'convenzione');
+  const mostraRipetizione = (tipo === 'secondario' || tipo === 'convenzione' || tipo === 'evento');
 
   document.getElementById('campi-paziente-secondario').style.display = modalitaRichiedente ? 'none' : 'grid';
   document.getElementById('campi-paziente-evento').style.display = modalitaRichiedente ? 'grid' : 'none';
