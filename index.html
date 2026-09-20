@@ -434,7 +434,7 @@
       <div class="nav-item" id="nav-rimborsi" data-view="rimborsi" onclick="switchView('rimborsi')" style="display:none;">💶 Rimborso spese</div>
       <div class="nav-item" id="nav-fogli" data-view="fogli" onclick="switchView('fogli')" style="display:none;">🚐 Fogli di marcia</div>
       <div class="nav-item" id="nav-presidi" data-view="presidi" onclick="switchView('presidi')" style="display:none;">🦽 Prestito presidi</div>
-      <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenza 118</div>
+      <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenze 118</div>
       <div class="nav-item" id="nav-turniscu" data-view="turniscu" onclick="switchView('turniscu')" style="display:none;">🗓️ Turni SCU</div>
       <div class="nav-item" id="nav-guastimezzi" data-view="guastimezzi" onclick="switchView('guastimezzi')" style="display:none;">⚠️ Guasti mezzi <span id="nav-guastimezzi-badge" style="display:none;background:#B23A24;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;"></span></div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
@@ -514,7 +514,7 @@
               <option value="operatore">Volontario</option>
               <option value="scu">SCU</option>
               <option value="responsabile">Responsabile Servizi</option>
-              <option value="eccedenza">Eccedenza 118</option>
+              <option value="eccedenza">Eccedenze 118</option>
               <option value="responsabile118">Responsabile 118</option>
               <option value="responsabileScu">Responsabile SCU</option>
               <option value="responsabileMezzi">Responsabile Mezzi</option>
@@ -542,7 +542,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-operatore" class="imp-ruolo-cb" value="operatore" checked><label for="imp-ruolo-operatore">Volontario</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-scu" class="imp-ruolo-cb" value="scu"><label for="imp-ruolo-scu">SCU</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabile" class="imp-ruolo-cb" value="responsabile"><label for="imp-ruolo-responsabile">Responsabile Servizi</label></div>
-              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-eccedenza" class="imp-ruolo-cb" value="eccedenza"><label for="imp-ruolo-eccedenza">Eccedenza 118</label></div>
+              <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-eccedenza" class="imp-ruolo-cb" value="eccedenza"><label for="imp-ruolo-eccedenza">Eccedenze 118</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabile118" class="imp-ruolo-cb" value="responsabile118"><label for="imp-ruolo-responsabile118">Responsabile 118</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabileScu" class="imp-ruolo-cb" value="responsabileScu"><label for="imp-ruolo-responsabileScu">Responsabile SCU</label></div>
               <div class="ruolo-check-row"><input type="checkbox" id="imp-ruolo-responsabileMezzi" class="imp-ruolo-cb" value="responsabileMezzi"><label for="imp-ruolo-responsabileMezzi">Responsabile Mezzi</label></div>
@@ -676,7 +676,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div class="view" id="view-eccedenza118">
         <div class="page-head">
           <div>
-            <h2>Eccedenza 118</h2>
+            <h2>Eccedenze 118</h2>
             <p>Schede di intervento di soccorso 118</p>
           </div>
           <button class="btn btn-primary" style="width:auto;" onclick="openScheda118Modal()">+ Nuovo intervento</button>
@@ -1388,16 +1388,16 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-operatore" class="uf-ruolo-cb" value="operatore" onchange="onUfRuoloChange()"><label for="uf-ruolo-operatore">Volontario</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-scu" class="uf-ruolo-cb" value="scu" onchange="onUfRuoloChange()"><label for="uf-ruolo-scu">SCU</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabile" class="uf-ruolo-cb" value="responsabile" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabile">Responsabile Servizi</label></div>
-          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-eccedenza" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"><label for="uf-ruolo-eccedenza">Eccedenza 118</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-eccedenza" class="uf-ruolo-cb" value="eccedenza" onchange="onUfRuoloChange()"><label for="uf-ruolo-eccedenza">Eccedenze 118</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabile118" class="uf-ruolo-cb" value="responsabile118" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabile118">Responsabile 118</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabileScu" class="uf-ruolo-cb" value="responsabileScu" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabileScu">Responsabile SCU</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-responsabileMezzi" class="uf-ruolo-cb" value="responsabileMezzi" onchange="onUfRuoloChange()"><label for="uf-ruolo-responsabileMezzi">Responsabile Mezzi</label></div>
           <div class="ruolo-check-row"><input type="checkbox" id="uf-ruolo-amministratore" class="uf-ruolo-cb" value="amministratore" onchange="onUfRuoloChange()"><label for="uf-ruolo-amministratore">Amministratore</label></div>
         </div>
-        <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenza 118). Eccedenza 118: visualizza e gestisce la scheda Eccedenza 118. Responsabile 118: come Eccedenza 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Responsabile Mezzi: gestisce i guasti segnalati sui mezzi. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
+        <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenze 118). Eccedenze 118: visualizza e gestisce la scheda Eccedenze 118. Responsabile 118: come Eccedenze 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Responsabile Mezzi: gestisce i guasti segnalati sui mezzi. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
       </div>
       <div class="field" id="uf-firma118-wrap" style="display:none;">
-        <label>Firma per la scheda Eccedenza 118</label>
+        <label>Firma per la scheda Eccedenze 118</label>
         <p class="map-hint">Verrà proposta in automatico quando questo utente è selezionato come autista o soccorritore nella firma di una scheda 118 (resta comunque modificabile al momento della firma).</p>
         <div class="signature-pad-wrap"><canvas id="uf-firma118-canvas" class="signature-canvas"></canvas></div>
         <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('uf-firma118-canvas')">Cancella firma</button>
@@ -1454,7 +1454,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div class="field"><label>Targa</label><input type="text" id="mf-targa" required style="text-transform:uppercase;"></div>
       <div class="field" id="mf-destinato118-wrap" style="display:none;">
         <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mf-destinato118"> Ambulanza destinata al 118 (Eccedenza)</label>
-        <p class="map-hint">Puoi contrassegnare più ambulanze: nella scheda Eccedenza 118 verranno proposte in elenco tutte quelle segnate.</p>
+        <p class="map-hint">Puoi contrassegnare più ambulanze: nella scheda Eccedenze 118 verranno proposte in elenco tutte quelle segnate.</p>
       </div>
       <div class="modal-actions">
         <div></div>
@@ -1497,7 +1497,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
 <div class="modal-backdrop" id="scheda118-modal-backdrop">
   <div class="modal" style="max-width:920px;">
     <button class="close-x" onclick="closeScheda118Modal()">✕</button>
-    <h3 id="scheda118-modal-title">Scheda Eccedenza 118</h3>
+    <h3 id="scheda118-modal-title">Scheda Eccedenze 118</h3>
     <form onsubmit="return saveScheda118(event)">
       <input type="hidden" id="e118-id">
 
@@ -2766,7 +2766,7 @@ function closeSidebarMobile(){
 // selezionarne uno non ne attiva mai un altro automaticamente (a parte
 // Amministratore, che dà comunque accesso a tutto).
 function ruoloLabel(ruolo){
-  return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenza 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', responsabileScu:'Responsabile SCU', responsabileMezzi:'Responsabile Mezzi', amministratore:'Amministratore'}[ruolo] || ruolo;
+  return {operatore:'Volontario', scu:'SCU', eccedenza:'Eccedenze 118', responsabile:'Responsabile Servizi', responsabile118:'Responsabile 118', responsabileScu:'Responsabile SCU', responsabileMezzi:'Responsabile Mezzi', amministratore:'Amministratore'}[ruolo] || ruolo;
 }
 // Un utente può avere più livelli di accesso contemporaneamente (es.
 // "Responsabile Servizi" + "Eccedenza 118"): i ruoli sono salvati come
@@ -7937,7 +7937,7 @@ function openScheda118Modal(id){
   firmaRelazioneInizializzata118 = false;
   const sch = id ? interventi118.find(x=>x.id===id) : null;
   editingScheda118ReadOnly = !!(sch?.chiuso || sch?.validata) && !haRuolo('amministratore');
-  document.getElementById('scheda118-modal-title').textContent = sch ? 'Scheda Eccedenza 118' : 'Nuovo intervento 118';
+  document.getElementById('scheda118-modal-title').textContent = sch ? 'Scheda Eccedenze 118' : 'Nuovo intervento 118';
   document.getElementById('e118-id').value = id || '';
 
   buildCheckboxGrid('e118-forzeOrdine', FORZE_ORDINE_118, sch?.forzeOrdine);
@@ -8063,7 +8063,7 @@ function openScheda118Modal(id){
   document.getElementById('e118-diagramma-ustioni').style.opacity = readOnly ? '0.6' : '1';
 
   document.getElementById('scheda118-modal-backdrop').classList.add('active');
-  if(!sch) controllaBackupLocale('bozza-scheda118-locale', document.querySelector('#scheda118-modal-backdrop form'), 'una scheda Eccedenza 118');
+  if(!sch) controllaBackupLocale('bozza-scheda118-locale', document.querySelector('#scheda118-modal-backdrop form'), 'una scheda Eccedenze 118');
   avviaBackupLocaleAutomatico('bozza-scheda118-locale', document.querySelector('#scheda118-modal-backdrop form'));
 }
 function firmaSalvataUtentePerNome(nomeCompleto){
