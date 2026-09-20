@@ -3792,15 +3792,19 @@ function nomeMezzoAssegnato(s){
   }
   return s.mezzo || '—'; // solo se il mezzo non esiste più in nessuna lista
 }
-// Per gli eventi/manifestazioni, nelle viste "a colpo d'occhio" (calendario,
-// elenco) mostriamo l'orario di partenza dalla sede invece di quello di
-// inizio evento: è quello che serve per organizzare i turni/uscite, mentre
-// "Ora inizio Evento" resta comunque visibile per esteso nella scheda
-// dettagliata del servizio. Se un vecchio evento non ha ancora questo campo
-// compilato, si ripiega sull'orario di inizio evento per non lasciare la
-// cella vuota.
+// Nelle viste "a colpo d'occhio" (calendario, elenco) mostriamo l'orario di
+// partenza dalla sede invece di quello dell'appuntamento/evento: è quello
+// che serve per organizzare i turni/uscite. Vale per ogni tipo di servizio
+// che abbia un proprio orario di partenza sede (i servizi secondari hanno
+// "Orario partenza sede", gli eventi/manifestazioni "Ora partenza sede");
+// i Servizi in convenzione non prevedono questo campo, quindi mostrano
+// l'orario dell'appuntamento come sempre. Se un servizio non ha ancora
+// l'orario di partenza sede compilato, si ripiega sull'orario principale
+// per non lasciare la cella vuota.
 function orarioVisualizzatoServizio(s){
-  return (s.tipoScheda === 'evento' && s.oraPartenzaSedeEvento) ? s.oraPartenzaSedeEvento : s.alleOre;
+  if(s.tipoScheda === 'evento') return s.oraPartenzaSedeEvento || s.alleOre;
+  if(s.tipoScheda === 'convenzione') return s.alleOre;
+  return s.orarioPartenzaSede || s.alleOre;
 }
 function nomeVisualizzatoServizio(s){
   if(isModalitaRichiedente(s.tipoScheda)) return s.enteRichiedenteEvento || 'Evento';
