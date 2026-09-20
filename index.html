@@ -7681,13 +7681,14 @@ function renderElenco118(){
   const container = document.getElementById('e118-container');
   if(!container) return;
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
-  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Stato scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Validazione</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Stato scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Cod. invio</th><th>Cod. rientro</th><th>Validazione</th><th></th></tr></thead><tbody>';
   righe.forEach(s=>{
     const nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
     // Rientro visivo per le schede collegate (altri pazienti dello stesso
     // intervento), così è immediato capire che appartengono allo stesso
     // soccorso della scheda sopra.
-    const numeroScheda = eCollegata(s)
+    const eCollegataRiga = eCollegata(s);
+    const numeroScheda = eCollegataRiga
       ? `<span style="padding-left:22px;color:#777;display:inline-block;">↳ ${escapeHtml(formattaNumeroScheda118(s))}</span>`
       : escapeHtml(formattaNumeroScheda118(s));
     // "Stato scheda": riguarda l'azione dell'equipaggio (compilare e firmare).
@@ -7702,19 +7703,29 @@ function renderElenco118(){
       : '<span class="role-chip eccedenza">Da Validare</span>');
     const idGruppoOSingola = s.gruppoInterventoId || s.id;
     const foglioGiaCompilato = fogliMarcia.some(f => f.schedaEccedenza118Id === idGruppoOSingola && !f.cestinato);
+    const orariRigaData = [s.oChiamata ? 'Chiamata ' + s.oChiamata : '', s.oLiberi ? 'Liberi ' + s.oLiberi : ''].filter(Boolean).join(' — ');
+    // Pulsanti "di gruppo" (Anteprima PDF, Valida, Riapri validazione, Foglio
+    // marcia): un intervento con più pazienti condivide un unico PDF, un'unica
+    // validazione e un unico foglio di marcia, quindi questi pulsanti compaiono
+    // solo sulla prima riga del gruppo (quella non "collegata") invece che
+    // ripetuti identici su ogni paziente.
+    const membriGruppo = s.gruppoInterventoId ? interventi118.filter(x=>x.gruppoInterventoId===s.gruppoInterventoId && !x.cestinato) : [s];
+    const etichettaGruppo = membriGruppo.length > 1 ? ` (${membriGruppo.length} pazienti)` : '';
     html += `<tr>
       <td>${numeroScheda}</td>
       <td>${statoScheda}</td>
-      <td>${formatDataIt(s.data)}</td>
+      <td>${formatDataIt(s.data)}${orariRigaData ? `<br><span style="font-size:11px;color:#777;">${escapeHtml(orariRigaData)}</span>` : ''}</td>
       <td>${escapeHtml(nomePaziente||'—')}</td>
       <td>${escapeHtml(s.comuneIntervento||'—')}</td>
+      <td>${renderCodiceInvioPrint(s.codiceInvio)}</td>
+      <td>${renderCodiceRientroPrint(s.codiceRientro)}</td>
       <td>${validazione}</td>
       <td><div class="row-actions">
         <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && !haRuolo('amministratore'))?'👁 Visualizza':'✏️ Modifica'}</button>
-        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF</button>
-        ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
-        ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione</button>` : ''}
-        ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
+        ${!eCollegataRiga ? `<button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF${etichettaGruppo}</button>` : ''}
+        ${(!eCollegataRiga && canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida${etichettaGruppo}</button>` : ''}
+        ${(!eCollegataRiga && s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
+        ${(!eCollegataRiga && s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
     </tr>`;
@@ -8087,11 +8098,24 @@ async function validaSchedaDefinitivamente118(id){
   if(!canChiudereEccedenza()) return;
   const scheda = interventi118.find(x=>x.id===id);
   if(!scheda) return;
-  if(!confirm('Confermi la validazione definitiva di questa scheda? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato il PDF su Drive.')) return;
-  scheda.validata = true;
-  scheda.validataDa = currentUser.nome+' '+currentUser.cognome;
-  scheda.validataIl = new Date().toISOString();
-  scheda.aggiornatoIl = new Date().toISOString();
+  // Un intervento con più pazienti condivide un unico PDF: valida quindi
+  // tutte le schede del gruppo in un solo passaggio, invece di richiedere un
+  // click "Valida" separato per ciascun paziente (che restavano peraltro
+  // sempre allineate nello stesso PDF, generato comunque per l'intero gruppo).
+  const membriGruppo = scheda.gruppoInterventoId
+    ? interventi118.filter(x=>x.gruppoInterventoId===scheda.gruppoInterventoId && !x.cestinato)
+    : [scheda];
+  const messaggio = membriGruppo.length > 1
+    ? `Confermi la validazione definitiva di questo intervento (${membriGruppo.length} pazienti)? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato un unico PDF su Drive con tutti i pazienti.`
+    : 'Confermi la validazione definitiva di questa scheda? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato il PDF su Drive.';
+  if(!confirm(messaggio)) return;
+  const adesso = new Date().toISOString();
+  membriGruppo.forEach(p => {
+    p.validata = true;
+    p.validataDa = currentUser.nome+' '+currentUser.cognome;
+    p.validataIl = adesso;
+    p.aggiornatoIl = adesso;
+  });
   await saveInterventi118();
   renderElenco118();
   const esito = await salvaPdfGruppoSuDriveInBackground118(scheda.gruppoInterventoId, id);
@@ -8102,17 +8126,28 @@ async function validaSchedaDefinitivamente118(id){
 // Annulla una validazione fatta per errore: riporta la scheda allo stato
 // "Da Validare" (ricompare il pulsante "Valida" per chi di dovere, e la
 // scheda torna a comparire tra le "Aperte"). Riservato all'amministratore.
-// Il PDF eventualmente già caricato su Drive NON viene rimosso qui: se la
-// scheda verrà corretta e validata di nuovo, verrà semplicemente sovrascritto.
+// Come per la validazione, agisce sull'intero gruppo di pazienti in un
+// solo passaggio. Il PDF eventualmente già caricato su Drive NON viene
+// rimosso qui: se la scheda verrà corretta e validata di nuovo, verrà
+// semplicemente sovrascritto.
 async function riapriValidazioneScheda118(id){
   if(!haRuolo('amministratore')) return;
   const scheda = interventi118.find(x=>x.id===id);
   if(!scheda) return;
-  if(!confirm('Annullare la validazione di questa scheda? Tornerà tra le schede "Da Validare" e potrà essere corretta e validata di nuovo.')) return;
-  scheda.validata = false;
-  scheda.riapertaValidazioneDa = currentUser.nome+' '+currentUser.cognome;
-  scheda.riapertaValidazioneIl = new Date().toISOString();
-  scheda.aggiornatoIl = new Date().toISOString();
+  const membriGruppo = scheda.gruppoInterventoId
+    ? interventi118.filter(x=>x.gruppoInterventoId===scheda.gruppoInterventoId && !x.cestinato)
+    : [scheda];
+  const messaggio = membriGruppo.length > 1
+    ? `Annullare la validazione di questo intervento (${membriGruppo.length} pazienti)? Tornerà tra le schede "Da Validare" e potrà essere corretto e validato di nuovo.`
+    : 'Annullare la validazione di questa scheda? Tornerà tra le schede "Da Validare" e potrà essere corretta e validata di nuovo.';
+  if(!confirm(messaggio)) return;
+  const adesso = new Date().toISOString();
+  membriGruppo.forEach(p => {
+    p.validata = false;
+    p.riapertaValidazioneDa = currentUser.nome+' '+currentUser.cognome;
+    p.riapertaValidazioneIl = adesso;
+    p.aggiornatoIl = adesso;
+  });
   await saveInterventi118();
   renderElenco118();
 }
@@ -8344,6 +8379,22 @@ async function generaPdfDaCanvas118(canvasSet){
   aggiungiCanvasSetAPdf118(pdf, canvasSet, true);
   return pdf;
 }
+// Genera un unico PDF (eventualmente multipagina) a partire da una lista di
+// pazienti: usata sia per il salvataggio su Drive sia per il download
+// diretto, così un intervento con più pazienti produce sempre lo stesso
+// documento unico indipendentemente da dove viene generato.
+async function costruisciPdfDaPazienti118(pazienti){
+  const canvasSets = [];
+  for(const p of pazienti){
+    const set = await generaCanvasScheda118(p);
+    if(!canvasSembraVuoto118(set.principale)) canvasSets.push(set);
+  }
+  if(canvasSets.length === 0) throw new Error('la cattura della scheda è risultata vuota');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  canvasSets.forEach((set, indice) => aggiungiCanvasSetAPdf118(pdf, set, indice === 0));
+  return pdf;
+}
 async function salvaPdfSchedaSuDriveInBackground118(id){
   try {
     const s = interventi118.find(x=>x.id===id);
@@ -8380,18 +8431,13 @@ async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
       ? interventi118.filter(x=>x.gruppoInterventoId===gruppoId && !x.cestinato).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl))
       : [interventi118.find(x=>x.id===idRiferimento)].filter(Boolean);
     if(pazienti.length === 0) return { ok: false, errore: 'scheda non trovata' };
-    const canvasSets = [];
-    for(const p of pazienti){
-      const set = await generaCanvasScheda118(p);
-      if(!canvasSembraVuoto118(set.principale)) canvasSets.push(set);
-    }
-    if(canvasSets.length === 0){
+    let pdf;
+    try {
+      pdf = await costruisciPdfDaPazienti118(pazienti);
+    } catch(e){
       console.warn('PDF scheda 118: cattura risultata vuota per tutti i pazienti, salvataggio su Drive saltato per sicurezza.');
-      return { ok: false, errore: 'la cattura della scheda è risultata vuota' };
+      return { ok: false, errore: e.message };
     }
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    canvasSets.forEach((set, indice) => aggiungiCanvasSetAPdf118(pdf, set, indice === 0));
     const pdfBlob = pdf.output('blob');
     const pdfDataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -8840,15 +8886,30 @@ function schedaConDatiPiuRecenti118(id){
   return salvata;
 }
 async function viewStampaScheda118(id){
-  const s = schedaConDatiPiuRecenti118(id);
-  if(!s) return;
+  const sRif = schedaConDatiPiuRecenti118(id);
+  if(!sRif) return;
   scheda118PreviewId = id;
   const logoImg = document.querySelector('.print-letterhead img');
   const logo118 = document.getElementById('print-118-logo');
   if(logo118 && logoImg) logo118.src = logoImg.src;
-  const sPerStampa = await preparaDatiStampa118(s);
-  document.getElementById('print-118-content').innerHTML = costruisciStampaScheda118(sPerStampa);
-  document.getElementById('btn-invia-email-118').style.display = canInviareEmailScheda118(s) ? 'inline-block' : 'none';
+  // Se questa scheda fa parte di un intervento con più pazienti, l'anteprima
+  // mostra TUTTI i pazienti del gruppo, uno dopo l'altro con un'interruzione
+  // di pagina tra un paziente e il successivo — esattamente come il PDF
+  // realmente salvato su Drive (salvaPdfGruppoSuDriveInBackground118), che
+  // unisce già tutti i pazienti in un unico file multipagina. Prima
+  // l'anteprima a schermo mostrava invece solo il paziente della riga
+  // cliccata, disallineata da ciò che finiva davvero nel PDF salvato.
+  const pazienti = sRif.gruppoInterventoId
+    ? interventi118.filter(x=>x.gruppoInterventoId===sRif.gruppoInterventoId && !x.cestinato).sort((a,b)=> new Date(a.creatoIl||0) - new Date(b.creatoIl||0))
+    : [sRif];
+  let htmlCombinato = '';
+  for(let i=0; i<pazienti.length; i++){
+    const sPerStampa = await preparaDatiStampa118(pazienti[i]);
+    if(i>0) htmlCombinato += '<div class="page-break-118" style="page-break-before:always;"></div>';
+    htmlCombinato += costruisciStampaScheda118(sPerStampa);
+  }
+  document.getElementById('print-118-content').innerHTML = htmlCombinato;
+  document.getElementById('btn-invia-email-118').style.display = canInviareEmailScheda118(sRif) ? 'inline-block' : 'none';
   document.getElementById('view-modal-118-backdrop').classList.add('active');
 }
 function closeView118Modal(){
@@ -8918,11 +8979,15 @@ async function scaricaPdfScheda118(id){
   if(!id){ alert('Salva prima la scheda per poterla scaricare in PDF.'); return; }
   const s = schedaConDatiPiuRecenti118(id);
   if(!s) return;
+  // Come per l'anteprima e il salvataggio su Drive, un intervento con più
+  // pazienti scarica un unico PDF con tutti i pazienti, non solo quello
+  // della scheda aperta.
+  const pazienti = s.gruppoInterventoId
+    ? interventi118.filter(x=>x.gruppoInterventoId===s.gruppoInterventoId && !x.cestinato).sort((a,b)=> new Date(a.creatoIl||0) - new Date(b.creatoIl||0))
+    : [s];
   try {
-    const canvasSet = await generaCanvasScheda118(s);
-    if(canvasSembraVuoto118(canvasSet.principale)) throw new Error('cattura risultata vuota');
-    const pdf = await generaPdfDaCanvas118(canvasSet);
-    pdf.save(nomeFilePdf118(s));
+    const pdf = await costruisciPdfDaPazienti118(pazienti);
+    pdf.save(nomeFilePdf118(pazienti[pazienti.length-1]));
   } catch(errore){
     console.warn('Download PDF diretto non riuscito, uso la stampa del browser come alternativa:', errore);
     await avviaStampaConNomeFile118(id, s);
