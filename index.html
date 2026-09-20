@@ -8668,11 +8668,11 @@ function costruisciStampaScheda118(s){
       <div style="display:flex;gap:12px;">
         <div style="flex:1;border:1px solid #ccc;border-radius:4px;padding:8px;text-align:center;background:#fff;">
           <div style="font-size:9px;font-weight:700;color:var(--navy);letter-spacing:.4px;margin-bottom:6px;">DOCUMENTO — FRONTE</div>
-          ${rd.fotoFronte?`<img src="${rd.fotoFronte}" style="max-width:100%;max-height:190px;object-fit:contain;">`:'<div style="font-size:10px;color:#999;padding:24px 0;">Non presente</div>'}
+          ${htmlFotoDocumentoStampa118(rd.fotoFronte)}
         </div>
         <div style="flex:1;border:1px solid #ccc;border-radius:4px;padding:8px;text-align:center;background:#fff;">
           <div style="font-size:9px;font-weight:700;color:var(--navy);letter-spacing:.4px;margin-bottom:6px;">DOCUMENTO — RETRO</div>
-          ${rd.fotoRetro?`<img src="${rd.fotoRetro}" style="max-width:100%;max-height:190px;object-fit:contain;">`:'<div style="font-size:10px;color:#999;padding:24px 0;">Non presente</div>'}
+          ${htmlFotoDocumentoStampa118(rd.fotoRetro)}
         </div>
       </div>`;
     }
@@ -8773,7 +8773,19 @@ async function scaricaFotoDaWorker(fileId){
   const risposta = await fetch(FOTO_UPLOAD_ENDPOINT + '/' + fileId, {
     headers: { 'Authorization': 'Bearer ' + authToken }
   });
-  if(!risposta.ok) throw new Error('download fallito');
+  if(!risposta.ok){
+    // Recupera il motivo reale (es. "Non autorizzato", un errore Google
+    // specifico...) invece del generico "download fallito": senza questo
+    // dettaglio, una foto realmente presente su Drive ma non riscaricabile
+    // per la stampa risultava indistinguibile da una mai caricata.
+    let motivo = 'download fallito (' + risposta.status + ')';
+    const testoErrore = await risposta.text().catch(() => '');
+    if(testoErrore){
+      try { const dati = JSON.parse(testoErrore); if(dati?.errore) motivo = dati.errore; }
+      catch(e){ motivo = testoErrore; }
+    }
+    throw new Error(motivo);
+  }
   const blob = await risposta.blob();
   return await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -8782,11 +8794,27 @@ async function scaricaFotoDaWorker(fileId){
     reader.readAsDataURL(blob);
   });
 }
+// Distingue, nel PDF, tra "foto mai caricata" (nessun dato) e "foto caricata
+// su Drive ma non riscaricabile ora per la stampa" (valore preceduto da
+// "errore:" — vedi risolviFotoPerStampa118): sono due situazioni molto
+// diverse per chi legge la scheda, la seconda NON significa che il file sia
+// perso, solo che al momento non è stato possibile recuperarlo per il PDF.
+function htmlFotoDocumentoStampa118(valore){
+  if(!valore) return '<div style="font-size:10px;color:#999;padding:24px 0;">Non presente</div>';
+  if(valore.startsWith('errore:')){
+    return `<div style="font-size:9.5px;color:#B23A24;padding:16px 6px;">⚠ Foto salvata su Drive ma non scaricabile ora per la stampa (${escapeHtml(valore.slice(7))}). Riprova più tardi.</div>`;
+  }
+  return `<img src="${valore}" style="max-width:100%;max-height:190px;object-fit:contain;">`;
+}
 async function risolviFotoPerStampa118(valore){
   if(!valore) return valore;
   if(valore.startsWith('drive:')){
+    // In caso di errore, invece di restituire null (che il modello di
+    // stampa non distingue da "foto mai caricata"), restituiamo un
+    // segnaposto con il motivo reale: il file resta comunque salvato su
+    // Drive, è solo la sua ri-lettura per il PDF ad essere fallita ora.
     try { return await scaricaFotoDaWorker(valore.slice(6)); }
-    catch(e){ return null; }
+    catch(e){ return 'errore:' + e.message; }
   }
   return valore;
 }
