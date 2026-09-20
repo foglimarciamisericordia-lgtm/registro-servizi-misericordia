@@ -1173,7 +1173,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <fieldset>
         <legend id="legend-trasporto">Trasporto</legend>
         <div class="grid3">
-          <div class="field"><label>Mezzo richiesto *</label>
+          <div class="field" id="campo-mezzoRichiesto"><label>Mezzo richiesto *</label>
             <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno *</label><input type="date" id="sf-perGiorno" required></div>
@@ -1206,6 +1206,12 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         </div>
 
         <div id="campi-trasporto-evento" style="display:none;">
+          <div class="grid2" id="campo-oraFineTipoMezzoEvento">
+            <div class="field"><label>Ora fine Evento *</label><input type="time" id="sf-oraFineEvento"></div>
+            <div class="field"><label>Tipo di mezzo *</label>
+              <select id="sf-tipoMezzoEvento"><option value="">-- seleziona --</option><option>Ambulanza</option><option>Squadra appiedata</option><option>Camion</option><option>Pma</option></select>
+            </div>
+          </div>
           <div class="grid2">
             <div class="field" id="campo-suLuogoEvento"><label>Su luogo dell'evento</label>
               <select id="sf-suLuogoEvento"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
@@ -3587,7 +3593,7 @@ function mostraTuttiServiziGiorno(k, event){
   pop.className = 'popover-giorno';
   pop.id = 'popover-giorno';
   pop.innerHTML = '<div class="pg-titolo">' + titolo + ' — ' + dayServices.length + ' servizi</div>' +
-    dayServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();chiudiPopoverGiorno();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('');
+    dayServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();chiudiPopoverGiorno();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('');
 
   document.body.appendChild(pop);
 
@@ -3633,7 +3639,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('')}
+        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
         ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
     }
@@ -3655,7 +3661,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
-        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${s.tipoMezzoRichiesto?' - '+escapeHtml(s.tipoMezzoRichiesto):''}</div>`).join('')}
+        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
       </div>`;
     }
     html += '</div></div>';
@@ -3671,7 +3677,7 @@ function renderCalendar(){
       html += '<div class="empty-state">Nessun servizio in programma per questo giorno.</div>';
     } else {
       html += dayServices.map(s=>{
-        const nomeMezzo = s.tipoMezzoRichiesto ? (escapeHtml(nomeVisualizzatoServizio(s))+'/'+escapeHtml(s.tipoMezzoRichiesto)) : escapeHtml(nomeVisualizzatoServizio(s));
+        const nomeMezzo = mezzoVisualizzatoServizio(s) ? (escapeHtml(nomeVisualizzatoServizio(s))+'/'+escapeHtml(mezzoVisualizzatoServizio(s))) : escapeHtml(nomeVisualizzatoServizio(s));
         return `<div class="pill-giorno ${s.stato}" onclick="viewServiceModal('${s.id}')">
           <div class="pg-titolo">${nomeMezzo}</div>
           <div class="pg-orario">${s.alleOre||'—'}</div>
@@ -3738,7 +3744,7 @@ async function renderElenco(){
       <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-assegnato" title="Assegnato">A</span>':'<span class="tag-non-assegnato" title="Non assegnato">NA</span>'}</td>
       <td class="mono">${formatDataIt(s.perGiorno)} ${s.alleOre||''}</td>
       <td>${escapeHtml(nomeVisualizzatoServizio(s))}</td>
-      <td>${escapeHtml(s.tipoMezzoRichiesto||'—')}</td>
+      <td>${escapeHtml(mezzoVisualizzatoServizio(s)||'—')}</td>
       <td>${escapeHtml(s.destinazione||'—')}</td>
       <td>${escapeHtml(nomeMezzoAssegnato(s))}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
@@ -3783,6 +3789,12 @@ function nomeMezzoAssegnato(s){
 function nomeVisualizzatoServizio(s){
   if(isModalitaRichiedente(s.tipoScheda)) return s.enteRichiedenteEvento || 'Evento';
   return ((s.cognome||'') + ' ' + (s.nome||'')).trim();
+}
+// Per gli eventi/manifestazioni il "mezzo" è il tipo di mezzo impiegato
+// (Ambulanza/Squadra appiedata/Camion/Pma), non il "Mezzo richiesto" del
+// listino tariffario usato dagli altri tipi di servizio.
+function mezzoVisualizzatoServizio(s){
+  return s.tipoScheda === 'evento' ? s.tipoMezzoEvento : s.tipoMezzoRichiesto;
 }
 function formatNumeroServizio(numero, anno){
   if(!numero || !anno) return '—';
@@ -5889,8 +5901,19 @@ function toggleTipoScheda(){
   document.getElementById('campo-tipoTrasporto').style.display = mostraTipoTrasporto ? 'block' : 'none';
   document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
-  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Orario evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita/dimissione/terapia *');
+  document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Ora inizio Evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita/dimissione/terapia *');
   document.getElementById('campo-suLuogoEvento').style.display = (tipo === 'evento') ? 'block' : 'none';
+
+  // "Mezzo richiesto" (elenco mezzi dell'associazione, usato anche per il
+  // calcolo del rimborso a tratta) non ha senso per Assistenze/Manifestazioni:
+  // lì si sceglie invece semplicemente il TIPO di mezzo impiegato
+  // (Ambulanza/Squadra appiedata/Camion/Pma) tramite il campo dedicato, e si
+  // indica anche l'ora di fine oltre a quella di inizio. Questi campi restano
+  // invece nascosti per i Servizi in convenzione, che pur condividendo la
+  // stessa scheda non li richiedono.
+  document.getElementById('campo-mezzoRichiesto').style.display = (tipo === 'evento') ? 'none' : 'block';
+  document.getElementById('sf-tipoMezzoRichiesto').required = (tipo !== 'evento');
+  document.getElementById('campo-oraFineTipoMezzoEvento').style.display = (tipo === 'evento') ? 'grid' : 'none';
 
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
@@ -5915,6 +5938,14 @@ function toggleTipoScheda(){
   campiSoloEvento.forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.required = modalitaRichiedente;
+  });
+  // Questi invece sono specifici della sola modalità "Eventi/manifestazioni"
+  // (a differenza di "Servizi in convenzione", che condivide la scheda ma
+  // non li usa).
+  const campiSoloEventoStretto = ['sf-oraFineEvento', 'sf-tipoMezzoEvento'];
+  campiSoloEventoStretto.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.required = (tipo === 'evento');
   });
 
   if(modalitaRichiedente) scheduleGeoPreviewEvento();
@@ -6038,9 +6069,13 @@ function viewServiceModal(id){
     <div class="print-section">
     <h4>${isModalitaRichiedente(s.tipoScheda) ? 'Dettagli manifestazione/evento' : 'Trasporto'}</h4>
     <div class="view-grid">
-      ${item('Mezzo richiesto', s.tipoMezzoRichiesto)}
+      ${s.tipoScheda === 'evento' ? '' : item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
-      ${item('Orario visita/dimissione/terapia', s.alleOre)}
+      ${item(s.tipoScheda === 'evento' ? 'Ora inizio Evento' : (s.tipoScheda === 'convenzione' ? 'Orario sul posto' : 'Orario visita/dimissione/terapia'), s.alleOre)}
+      ${s.tipoScheda === 'evento' ? `
+        ${item('Ora fine Evento', s.oraFineEvento)}
+        ${item('Tipo di mezzo', s.tipoMezzoEvento)}
+      ` : ''}
       ${isModalitaRichiedente(s.tipoScheda) ? `
         ${item('Su luogo dell\'evento', s.suLuogoEvento)}
         ${item('Luogo evento', s.luogoEvento)}
@@ -6211,6 +6246,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-tipoScheda').value = data?.tipoScheda || 'secondario';
   set('sf-enteRichiedenteEvento', data?.enteRichiedenteEvento); set('sf-telRiferimentoEvento', data?.telRiferimentoEvento);
   set('sf-suLuogoEvento', data?.suLuogoEvento); set('sf-luogoEvento', data?.luogoEvento); set('sf-dettagliEvento', data?.dettagliEvento);
+  set('sf-oraFineEvento', data?.oraFineEvento); set('sf-tipoMezzoEvento', data?.tipoMezzoEvento);
   toggleTipoScheda();
   const oggiIso = new Date().toISOString().slice(0,10);
   const oraAdesso = (() => { const n = new Date(); return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); })();
@@ -6396,6 +6432,7 @@ const CAMPI_LABEL_SERVIZIO = {
   cognome:'Cognome', nome:'Nome', natoA:'Nato a', natoIl:'Nato il',
   dataRicezione:'Data di ricezione', oraRicezione:'Ora di ricezione',
   mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Orario visita/dimissione/terapia', orarioPartenzaSede:'Orario partenza sede', aCasa:'Orario casa pz/luogo dimissione',
+  oraFineEvento:'Ora fine Evento', tipoMezzoEvento:'Tipo di mezzo (evento)',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
   scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
@@ -6498,6 +6535,7 @@ async function saveService(ev){
     tipoScheda,
     enteRichiedenteEvento: g('sf-enteRichiedenteEvento'), telRiferimentoEvento: g('sf-telRiferimentoEvento'),
     suLuogoEvento: g('sf-suLuogoEvento'), luogoEvento: g('sf-luogoEvento'), dettagliEvento: g('sf-dettagliEvento'),
+    oraFineEvento: g('sf-oraFineEvento'), tipoMezzoEvento: g('sf-tipoMezzoEvento'),
     enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), telRichiedente2: g('sf-telRichiedente2'), relazione: g('sf-relazione'),
     cognome: g('sf-cognome'), nome: g('sf-nome'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
     dataRicezione: g('sf-dataRicezione'), oraRicezione: g('sf-oraRicezione'),
