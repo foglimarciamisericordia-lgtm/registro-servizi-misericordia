@@ -8772,9 +8772,17 @@ async function eliminaFileSuDrive(fileId){
     method: 'DELETE',
     headers: { 'Authorization': 'Bearer ' + authToken }
   });
-  if(!risposta.ok){
-    let motivo = 'eliminazione fallita (' + risposta.status + ')';
-    try { const dati = await risposta.json(); if(dati?.errore) motivo = dati.errore; } catch(e){}
+  // Verifichiamo che la risposta sia davvero quella della cancellazione
+  // (un JSON con { ok: true }) e non solo uno stato 200 qualsiasi: un
+  // Worker non ancora aggiornato con questa rotta risponde comunque 200 con
+  // un testo generico ("Worker di backup attivo...") sulle rotte che non
+  // riconosce, che altrimenti veniva scambiato per un successo, facendo
+  // credere che la bozza fosse stata eliminata quando in realtà era rimasta
+  // su Drive.
+  let dati = null;
+  try { dati = await risposta.json(); } catch(e){}
+  if(!risposta.ok || !dati || dati.ok !== true){
+    const motivo = (dati && dati.errore) ? dati.errore : 'risposta inattesa dal Worker (' + risposta.status + ') — verifica che il Worker sia aggiornato all\'ultima versione';
     throw new Error(motivo);
   }
 }
