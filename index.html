@@ -675,9 +675,12 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <!-- ECCEDENZA 118 -->
       <div class="view" id="view-eccedenza118">
         <div class="page-head">
-          <div>
-            <h2>Eccedenze 118</h2>
-            <p>Schede di intervento di soccorso 118</p>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <img id="logo-eccedenza118-header" alt="Logo Eccedenze 118" style="width:48px;height:48px;object-fit:contain;">
+            <div>
+              <h2>Eccedenze 118</h2>
+              <p>Schede di intervento di soccorso 118</p>
+            </div>
           </div>
           <button class="btn btn-primary" style="width:auto;" onclick="openScheda118Modal()">+ Nuovo intervento</button>
         </div>
@@ -1723,6 +1726,19 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       </div>
       <p class="map-hint" id="e118-numeroPazienti-nota" style="display:none;margin-top:-4px;">Valore impostato nella prima scheda di questo intervento: non modificabile da qui.</p>
 
+      <div class="section-title">Altri documenti/foto allegati</div>
+      <p class="map-hint">Facoltativo: eventuali altre foto o immagini da allegare alla scheda (es. referti fotografati, altri documenti). Se presenti, compariranno come pagina aggiuntiva nel PDF e verranno salvate nella stessa cartella Drive delle foto documento.</p>
+      <div class="grid2">
+        <div class="field"><label>Documento aggiuntivo 1</label>
+          <input type="file" id="e118-docAggiuntivo1-input" accept="image/*" onchange="onDocAggiuntivoChange118(1, this)">
+          <div id="e118-docAggiuntivo1-preview" style="margin-top:6px;"></div>
+        </div>
+        <div class="field"><label>Documento aggiuntivo 2</label>
+          <input type="file" id="e118-docAggiuntivo2-input" accept="image/*" onchange="onDocAggiuntivoChange118(2, this)">
+          <div id="e118-docAggiuntivo2-preview" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
       </div>
 
       <div class="e118-tab-pane" data-tabpane="relazione-servizio">
@@ -2037,6 +2053,13 @@ let rifiutoFotoRetro = null;
 // prima che la foto sia stata effettivamente allegata.
 let rifiutoUploadInCorso = { fronte: false, retro: false };
 let scheda118RifiutoDati = null;
+// Documenti/foto aggiuntivi allegabili alla scheda (facoltativi, oltre alle
+// foto del rifiuto soccorso): ciascuno è o un data URL (se l'upload su
+// Drive non è riuscito, resta comunque allegato al PDF) o un riferimento
+// "drive:<id>" una volta caricato con successo — stesso schema già usato
+// per rifiutoFotoFronte/Retro.
+let e118DocAggiuntivo1 = null;
+let e118DocAggiuntivo2 = null;
 let scheda118PreviewId = null;
 let scheda118Valutazioni = [];
 let editingScheda118ReadOnly = false;
@@ -7604,6 +7627,66 @@ function aggiornaAnteprimaFotoRifiuto118(previewId, valore){
       <div style="font-size:11px;color:#2E7D32;font-weight:700;margin-top:4px;">✓ Caricata</div>`;
   }
 }
+// Documenti/foto aggiuntivi della scheda (facoltativi): stesso schema di
+// caricamento delle foto documento del rifiuto soccorso (upload su Drive
+// nella cartella "documenti", con ripiego sul data URL locale se l'upload
+// fallisce), ma qui sono due campi indipendenti, non legati al rifiuto.
+function aggiornaAnteprimaDocAggiuntivo118(indice){
+  const valore = indice === 1 ? e118DocAggiuntivo1 : e118DocAggiuntivo2;
+  const previewEl = document.getElementById('e118-docAggiuntivo' + indice + '-preview');
+  if(!valore){ previewEl.innerHTML = ''; return; }
+  const bottoneRimuovi = `<button type="button" class="btn btn-ghost" style="width:auto;padding:2px 8px;margin-top:4px;" onclick="rimuoviDocAggiuntivo118(${indice})">Rimuovi</button>`;
+  if(valore.startsWith('drive:')){
+    previewEl.innerHTML = '<span class="map-hint">Recupero da Drive…</span>';
+    scaricaFotoDaWorker(valore.slice(6)).then(dataUrl => {
+      previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;display:block;">
+        <div style="font-size:11px;color:#2E7D32;font-weight:700;margin-top:4px;">✓ Caricato</div>${bottoneRimuovi}`;
+    }).catch(()=>{ previewEl.innerHTML = '<span class="map-hint">Documento non disponibile (offline?).</span>' + bottoneRimuovi; });
+  } else {
+    previewEl.innerHTML = `<img src="${valore}" style="max-width:140px;border-radius:6px;display:block;">
+      <div style="font-size:11px;color:#2E7D32;font-weight:700;margin-top:4px;">✓ Caricato</div>${bottoneRimuovi}`;
+  }
+}
+async function onDocAggiuntivoChange118(indice, input){
+  const file = input.files[0];
+  if(!file) return;
+  const previewEl = document.getElementById('e118-docAggiuntivo' + indice + '-preview');
+  previewEl.innerHTML = '<span class="map-hint">Lettura file…</span>';
+  let dataUrl;
+  try {
+    dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  } catch(e){
+    previewEl.innerHTML = '<span style="color:#B23A24;">Impossibile leggere il file.</span>';
+    return;
+  }
+  const nomeFile = ('doc-aggiuntivo-' + indice + '-' + Date.now() + '-' + file.name).replace(/[^a-zA-Z0-9._-]/g, '_');
+  previewEl.innerHTML = '<span class="map-hint">Caricamento su Drive… 0%</span>';
+  try {
+    const fileId = await caricaFotoSuWorkerConProgresso(dataUrl, nomeFile, 'documenti', pct => {
+      previewEl.innerHTML = `<span class="map-hint">Caricamento su Drive… ${pct}%</span>`;
+    });
+    if(indice === 1) e118DocAggiuntivo1 = 'drive:' + fileId; else e118DocAggiuntivo2 = 'drive:' + fileId;
+    previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;display:block;">
+      <div style="font-size:11px;color:#2E7D32;font-weight:700;margin-top:4px;">✓ Caricato</div>
+      <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 8px;margin-top:4px;" onclick="rimuoviDocAggiuntivo118(${indice})">Rimuovi</button>`;
+  } catch(e){
+    if(indice === 1) e118DocAggiuntivo1 = dataUrl; else e118DocAggiuntivo2 = dataUrl;
+    console.warn('Upload documento aggiuntivo su Drive non riuscito:', e.message);
+    previewEl.innerHTML = `<img src="${dataUrl}" style="max-width:140px;border-radius:6px;display:block;">
+      <div style="font-size:11px;color:#B23A24;font-weight:700;margin-top:4px;">✓ Salvato nella scheda (upload su Drive non riuscito: ${escapeHtml(e.message)} — resterà comunque allegato al PDF)</div>
+      <button type="button" class="btn btn-ghost" style="width:auto;padding:2px 8px;margin-top:4px;" onclick="rimuoviDocAggiuntivo118(${indice})">Rimuovi</button>`;
+  }
+}
+function rimuoviDocAggiuntivo118(indice){
+  if(indice === 1) e118DocAggiuntivo1 = null; else e118DocAggiuntivo2 = null;
+  document.getElementById('e118-docAggiuntivo' + indice + '-input').value = '';
+  document.getElementById('e118-docAggiuntivo' + indice + '-preview').innerHTML = '';
+}
 function onRifFirmatarioChange(){
   const val = document.getElementById('rif-firmatario').value;
   document.getElementById('rif-rapporto-wrap').style.display = (val === 'rappresentante') ? 'block' : 'none';
@@ -7776,6 +7859,8 @@ function testoDichiarazioneRifiutaFirma118(s){
 /* --- Elenco --- */
 function renderElenco118(){
   if(!canVedereEccedenza()) return;
+  const logoHeader = document.getElementById('logo-eccedenza118-header');
+  if(logoHeader && !logoHeader.src) logoHeader.src = LOGO_118_ECCEDENZA;
   const stato = document.getElementById('e118f-stato')?.value || '';
   const cerca = (document.getElementById('e118f-cerca')?.value || '').toLowerCase();
   let righe = interventi118.filter(s=>!s.cestinato).sort((a,b) => (b.data||'').localeCompare(a.data||''));
@@ -7854,6 +7939,7 @@ function renderElenco118(){
         ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida${etichettaGruppo}</button>` : ''}
         ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
         ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
+        ${canInviareEmailScheda118(s) ? `<button class="action-btn" onclick="apriInviaEmailScheda118DaElenco('${s.id}')">✉️ Invia email</button>` : ''}
       </div>
     </td>`;
     html += `<tr>
@@ -8022,6 +8108,16 @@ function openScheda118Modal(id){
   scheda118RifiutoDati = sch?.rifiutoDati ? JSON.parse(JSON.stringify(sch.rifiutoDati)) : null;
   aggiornaStatoRifiuto118();
 
+  e118DocAggiuntivo1 = sch?.documentoAggiuntivo1 || null;
+  e118DocAggiuntivo2 = sch?.documentoAggiuntivo2 || null;
+  // Come per le foto del rifiuto soccorso: azzera il nome file mostrato dal
+  // browser, altrimenti una nuova scheda mostrava ancora il nome dell'ultimo
+  // file caricato su una scheda precedente.
+  document.getElementById('e118-docAggiuntivo1-input').value = '';
+  document.getElementById('e118-docAggiuntivo2-input').value = '';
+  aggiornaAnteprimaDocAggiuntivo118(1);
+  aggiornaAnteprimaDocAggiuntivo118(2);
+
   scheda118SedeTrauma = sch?.sedeTrauma ? JSON.parse(JSON.stringify(sch.sedeTrauma)) : [];
   const ustioniSalvate = sch?.sedeUstioni ? JSON.parse(JSON.stringify(sch.sedeUstioni)) : [];
   scheda118SedeUstioni = ustioniSalvate.filter(v => typeof v === 'string' && USTIONI_REGIONI_118.some(r=>r.id===v));
@@ -8187,6 +8283,7 @@ function collectScheda118FormData(id){
     altreInformazioni: getCheckboxGridValues('e118-altreInformazioni'), codiceRientroNote: getCheckboxGridValues('e118-codiceRientroNote'),
     annotazioni: G('e118-annotazioni'), relazioneServizio: G('e118-relazioneServizio'),
     firmaRelazione: getFirmaDataUrl118('e118-firmaRelazione-canvas'),
+    documentoAggiuntivo1: e118DocAggiuntivo1, documentoAggiuntivo2: e118DocAggiuntivo2,
     firmaAutista: getFirmaDataUrl118('e118-firmaAutista-canvas'),
     firmaSoccorritore1: getFirmaDataUrl118('e118-firmaSoccorritore1-canvas'),
     firmaSoccorritore2: getFirmaDataUrl118('e118-firmaSoccorritore2-canvas')
@@ -8227,6 +8324,14 @@ async function saveScheda118(event){
     if(!esito.ok){
       alert('La scheda è stata salvata, ma l\'aggiornamento del PDF su Drive non è riuscito (' + esito.errore + ').');
     }
+  } else if(data.firmata && !data.validata){
+    // Scheda già firmata ma non ancora validata: aggiorniamo anche la bozza
+    // su Drive, così eventuali correzioni fatte prima della validazione si
+    // riflettono subito in quello che il responsabile vedrà nella cartella
+    // "Schede 118 Bozze". Fallimento non bloccante: la bozza è solo una
+    // comodità, il dato vero resta comunque salvato nel programma.
+    const schedaSalvata = interventi118.find(x=>x.id===id);
+    salvaPdfBozzaGruppoSuDriveInBackground118(schedaSalvata.gruppoInterventoId, id);
   }
   return false;
 }
@@ -8345,8 +8450,13 @@ async function chiudiScheda118FromModal(){
     }
   } else {
     closeScheda118Modal();
-    // NB: non generiamo più automaticamente il PDF su Drive in questa fase:
-    // resta disponibile il pulsante "Scarica PDF" quando serve davvero.
+    // NB: non generiamo più automaticamente il PDF DEFINITIVO su Drive in
+    // questa fase: resta disponibile il pulsante "Scarica PDF" quando serve
+    // davvero. Salviamo però una BOZZA nella cartella dedicata ("Schede 118
+    // Bozze"), così chi deve validare può già consultarla su Drive; verrà
+    // sostituita dal PDF definitivo (nella cartella di archiviazione) al
+    // momento della validazione.
+    salvaPdfBozzaGruppoSuDriveInBackground118(data.gruppoInterventoId, id);
     generaFoglioDaScheda118(id);
   }
 }
@@ -8599,10 +8709,73 @@ async function salvaPdfGruppoSuDriveInBackground118(gruppoId, idRiferimento){
     const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile, 'schede', fileIdEsistente);
     pazienti.forEach(p => { p.pdfDriveFileId = fileId; });
     await saveInterventi118();
+    // La validazione definitiva sostituisce la bozza: se ne esisteva una
+    // nella cartella "Schede 118 Bozze", la eliminiamo per non lasciare
+    // doppioni tra bozze e schede definitive.
+    const fileIdBozza = pazienti.map(p=>p.pdfBozzaDriveFileId).find(Boolean) || null;
+    if(fileIdBozza){
+      try {
+        await eliminaFileSuDrive(fileIdBozza);
+      } catch(e){
+        console.warn('Eliminazione della bozza su Drive non riuscita (il PDF definitivo è comunque stato salvato correttamente):', e.message);
+      }
+      pazienti.forEach(p => { p.pdfBozzaDriveFileId = null; });
+      await saveInterventi118();
+    }
     return { ok: true };
   } catch(errore){
     console.warn('Salvataggio automatico PDF su Drive non riuscito:', errore);
     return { ok: false, errore: errore.message || String(errore) };
+  }
+}
+// Salva una BOZZA del PDF nella cartella Drive dedicata ("Schede 118
+// Bozze"), separata da quella delle schede definitive: si aggiorna quando
+// l'equipaggio firma la scheda e ad ogni correzione successiva, finché non
+// arriva la validazione del responsabile — a quel punto salvaPdfGruppoSuDriveInBackground118
+// genera il PDF definitivo nella cartella di archiviazione ed elimina questa bozza.
+async function salvaPdfBozzaGruppoSuDriveInBackground118(gruppoId, idRiferimento){
+  try {
+    const pazienti = gruppoId
+      ? interventi118.filter(x=>x.gruppoInterventoId===gruppoId && !x.cestinato).sort((a,b)=> new Date(a.creatoIl) - new Date(b.creatoIl))
+      : [interventi118.find(x=>x.id===idRiferimento)].filter(Boolean);
+    if(pazienti.length === 0) return { ok: false, errore: 'scheda non trovata' };
+    let pdf;
+    try {
+      pdf = await costruisciPdfDaPazienti118(pazienti);
+    } catch(e){
+      console.warn('PDF bozza scheda 118: cattura risultata vuota, salvataggio su Drive saltato per sicurezza.');
+      return { ok: false, errore: e.message };
+    }
+    const pdfBlob = pdf.output('blob');
+    const pdfDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+    const riferimento = pazienti[pazienti.length - 1];
+    const nomeFile = 'BOZZA_' + nomeFilePdf118(riferimento);
+    const fileIdEsistente = pazienti.map(p=>p.pdfBozzaDriveFileId).find(Boolean) || null;
+    const fileId = await caricaFotoSuWorker(pdfDataUrl, nomeFile, 'schede-bozze', fileIdEsistente);
+    pazienti.forEach(p => { p.pdfBozzaDriveFileId = fileId; });
+    await saveInterventi118();
+    return { ok: true };
+  } catch(errore){
+    console.warn('Salvataggio automatico della bozza PDF su Drive non riuscito:', errore);
+    return { ok: false, errore: errore.message || String(errore) };
+  }
+}
+// Elimina un file da Drive tramite il Worker (usata per rimuovere la bozza
+// di una scheda 118 una volta sostituita dal PDF definitivo).
+async function eliminaFileSuDrive(fileId){
+  const risposta = await fetch(FOTO_UPLOAD_ENDPOINT + '/' + fileId, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + authToken }
+  });
+  if(!risposta.ok){
+    let motivo = 'eliminazione fallita (' + risposta.status + ')';
+    try { const dati = await risposta.json(); if(dati?.errore) motivo = dati.errore; } catch(e){}
+    throw new Error(motivo);
   }
 }
 
@@ -8885,6 +9058,21 @@ function costruisciStampaScheda118(s){
     </tr></table>`;
   }
 
+  const docsAggiuntivi = [s.documentoAggiuntivo1, s.documentoAggiuntivo2].filter(Boolean);
+  if(docsAggiuntivi.length){
+    html += `<div class="page-break-118" data-tipo="documenti-aggiuntivi" style="page-break-before:always;"></div>
+    <div style="background:var(--navy);color:#fff;padding:7px 12px;border-radius:4px 4px 0 0;">
+      <h3 style="margin:0;font-size:13px;color:#fff;letter-spacing:.3px;">Altri documenti allegati</h3>
+    </div>
+    <div style="border:1px solid #ccc;border-top:none;border-radius:0 0 4px 4px;padding:14px 16px;background:#fbfbfb;display:flex;gap:12px;">
+      ${docsAggiuntivi.map((doc,i) => `
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:9px;font-weight:700;color:var(--navy);letter-spacing:.4px;margin-bottom:6px;">DOCUMENTO ${i+1}</div>
+          ${htmlFotoDocumentoStampa118(doc)}
+        </div>`).join('')}
+    </div>`;
+  }
+
   return html;
 }
 
@@ -9015,6 +9203,8 @@ async function preparaDatiStampa118(s){
     sPerStampa.rifiutoDati.fotoFronte = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoFronte);
     sPerStampa.rifiutoDati.fotoRetro = await risolviFotoPerStampa118(sPerStampa.rifiutoDati.fotoRetro);
   }
+  sPerStampa.documentoAggiuntivo1 = await risolviFotoPerStampa118(sPerStampa.documentoAggiuntivo1);
+  sPerStampa.documentoAggiuntivo2 = await risolviFotoPerStampa118(sPerStampa.documentoAggiuntivo2);
   return sPerStampa;
 }
 // Se la scheda richiesta è quella attualmente aperta nel form, restituisce i
@@ -9076,6 +9266,15 @@ function ripristinaTitoloDopoStampa118(){
     scheda118TitoloOriginale = null;
   }
   window.removeEventListener('afterprint', ripristinaTitoloDopoStampa118);
+}
+// Scorciatoia dall'elenco: apre il modulo di invio email direttamente,
+// senza dover prima aprire l'anteprima PDF — più immediato per un uso
+// frequente come inviare la scheda alle forze dell'ordine o ad altri enti.
+// Riusa esattamente lo stesso modulo raggiungibile da dentro l'anteprima
+// PDF (che resta comunque disponibile anche lì).
+function apriInviaEmailScheda118DaElenco(id){
+  scheda118PreviewId = id;
+  apriInviaEmailScheda118Modal();
 }
 function apriInviaEmailScheda118Modal(){
   const s = interventi118.find(x=>x.id===scheda118PreviewId);
