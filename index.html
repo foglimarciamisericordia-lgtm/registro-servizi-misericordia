@@ -1304,6 +1304,8 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2"></select></div>
           <div class="field"><label>Soccorritore 3</label><select id="sf-soccorritore3"></select></div>
         </div>
+        <div id="altri-equipaggi-container"></div>
+        <button type="button" class="btn btn-ghost" id="btn-aggiungi-equipaggio" style="width:auto;margin-top:10px;display:none;" onclick="aggiungiBloccoEquipaggio()">+ Aggiungi equipaggio</button>
       </fieldset>
 
       <fieldset>
@@ -4341,20 +4343,19 @@ async function eliminaMezzoDefinitivo(id){
   await saveMezzi();
   renderCestino();
 }
-function fillMezzoSelect(valoreCorrente){
-  const sel = document.getElementById('sf-mezzo');
+function opzioniMezzoSelect(valoreCorrente){
   const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.bloccato));
-  if(mezzi.length === 0){
-    sel.innerHTML = '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
-    return;
-  }
+  if(mezzi.length === 0) return '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
   const opt = m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}${m.bloccato?' (bloccato per guasto)':''}</option>`;
   let elenco = attivi;
   if(valoreCorrente && !attivi.some(m=>m.id===valoreCorrente)){
     const storico = mezzi.find(m=>m.id===valoreCorrente);
     if(storico) elenco = [...attivi, storico];
   }
-  sel.innerHTML = '<option value="">-- seleziona --</option>' + elenco.map(opt).join('');
+  return '<option value="">-- seleziona --</option>' + elenco.map(opt).join('');
+}
+function fillMezzoSelect(valoreCorrente){
+  document.getElementById('sf-mezzo').innerHTML = opzioniMezzoSelect(valoreCorrente);
 }
 
 /* ============ RIMBORSO SPESE ============ */
@@ -5865,12 +5866,67 @@ function stampaStatistiche(){
 }
 
 /* ============ MODAL SERVIZIO ============ */
-function fillPersonSelects(){
+function opzioniPersonaSelect(){
   const attivi = utenti.filter(u=>!u.archiviato);
   const archiviati = utenti.filter(u=>u.archiviato);
   const opt = u => `<option value="${escapeHtml(u.nome+' '+u.cognome)}">${escapeHtml(u.nome+' '+u.cognome)}${u.archiviato?' (archiviato)':''}</option>`;
-  const options = '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
+  return '<option value="">-- seleziona --</option>' + attivi.map(opt).join('') + archiviati.map(opt).join('');
+}
+function fillPersonSelects(){
+  const options = opzioniPersonaSelect();
   ['sf-autista','sf-soccorritore1','sf-soccorritore2','sf-soccorritore3'].forEach(id=>{ document.getElementById(id).innerHTML = options; });
+}
+// Per gli eventi/manifestazioni con più mezzi impegnati contemporaneamente
+// (es. un'ambulanza più una squadra appiedata), oltre al primo equipaggio
+// (che resta nei campi principali sf-mezzo/sf-autista/ecc., usati anche per
+// l'assegnazione del servizio, le statistiche e il foglio di marcia) si
+// possono aggiungere altri equipaggi supplementari, puramente informativi.
+let contatoreEquipaggiExtra = 0;
+function aggiungiBloccoEquipaggio(dati){
+  const indice = contatoreEquipaggiExtra++;
+  const div = document.createElement('div');
+  div.className = 'equipaggio-extra';
+  div.dataset.indice = indice;
+  div.style.cssText = 'border-top:1px solid #e3e6ea;margin-top:12px;padding-top:12px;';
+  div.innerHTML = `
+    <div class="field"><label>Mezzo assegnato</label><select id="sf-mezzoExtra-${indice}"></select></div>
+    <div class="grid4">
+      <div class="field"><label>Autista</label><select id="sf-autistaExtra-${indice}"></select></div>
+      <div class="field"><label>1° Soccorritore</label><select id="sf-soccorritore1Extra-${indice}"></select></div>
+      <div class="field"><label>2° Soccorritore</label><select id="sf-soccorritore2Extra-${indice}"></select></div>
+      <div class="field"><label>Soccorritore 3</label><select id="sf-soccorritore3Extra-${indice}"></select></div>
+    </div>
+    <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="rimuoviBloccoEquipaggio(${indice})">🗑 Rimuovi questo equipaggio</button>
+  `;
+  document.getElementById('altri-equipaggi-container').appendChild(div);
+  document.getElementById('sf-mezzoExtra-'+indice).innerHTML = opzioniMezzoSelect(dati?.mezzoId);
+  document.getElementById('sf-mezzoExtra-'+indice).value = dati?.mezzoId || '';
+  const opzioniPersone = opzioniPersonaSelect();
+  ['autista','soccorritore1','soccorritore2','soccorritore3'].forEach(campo=>{
+    const el = document.getElementById('sf-'+campo+'Extra-'+indice);
+    el.innerHTML = opzioniPersone;
+    el.value = dati?.[campo] || '';
+  });
+}
+function rimuoviBloccoEquipaggio(indice){
+  const el = document.querySelector(`.equipaggio-extra[data-indice="${indice}"]`);
+  if(el) el.remove();
+}
+function svuotaEquipaggiExtra(){
+  document.getElementById('altri-equipaggi-container').innerHTML = '';
+  contatoreEquipaggiExtra = 0;
+}
+function leggiEquipaggiExtra(){
+  return Array.from(document.querySelectorAll('#altri-equipaggi-container .equipaggio-extra')).map(div=>{
+    const idx = div.dataset.indice;
+    return {
+      mezzoId: document.getElementById('sf-mezzoExtra-'+idx).value,
+      autista: document.getElementById('sf-autistaExtra-'+idx).value,
+      soccorritore1: document.getElementById('sf-soccorritore1Extra-'+idx).value,
+      soccorritore2: document.getElementById('sf-soccorritore2Extra-'+idx).value,
+      soccorritore3: document.getElementById('sf-soccorritore3Extra-'+idx).value
+    };
+  }).filter(e => e.mezzoId || e.autista || e.soccorritore1 || e.soccorritore2 || e.soccorritore3);
 }
 function fillFoglioPersonSelects(){
   const attivi = utenti.filter(u=>!u.archiviato);
@@ -5919,6 +5975,7 @@ function toggleTipoScheda(){
   document.getElementById('campo-mezzoRichiesto').style.display = (tipo === 'evento') ? 'none' : 'block';
   document.getElementById('sf-tipoMezzoRichiesto').required = (tipo !== 'evento');
   document.getElementById('campo-oraFineTipoMezzoEvento').style.display = (tipo === 'evento') ? 'grid' : 'none';
+  document.getElementById('btn-aggiungi-equipaggio').style.display = (tipo === 'evento') ? 'inline-block' : 'none';
 
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
@@ -6015,7 +6072,7 @@ function duplicateService(id){
   fillMezzoSelect(null);
   // L'equipaggio e il mezzo assegnato non vengono mai duplicati: deve
   // impostarli di nuovo il responsabile prima di assegnare il servizio.
-  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:'', mezzoId:null, autista:'', soccorritore1:'', soccorritore2:'', soccorritore3:''};
+  const clone = {...src, perGiorno:'', alleOre:'', stato:'giallo', chiuso:false, oraRicezione:'', numeroProgressivo:null, numeroAnno:null, registratoIl:'', mezzoId:null, autista:'', soccorritore1:'', soccorritore2:'', soccorritore3:'', altriEquipaggi:[]};
   delete clone.gruppoRipetizione;
   document.getElementById('service-modal-title').textContent = 'Duplica servizio — ' + nomeVisualizzatoServizio(clone);
   fillServiceForm(null, null, clone);
@@ -6126,6 +6183,15 @@ function viewServiceModal(id){
       ${item('2° Soccorritore', s.soccorritore2)}
       ${item('Soccorritore 3', s.soccorritore3)}
     </div>
+    ${(s.altriEquipaggi||[]).map((equip,i) => `
+      <div class="view-grid" style="margin-top:10px;padding-top:10px;border-top:1px solid #e3e6ea;">
+        ${item('Mezzo assegnato (equipaggio ' + (i+2) + ')', nomeMezzoAssegnato(equip))}
+        ${item('Autista', equip.autista)}
+        ${item('1° Soccorritore', equip.soccorritore1)}
+        ${item('2° Soccorritore', equip.soccorritore2)}
+        ${item('Soccorritore 3', equip.soccorritore3)}
+      </div>
+    `).join('')}
     </div>
 
     <div class="print-section">
@@ -6282,6 +6348,8 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-presidiAltro', data?.presidiAltro);
   set('sf-note', data?.note);
   set('sf-autista', data?.autista); set('sf-soccorritore1', data?.soccorritore1); set('sf-soccorritore2', data?.soccorritore2); set('sf-soccorritore3', data?.soccorritore3);
+  svuotaEquipaggiExtra();
+  (data?.altriEquipaggi || []).forEach(equip => aggiungiBloccoEquipaggio(equip));
   document.getElementById('sf-stato').value = data?.stato || 'giallo';
   set('sf-motivazioneAnnullamento', data?.motivazioneAnnullamento);
   toggleMotivazioneAnnullamento();
@@ -6569,8 +6637,15 @@ async function saveService(ev){
   const existing = editingServiceId ? servizi.find(s=>s.id===editingServiceId) : null;
   if(canEditEquipaggio()){
     data.autista = g('sf-autista'); data.soccorritore1 = g('sf-soccorritore1'); data.soccorritore2 = g('sf-soccorritore2'); data.soccorritore3 = g('sf-soccorritore3');
+    // Gli equipaggi aggiuntivi hanno senso solo per Assistenze/Manifestazioni
+    // (più mezzi impegnati sullo stesso evento): per gli altri tipi di
+    // servizio non vengono mai salvati, anche se per qualche motivo il
+    // contenitore in pagina ne contenesse ancora (es. cambio tipo scheda
+    // senza svuotarli).
+    data.altriEquipaggi = (tipoScheda === 'evento') ? leggiEquipaggiExtra() : [];
   } else if(existing){
     data.autista = existing.autista; data.soccorritore1 = existing.soccorritore1; data.soccorritore2 = existing.soccorritore2; data.soccorritore3 = existing.soccorritore3;
+    data.altriEquipaggi = existing.altriEquipaggi || [];
   }
   if(canCloseService()){
     data.chiuso = currentChiusoState;
