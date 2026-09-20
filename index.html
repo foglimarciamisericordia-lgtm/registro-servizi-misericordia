@@ -154,6 +154,7 @@
   @media (max-width: 760px){ .metric-cards{grid-template-columns:repeat(2,1fr);} }
   .link-btn{background:none;border:none;color:var(--navy);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:0;font-family:inherit;}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .row-actions-gruppo{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;}
   .action-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .12s,border-color .12s;}
   .action-btn:hover{background:var(--bg);border-color:var(--navy);}
   .action-btn.primary{color:var(--navy);border-color:#C7D5E5;background:#EEF3FA;}
@@ -7726,7 +7727,7 @@ function renderElenco118(){
   const container = document.getElementById('e118-container');
   if(!container) return;
   if(righe.length === 0){ container.innerHTML = '<div class="empty-state">Nessun intervento registrato.</div>'; return; }
-  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Stato scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Cod. invio</th><th>Cod. rientro</th><th>Validazione</th><th></th></tr></thead><tbody>';
+  let html = '<table class="mini-table"><thead><tr><th>Scheda missione n.</th><th>Stato scheda</th><th>Data</th><th>Paziente</th><th>Luogo</th><th>Cod. invio</th><th>Cod. rientro</th><th>Validazione</th><th>Azioni</th><th style="text-align:center;">Azioni intervento</th></tr></thead><tbody>';
   righe.forEach(s=>{
     const nomePaziente = ((s.cognome||'')+' '+(s.nome||'')).trim();
     // Rientro visivo per le schede collegate (altri pazienti dello stesso
@@ -7748,14 +7749,24 @@ function renderElenco118(){
       : '<span class="role-chip eccedenza">Da Validare</span>');
     const idGruppoOSingola = s.gruppoInterventoId || s.id;
     const foglioGiaCompilato = fogliMarcia.some(f => f.schedaEccedenza118Id === idGruppoOSingola && !f.cestinato);
-    const orariRigaData = [s.oChiamata ? 'Chiamata ' + s.oChiamata : '', s.oLiberi ? 'Liberi ' + s.oLiberi : ''].filter(Boolean).join(' — ');
+    const orariRigaData = [s.orari?.chiamata ? 'Chiamata ' + s.orari.chiamata : '', s.orari?.liberi ? 'Liberi ' + s.orari.liberi : ''].filter(Boolean).join(' — ');
     // Pulsanti "di gruppo" (Anteprima PDF, Valida, Riapri validazione, Foglio
     // marcia): un intervento con più pazienti condivide un unico PDF, un'unica
-    // validazione e un unico foglio di marcia, quindi questi pulsanti compaiono
-    // solo sulla prima riga del gruppo (quella non "collegata") invece che
-    // ripetuti identici su ogni paziente.
+    // validazione e un unico foglio di marcia. Vivono in una colonna separata
+    // dalle azioni sul singolo paziente (Modifica/Elimina), e per un
+    // intervento con più pazienti occupano un'unica cella unita (rowspan)
+    // centrata rispetto a tutte le righe del gruppo, invece di ripetersi
+    // identiche su ciascun paziente.
     const membriGruppo = s.gruppoInterventoId ? interventi118.filter(x=>x.gruppoInterventoId===s.gruppoInterventoId && !x.cestinato) : [s];
     const etichettaGruppo = membriGruppo.length > 1 ? ` (${membriGruppo.length} pazienti)` : '';
+    const cellaAzioniGruppo = eCollegataRiga ? '' : `<td rowspan="${membriGruppo.length}" style="text-align:center;vertical-align:middle;background:var(--surface-1,#f7f8fa);border-left:1px solid #e3e6ea;">
+      <div class="row-actions-gruppo">
+        <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF${etichettaGruppo}</button>
+        ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida${etichettaGruppo}</button>` : ''}
+        ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
+        ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
+      </div>
+    </td>`;
     html += `<tr>
       <td>${numeroScheda}</td>
       <td>${statoScheda}</td>
@@ -7767,12 +7778,9 @@ function renderElenco118(){
       <td>${validazione}</td>
       <td><div class="row-actions">
         <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && !haRuolo('amministratore'))?'👁 Visualizza':'✏️ Modifica'}</button>
-        ${!eCollegataRiga ? `<button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF${etichettaGruppo}</button>` : ''}
-        ${(!eCollegataRiga && canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida${etichettaGruppo}</button>` : ''}
-        ${(!eCollegataRiga && s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
-        ${(!eCollegataRiga && s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
+      ${cellaAzioniGruppo}
     </tr>`;
   });
   html += '</tbody></table>';
