@@ -1177,6 +1177,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             <select id="sf-tipoMezzoRichiesto" onchange="scheduleRimborsoCalc()" required><option value="">-- seleziona --</option></select>
           </div>
           <div class="field"><label>Per il giorno *</label><input type="date" id="sf-perGiorno" required></div>
+          <div class="field" id="campo-oraPartenzaSedeEvento" style="display:none;"><label>Ora partenza sede *</label><input type="time" id="sf-oraPartenzaSedeEvento"></div>
           <div class="field"><label id="label-orario-visita">Orario visita/dimissione/terapia *</label><input type="time" id="sf-alleOre" required></div>
         </div>
 
@@ -1218,9 +1219,6 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             </div>
           </div>
           <div class="grid2">
-            <div class="field" id="campo-suLuogoEvento"><label>Su luogo dell'evento</label>
-              <select id="sf-suLuogoEvento"><option value="">-- non specificato --</option><option>Si</option><option>No</option></select>
-            </div>
             <div class="field"><label>Luogo evento</label><input type="text" id="sf-luogoEvento" placeholder="es. Piazza Duomo" oninput="scheduleGeoPreviewEvento();"></div>
           </div>
           <div class="field"><label>Ulteriori dettagli evento</label><input type="text" id="sf-dettagliEvento"></div>
@@ -5907,7 +5905,8 @@ function toggleTipoScheda(){
   document.getElementById('sf-tipoTrasporto').required = mostraTipoTrasporto;
 
   document.getElementById('label-orario-visita').textContent = tipo === 'evento' ? 'Ora inizio Evento *' : (tipo === 'convenzione' ? 'Orario sul posto *' : 'Orario visita/dimissione/terapia *');
-  document.getElementById('campo-suLuogoEvento').style.display = (tipo === 'evento') ? 'block' : 'none';
+  document.getElementById('campo-oraPartenzaSedeEvento').style.display = (tipo === 'evento') ? 'block' : 'none';
+  document.getElementById('sf-oraPartenzaSedeEvento').required = (tipo === 'evento');
 
   // "Mezzo richiesto" (elenco mezzi dell'associazione, usato anche per il
   // calcolo del rimborso a tratta) non ha senso per Assistenze/Manifestazioni:
@@ -6076,6 +6075,7 @@ function viewServiceModal(id){
     <div class="view-grid">
       ${s.tipoScheda === 'evento' ? '' : item('Mezzo richiesto', s.tipoMezzoRichiesto)}
       ${item('Per il giorno', s.perGiorno ? formatDataIt(s.perGiorno) : '')}
+      ${s.tipoScheda === 'evento' ? item('Ora partenza sede', s.oraPartenzaSedeEvento) : ''}
       ${item(s.tipoScheda === 'evento' ? 'Ora inizio Evento' : (s.tipoScheda === 'convenzione' ? 'Orario sul posto' : 'Orario visita/dimissione/terapia'), s.alleOre)}
       ${s.tipoScheda === 'evento' ? `
         ${item('Ora fine Evento', s.oraFineEvento)}
@@ -6083,7 +6083,6 @@ function viewServiceModal(id){
         ${item('Tipo di squadra 2', s.tipoMezzoEvento2)}
       ` : ''}
       ${isModalitaRichiedente(s.tipoScheda) ? `
-        ${item('Su luogo dell\'evento', s.suLuogoEvento)}
         ${item('Luogo evento', s.luogoEvento)}
         ${item('Ulteriori dettagli evento', s.dettagliEvento)}
       ` : `
@@ -6251,8 +6250,9 @@ function fillServiceForm(sv, prefillDate, cloneData){
   set('sf-cognome', data?.cognome); set('sf-nome', data?.nome); set('sf-natoA', data?.natoA); set('sf-natoIl', data?.natoIl);
   document.getElementById('sf-tipoScheda').value = data?.tipoScheda || 'secondario';
   set('sf-enteRichiedenteEvento', data?.enteRichiedenteEvento); set('sf-telRiferimentoEvento', data?.telRiferimentoEvento);
-  set('sf-suLuogoEvento', data?.suLuogoEvento); set('sf-luogoEvento', data?.luogoEvento); set('sf-dettagliEvento', data?.dettagliEvento);
+  set('sf-luogoEvento', data?.luogoEvento); set('sf-dettagliEvento', data?.dettagliEvento);
   set('sf-oraFineEvento', data?.oraFineEvento); set('sf-tipoMezzoEvento', data?.tipoMezzoEvento); set('sf-tipoMezzoEvento2', data?.tipoMezzoEvento2);
+  set('sf-oraPartenzaSedeEvento', data?.oraPartenzaSedeEvento);
   toggleTipoScheda();
   const oggiIso = new Date().toISOString().slice(0,10);
   const oraAdesso = (() => { const n = new Date(); return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); })();
@@ -6438,7 +6438,7 @@ const CAMPI_LABEL_SERVIZIO = {
   cognome:'Cognome', nome:'Nome', natoA:'Nato a', natoIl:'Nato il',
   dataRicezione:'Data di ricezione', oraRicezione:'Ora di ricezione',
   mezzoId:'Mezzo assegnato', tipoMezzoRichiesto:'Mezzo richiesto', perGiorno:'Data servizio', alleOre:'Orario visita/dimissione/terapia', orarioPartenzaSede:'Orario partenza sede', aCasa:'Orario casa pz/luogo dimissione',
-  oraFineEvento:'Ora fine Evento', tipoMezzoEvento:'Tipo di squadra', tipoMezzoEvento2:'Tipo di squadra 2',
+  oraFineEvento:'Ora fine Evento', tipoMezzoEvento:'Tipo di squadra', tipoMezzoEvento2:'Tipo di squadra 2', oraPartenzaSedeEvento:'Ora partenza sede (evento)',
   partenza:'Partenza', destinazione:'Destinazione', repartoDestinazione:'Reparto destinazione',
   peso:'Peso', deambula:'Deambula', ossigeno:'Necessita ossigeno', flussoOssigeno:'Flusso ossigeno',
   scale:'Presenza di scale', pianoScale:'Piano e condizione scale', ascensore:'Ascensore', accompagnatore:'Presenza accompagnatore', richiestoDa:'Richiesto da',
@@ -6540,8 +6540,9 @@ async function saveService(ev){
     id: editingServiceId || ('s-' + Date.now()),
     tipoScheda,
     enteRichiedenteEvento: g('sf-enteRichiedenteEvento'), telRiferimentoEvento: g('sf-telRiferimentoEvento'),
-    suLuogoEvento: g('sf-suLuogoEvento'), luogoEvento: g('sf-luogoEvento'), dettagliEvento: g('sf-dettagliEvento'),
+    luogoEvento: g('sf-luogoEvento'), dettagliEvento: g('sf-dettagliEvento'),
     oraFineEvento: g('sf-oraFineEvento'), tipoMezzoEvento: g('sf-tipoMezzoEvento'), tipoMezzoEvento2: g('sf-tipoMezzoEvento2'),
+    oraPartenzaSedeEvento: g('sf-oraPartenzaSedeEvento'),
     enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), telRichiedente2: g('sf-telRichiedente2'), relazione: g('sf-relazione'),
     cognome: g('sf-cognome'), nome: g('sf-nome'), natoA: g('sf-natoA'), natoIl: g('sf-natoIl'),
     dataRicezione: g('sf-dataRicezione'), oraRicezione: g('sf-oraRicezione'),
