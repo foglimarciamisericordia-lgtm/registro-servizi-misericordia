@@ -3599,7 +3599,7 @@ function mostraTuttiServiziGiorno(k, event){
   pop.className = 'popover-giorno';
   pop.id = 'popover-giorno';
   pop.innerHTML = '<div class="pg-titolo">' + titolo + ' — ' + dayServices.length + ' servizi</div>' +
-    dayServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();chiudiPopoverGiorno();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('');
+    dayServices.map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();chiudiPopoverGiorno();viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('');
 
   document.body.appendChild(pop);
 
@@ -3645,7 +3645,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
+        ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
         ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
     }
@@ -3667,7 +3667,7 @@ function renderCalendar(){
       const dayServices = attivi.filter(s => s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
-        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${s.alleOre||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
+        ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
       </div>`;
     }
     html += '</div></div>';
@@ -3686,7 +3686,7 @@ function renderCalendar(){
         const nomeMezzo = mezzoVisualizzatoServizio(s) ? (escapeHtml(nomeVisualizzatoServizio(s))+'/'+escapeHtml(mezzoVisualizzatoServizio(s))) : escapeHtml(nomeVisualizzatoServizio(s));
         return `<div class="pill-giorno ${s.stato}" onclick="viewServiceModal('${s.id}')">
           <div class="pg-titolo">${nomeMezzo}</div>
-          <div class="pg-orario">${s.alleOre||'—'}</div>
+          <div class="pg-orario">${orarioVisualizzatoServizio(s)||'—'}</div>
           <div class="pg-percorso">${isModalitaRichiedente(s.tipoScheda) ? escapeHtml(s.luogoEvento||'—') : (escapeHtml(s.partenza||'—') + ' → ' + escapeHtml(s.destinazione||'—'))}</div>
         </div>`;
       }).join('');
@@ -3748,7 +3748,7 @@ async function renderElenco(){
     html += `<tr>
       <td class="mono">${numeroServizio}</td>
       <td><span class="status-dot ${s.stato}"></span>${statoLabel[s.stato]||''}${s.chiuso?'<span class="tag-assegnato" title="Assegnato">A</span>':'<span class="tag-non-assegnato" title="Non assegnato">NA</span>'}</td>
-      <td class="mono">${formatDataIt(s.perGiorno)} ${s.alleOre||''}</td>
+      <td class="mono">${formatDataIt(s.perGiorno)} ${orarioVisualizzatoServizio(s)||''}</td>
       <td>${escapeHtml(nomeVisualizzatoServizio(s))}</td>
       <td>${escapeHtml(mezzoVisualizzatoServizio(s)||'—')}</td>
       <td>${escapeHtml(s.destinazione||'—')}</td>
@@ -3791,6 +3791,16 @@ function nomeMezzoAssegnato(s){
     if(m) return m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa;
   }
   return s.mezzo || '—'; // solo se il mezzo non esiste più in nessuna lista
+}
+// Per gli eventi/manifestazioni, nelle viste "a colpo d'occhio" (calendario,
+// elenco) mostriamo l'orario di partenza dalla sede invece di quello di
+// inizio evento: è quello che serve per organizzare i turni/uscite, mentre
+// "Ora inizio Evento" resta comunque visibile per esteso nella scheda
+// dettagliata del servizio. Se un vecchio evento non ha ancora questo campo
+// compilato, si ripiega sull'orario di inizio evento per non lasciare la
+// cella vuota.
+function orarioVisualizzatoServizio(s){
+  return (s.tipoScheda === 'evento' && s.oraPartenzaSedeEvento) ? s.oraPartenzaSedeEvento : s.alleOre;
 }
 function nomeVisualizzatoServizio(s){
   if(isModalitaRichiedente(s.tipoScheda)) return s.enteRichiedenteEvento || 'Evento';
