@@ -1822,9 +1822,13 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         <div class="signature-pad-wrap"><canvas id="rif-firma-canvas" class="signature-canvas"></canvas></div>
         <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firma-canvas')">Cancella firma</button>
       </div>
-      <div class="field"><label>Firma equipaggio</label>
-        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggioPz-canvas" class="signature-canvas"></canvas></div>
-        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggioPz-canvas')">Cancella firma</button>
+      <div class="field"><label>Firma equipaggio 1</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggioPz1-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggioPz1-canvas')">Cancella firma</button>
+      </div>
+      <div class="field"><label>Firma equipaggio 2</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggioPz2-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggioPz2-canvas')">Cancella firma</button>
       </div>
 
       <div class="grid2" style="grid-template-columns:repeat(2,1fr);">
@@ -1863,9 +1867,13 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         <div class="field"><label>Scadenza il</label><input type="date" id="rif-testDocScadenza"></div>
       </div>
       <div class="field"><label>Eventuali ulteriori annotazioni</label><textarea id="rif-annotazioniRifiutaFirma" rows="2"></textarea></div>
-      <div class="field"><label>Firma equipaggio</label>
-        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggio-canvas" class="signature-canvas"></canvas></div>
-        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggio-canvas')">Cancella firma</button>
+      <div class="field"><label>Firma equipaggio 1</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggio1-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggio1-canvas')">Cancella firma</button>
+      </div>
+      <div class="field"><label>Firma equipaggio 2</label>
+        <div class="signature-pad-wrap"><canvas id="rif-firmaEquipaggio2-canvas" class="signature-canvas"></canvas></div>
+        <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="clearFirma118('rif-firmaEquipaggio2-canvas')">Cancella firma</button>
       </div>
       <div class="field"><label>Firma testimone <span class="map-hint" style="font-weight:400;">(se presente)</span></label>
         <div class="signature-pad-wrap"><canvas id="rif-firmaTestimone-canvas" class="signature-canvas"></canvas></div>
@@ -6666,7 +6674,7 @@ const PATOLOGIA_118 = [['C1','Trauma (C1)'],['C2','Cardiocircolatoria (C2)'],['C
 const CODICE_INVIO_118 = [['rosso','R','#D64545','#fff'],['giallo','G','#F2C744','#000'],['verde','V','#3FA34D','#fff'],['bianco','B','#FFFFFF','#000']];
 const CODICE_SCENA_118 = [['rosso','R3','#D64545','#fff'],['giallo','G2','#F2C744','#000'],['verde','V1','#3FA34D','#fff'],['bianco','B0','#FFFFFF','#000'],['nero','N4','#1a1a1a','#fff']];
 const CUTE_118 = [['normale','Normale'],['pallida','Pallida'],['cianotica','Cianotica'],['iperemica','Iperemica'],['diaforetica','Diaforetica'],['marezzata','Marezzata'],['ipostasi','Ipostasi']];
-const FORZE_ORDINE_118 = [['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
+const FORZE_ORDINE_118 = [['carabinieri','Carabinieri'],['pol_stato','Pol. Stato'],['pol_municipale','Pol. Municipale'],['vvff','VV.FF.'],['altro','Altro']];
 const INTERVENTI_PAZIENTE_118 = [['o2','O2 Terapia'],['aspirazione','Aspirazione'],['ventMec','Ventilazione meccanica'],['ventMan','Ventilazione manuale'],['nivCpap','NIV-CPAP-PEEP'],['rcp','RCP'],['medicazione','Medicazione'],['collareCervicale','Collare cervicale'],['fermacapo','Fermacapo'],['asseSpinale','Asse spinale'],['cinghieRagno','Cinghie a ragno'],['barellaCucchiaio','Barella a cucchiaio'],['catetereVescicale','Catetere vescicale'],['emostasi','Emostasi'],['teloPortaferiti','Telo portaferiti'],['teliIsotermici','Teli isotermici'],['estricatoreKed','Estricatore KED'],['immobilizzazioneArti','Immobilizzazione arti'],['accessoVenoso','Accesso venoso'],['accessoIntraosseo','Accesso intraosseo'],['farmaciIntranasali','Farmaci intranasali']];
 const VALUTAZIONE_TRAUMA_118 = [
   ['investito','Investito', null],
@@ -7418,6 +7426,14 @@ function apriRifiutoSoccorsoModal(){
   document.getElementById('rif-annotazioniRifiutaFirma').value = d.annotazioniRifiutaFirma || '';
   rifiutoFotoFronte = d.fotoFronte || null;
   rifiutoFotoRetro = d.fotoRetro || null;
+  // Il campo <input type="file"> mantiene il nome dell'ultimo file scelto
+  // dal browser anche dopo aver richiuso e riaperto il modulo (i suoi
+  // elementi non vengono ricreati, solo nascosti): senza azzerarlo qui, una
+  // nuova scheda mostrava ancora "Immagine1.jpg" o simili, il nome del file
+  // caricato l'ultima volta su un'altra scheda, pur non avendo davvero
+  // ricaricato nulla per quella nuova.
+  document.getElementById('rif-fotoFronte-input').value = '';
+  document.getElementById('rif-fotoRetro-input').value = '';
   rifiutoUploadInCorso.fronte = false;
   rifiutoUploadInCorso.retro = false;
   aggiornaAnteprimaFotoRifiuto118('rif-fotoFronte-preview', rifiutoFotoFronte);
@@ -7427,10 +7443,14 @@ function apriRifiutoSoccorsoModal(){
   setTimeout(()=>{
     initSignaturePad('rif-firma-canvas');
     if(d.firma) drawFirmaFromDataUrl('rif-firma-canvas', d.firma);
-    initSignaturePad('rif-firmaEquipaggioPz-canvas');
-    drawFirmaFromDataUrl('rif-firmaEquipaggioPz-canvas', d.firmaEquipaggioPz || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value)));
-    initSignaturePad('rif-firmaEquipaggio-canvas');
-    drawFirmaFromDataUrl('rif-firmaEquipaggio-canvas', d.firmaEquipaggio || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value)));
+    initSignaturePad('rif-firmaEquipaggioPz1-canvas');
+    drawFirmaFromDataUrl('rif-firmaEquipaggioPz1-canvas', d.firmaEquipaggioPz1 || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value), 1));
+    initSignaturePad('rif-firmaEquipaggioPz2-canvas');
+    drawFirmaFromDataUrl('rif-firmaEquipaggioPz2-canvas', d.firmaEquipaggioPz2 || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value), 2));
+    initSignaturePad('rif-firmaEquipaggio1-canvas');
+    drawFirmaFromDataUrl('rif-firmaEquipaggio1-canvas', d.firmaEquipaggio1 || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value), 1));
+    initSignaturePad('rif-firmaEquipaggio2-canvas');
+    drawFirmaFromDataUrl('rif-firmaEquipaggio2-canvas', d.firmaEquipaggio2 || firmaEquipaggioPreesistente118(interventi118.find(x=>x.id===document.getElementById('e118-id').value), 2));
     initSignaturePad('rif-firmaTestimone-canvas');
     if(d.firmaTestimone) drawFirmaFromDataUrl('rif-firmaTestimone-canvas', d.firmaTestimone);
   }, 60);
@@ -7549,7 +7569,8 @@ function confermaRifiutoSoccorso(){
     docIl: document.getElementById('rif-docIl').value,
     docScadenza: document.getElementById('rif-docScadenza').value,
     firma: getFirmaDataUrl118('rif-firma-canvas'),
-    firmaEquipaggioPz: getFirmaDataUrl118('rif-firmaEquipaggioPz-canvas'),
+    firmaEquipaggioPz1: getFirmaDataUrl118('rif-firmaEquipaggioPz1-canvas'),
+    firmaEquipaggioPz2: getFirmaDataUrl118('rif-firmaEquipaggioPz2-canvas'),
     fotoFronte: rifiutoFotoFronte,
     fotoRetro: rifiutoFotoRetro,
     oraChiamataCO: document.getElementById('rif-oraChiamataCO').value,
@@ -7566,7 +7587,8 @@ function confermaRifiutoSoccorso(){
     testDocIl: document.getElementById('rif-testDocIl').value,
     testDocScadenza: document.getElementById('rif-testDocScadenza').value,
     annotazioniRifiutaFirma: document.getElementById('rif-annotazioniRifiutaFirma').value,
-    firmaEquipaggio: getFirmaDataUrl118('rif-firmaEquipaggio-canvas'),
+    firmaEquipaggio1: getFirmaDataUrl118('rif-firmaEquipaggio1-canvas'),
+    firmaEquipaggio2: getFirmaDataUrl118('rif-firmaEquipaggio2-canvas'),
     firmaTestimone: getFirmaDataUrl118('rif-firmaTestimone-canvas')
   };
   aggiornaStatoRifiuto118();
@@ -7691,6 +7713,7 @@ function renderElenco118(){
         <button class="action-btn" onclick="openScheda118Modal('${s.id}')">${(isChiuso && !haRuolo('amministratore'))?'👁 Visualizza':'✏️ Modifica'}</button>
         <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF</button>
         ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida</button>` : ''}
+        ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione</button>` : ''}
         ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canDeleteScheda118() ? `<button class="action-btn danger" onclick="deleteScheda118('${s.id}', this)">🗑 Elimina</button>` : ''}
       </div></td>
@@ -7904,18 +7927,19 @@ function firmaUtenteCorrente118(){
 }
 // Firma "dell'equipaggio" da usare per pre-compilare i campi Firma equipaggio
 // (rifiuto soccorso, relazione di servizio): deve corrispondere alla firma
-// già presente/precaricata dell'equipaggio di questa scheda — quella
-// dell'autista, se già firmata sulla scheda stessa, altrimenti quella
-// salvata nel profilo dell'autista assegnato (la stessa che precompila il
-// modulo di firma scheda), e solo come ultima risorsa quella dell'utente
-// che ha effettuato l'accesso in questo momento.
-function firmaEquipaggioPreesistente118(sch){
-  if(sch && sch.firmaAutista) return sch.firmaAutista;
-  if(sch && sch.firmaSoccorritore1) return sch.firmaSoccorritore1;
-  if(sch && sch.firmaSoccorritore2) return sch.firmaSoccorritore2;
-  const autista = document.getElementById('e118-autista')?.value;
-  const daProfiloAutista = firmaSalvataUtentePerNome(autista);
-  if(daProfiloAutista) return daProfiloAutista;
+// già presente/precaricata dell'equipaggio di questa scheda. Con due caselle
+// separate, la prima privilegia l'autista e la seconda il primo soccorritore
+// (se già firmate sulla scheda), così le due firme tendono a corrispondere a
+// due persone diverse dell'equipaggio invece di duplicare la stessa firma.
+function firmaEquipaggioPreesistente118(sch, indice){
+  const ordinePerIndice = indice === 2
+    ? [sch?.firmaSoccorritore1, sch?.firmaSoccorritore2, sch?.firmaAutista]
+    : [sch?.firmaAutista, sch?.firmaSoccorritore1, sch?.firmaSoccorritore2];
+  const daScheda = ordinePerIndice.find(Boolean);
+  if(daScheda) return daScheda;
+  const nomeRuolo = indice === 2 ? 'e118-soccorritore1' : 'e118-autista';
+  const daProfilo = firmaSalvataUtentePerNome(document.getElementById(nomeRuolo)?.value);
+  if(daProfilo) return daProfilo;
   return firmaUtenteCorrente118();
 }
 function apriFirmaSchedaModal(){
@@ -8074,6 +8098,23 @@ async function validaSchedaDefinitivamente118(id){
   if(!esito.ok){
     alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi validandola di nuovo, oppure segnala il problema.');
   }
+}
+// Annulla una validazione fatta per errore: riporta la scheda allo stato
+// "Da Validare" (ricompare il pulsante "Valida" per chi di dovere, e la
+// scheda torna a comparire tra le "Aperte"). Riservato all'amministratore.
+// Il PDF eventualmente già caricato su Drive NON viene rimosso qui: se la
+// scheda verrà corretta e validata di nuovo, verrà semplicemente sovrascritto.
+async function riapriValidazioneScheda118(id){
+  if(!haRuolo('amministratore')) return;
+  const scheda = interventi118.find(x=>x.id===id);
+  if(!scheda) return;
+  if(!confirm('Annullare la validazione di questa scheda? Tornerà tra le schede "Da Validare" e potrà essere corretta e validata di nuovo.')) return;
+  scheda.validata = false;
+  scheda.riapertaValidazioneDa = currentUser.nome+' '+currentUser.cognome;
+  scheda.riapertaValidazioneIl = new Date().toISOString();
+  scheda.aggiornatoIl = new Date().toISOString();
+  await saveInterventi118();
+  renderElenco118();
 }
 async function chiudiScheda118FromModal(){
   if(!canFirmareEccedenza()) return;
@@ -8596,24 +8637,32 @@ function costruisciStampaScheda118(s){
     </div>`;
     if(rifiutaFirma){
       html += `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;"><tr>
-        <td style="width:50%;text-align:center;padding:6px 12px 0;">
-          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggio?`<img src="${rd.firmaEquipaggio}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
-          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO</div>
+        <td style="width:33%;text-align:center;padding:6px 12px 0;">
+          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggio1?`<img src="${rd.firmaEquipaggio1}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
+          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO 1</div>
         </td>
-        <td style="width:50%;text-align:center;padding:6px 12px 0;">
+        <td style="width:33%;text-align:center;padding:6px 12px 0;">
+          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggio2?`<img src="${rd.firmaEquipaggio2}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
+          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO 2</div>
+        </td>
+        <td style="width:34%;text-align:center;padding:6px 12px 0;">
           <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaTestimone?`<img src="${rd.firmaTestimone}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
           <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA TESTIMONE (se presente)</div>
         </td>
       </tr></table>`;
     } else {
       html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><tr>
-        <td style="width:50%;text-align:center;padding:6px 12px 0;">
+        <td style="width:34%;text-align:center;padding:6px 12px 0;">
           <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firma?`<img src="${rd.firma}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
           <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA</div>
         </td>
-        <td style="width:50%;text-align:center;padding:6px 12px 0;">
-          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggioPz?`<img src="${rd.firmaEquipaggioPz}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
-          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO</div>
+        <td style="width:33%;text-align:center;padding:6px 12px 0;">
+          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggioPz1?`<img src="${rd.firmaEquipaggioPz1}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
+          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO 1</div>
+        </td>
+        <td style="width:33%;text-align:center;padding:6px 12px 0;">
+          <div style="height:40px;display:flex;align-items:flex-end;justify-content:center;">${rd.firmaEquipaggioPz2?`<img src="${rd.firmaEquipaggioPz2}" style="height:34px;max-width:150px;object-fit:contain;">`:''}</div>
+          <div style="border-top:1px solid #333;margin-top:2px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;color:#555;">FIRMA EQUIPAGGIO 2</div>
         </td>
       </tr></table>
       <div style="display:flex;gap:12px;">
