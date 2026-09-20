@@ -7481,23 +7481,57 @@ function cancellaUstioni118(){
 /* --- Firme touch --- */
 function initSignaturePad(canvasId){
   const canvas = document.getElementById(canvasId);
-  if(!canvas || canvas.dataset.inited) return;
-  canvas.dataset.inited = '1';
+  if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width || 300;
-  canvas.height = rect.height || 130;
-  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000000';
-  let drawing = false;
-  const pos = ev => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
-  canvas.addEventListener('pointerdown', ev=>{ drawing = true; canvas.dataset.hasInk = '1'; const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); });
-  canvas.addEventListener('pointermove', ev=>{ if(!drawing) return; const p = pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); });
-  window.addEventListener('pointerup', ()=>{ drawing = false; });
-  canvas.addEventListener('pointerup', ()=>{ drawing = false; });
+  // Dimensiona (o ridimensiona) il canvas usando la sua reale dimensione a
+  // schermo (CSS) moltiplicata per il rapporto pixel del dispositivo: senza
+  // questo, su schermi ad alta densità (la maggior parte di tablet/telefoni
+  // moderni) il segno tracciato non coincide con il punto toccato, e più ci
+  // si avvicina al bordo del riquadro più lo scarto aumenta. Viene anche
+  // rifatto se il canvas era stato inizializzato mentre era ancora nascosto
+  // (dimensione 0×0, es. dentro un modulo non ancora aperto o una scheda non
+  // ancora selezionata): in quel caso la dimensione reale si scopre solo al
+  // primo tocco, quando il riquadro è finalmente visibile.
+  function dimensionaSeNecessario(){
+    const rect = canvas.getBoundingClientRect();
+    if(!rect.width || !rect.height) return false;
+    if(canvas.dataset.cssWidth === String(rect.width) && canvas.dataset.cssHeight === String(rect.height)) return true;
+    const rapportoPixel = window.devicePixelRatio || 1;
+    // Ridimensionare un canvas ne azzera il contenuto: se conteneva già una
+    // firma (precaricata prima che il riquadro fosse visibile), la
+    // preserviamo e la ridisegniamo subito dopo alla dimensione corretta.
+    const firmaPrecedente = canvas.dataset.hasInk === '1' ? canvas.toDataURL('image/png') : null;
+    canvas.width = Math.round(rect.width * rapportoPixel);
+    canvas.height = Math.round(rect.height * rapportoPixel);
+    canvas.dataset.cssWidth = String(rect.width);
+    canvas.dataset.cssHeight = String(rect.height);
+    ctx.setTransform(rapportoPixel, 0, 0, rapportoPixel, 0, 0);
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000000';
+    if(firmaPrecedente){
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      img.src = firmaPrecedente;
+    }
+    return true;
+  }
+  if(!canvas.dataset.inited){
+    canvas.dataset.inited = '1';
+    let drawing = false;
+    const pos = ev => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+    canvas.addEventListener('pointerdown', ev=>{ dimensionaSeNecessario(); drawing = true; canvas.dataset.hasInk = '1'; const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); });
+    canvas.addEventListener('pointermove', ev=>{ if(!drawing) return; const p = pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); });
+    window.addEventListener('pointerup', ()=>{ drawing = false; });
+    canvas.addEventListener('pointerup', ()=>{ drawing = false; });
+  }
+  dimensionaSeNecessario();
 }
 function clearFirma118(canvasId){
   const canvas = document.getElementById(canvasId);
   if(!canvas) return;
+  // clearRect va sempre sull'intera superficie di disegno: usare le
+  // dimensioni reali del canvas (non quelle CSS) evita di lasciare un
+  // angolo non cancellato quando la superficie è più grande a causa del
+  // rapporto pixel del dispositivo (vedi initSignaturePad).
   canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   canvas.dataset.hasInk = '';
 }
@@ -7509,11 +7543,18 @@ function getFirmaDataUrl118(canvasId){
 function drawFirmaFromDataUrl(canvasId, dataUrl){
   const canvas = document.getElementById(canvasId);
   if(!canvas || !dataUrl) return;
+  initSignaturePad(canvasId);
   const ctx = canvas.getContext('2d');
   const img = new Image();
   img.onload = function(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Disegna sempre alla dimensione CSS (non a canvas.width/height, che ora
+    // sono in pixel "fisici" moltiplicati per il rapporto del dispositivo —
+    // vedi initSignaturePad): il contesto è già scalato di conseguenza.
+    const rapportoPixel = window.devicePixelRatio || 1;
+    const largoCss = canvas.dataset.cssWidth ? parseFloat(canvas.dataset.cssWidth) : canvas.width / rapportoPixel;
+    const altoCss = canvas.dataset.cssHeight ? parseFloat(canvas.dataset.cssHeight) : canvas.height / rapportoPixel;
+    ctx.clearRect(0, 0, largoCss, altoCss);
+    ctx.drawImage(img, 0, 0, largoCss, altoCss);
     canvas.dataset.hasInk = '1';
   };
   img.src = dataUrl;
