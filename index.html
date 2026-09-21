@@ -2102,10 +2102,30 @@ async function kvSet(key, value){
     });
     if(res.status === 401){ sessioneScaduta(); return; }
     if(!res.ok) throw new Error('risposta non ok');
+    // Cloudflare KV impiega fino a 60 secondi per propagare una scrittura a
+    // tutti i suoi nodi: un ricaricamento periodico dei dati (vedi
+    // ricaricaDatiCorrenti) capitato subito dopo poteva leggere ancora la
+    // versione precedente e sovrascrivere silenziosamente, solo a schermo,
+    // la modifica appena fatta — facendo sembrare che un'azione (es. "Valida"
+    // su una scheda 118) non avesse avuto effetto, e portando a ripeterla
+    // inutilmente (con conseguenze serie se nel frattempo genera anche un
+    // file su Drive, come duplicati con lo stesso nome). Registriamo quindi
+    // qui l'istante dell'ultimo salvataggio locale di questa chiave, per
+    // poterlo controllare prima di un eventuale ricaricamento automatico.
+    ultimiSalvataggiLocali[key] = Date.now();
   }catch(e){
     console.error('Errore salvataggio dati condivisi', e);
     alert('Attenzione: il salvataggio non è riuscito. Controlla la connessione e riprova.');
   }
+}
+const ultimiSalvataggiLocali = {};
+// Compromesso tra sicurezza e reattività: abbastanza breve da non ritardare
+// troppo la visibilità delle modifiche fatte da altri utenti sulla stessa
+// chiave, abbastanza lungo da coprire la finestra tipica di propagazione di
+// Cloudflare KV.
+const SOGLIA_ATTESA_PROPAGAZIONE_KV_MS = 20000;
+function salvatoLocalmenteDiRecente(chiave){
+  return (Date.now() - (ultimiSalvataggiLocali[chiave] || 0)) < SOGLIA_ATTESA_PROPAGAZIONE_KV_MS;
 }
 /* ============ DISCONNESSIONE AUTOMATICA PER INATTIVITÀ ============ */
 const INATTIVITA_LIMITE_MS = 5 * 60 * 1000; // 5 minuti senza alcuna attività (default)
@@ -2688,27 +2708,27 @@ async function ricaricaDatiCorrenti(){
   if(transizionePaziente118InCorso) return;
   const viewAttiva = document.querySelector('.view.active')?.id;
   try {
-    if(viewAttiva === 'view-elenco' || viewAttiva === 'view-dashboard' || viewAttiva === 'view-cestino' || viewAttiva === 'view-statistiche'){
+    if((viewAttiva === 'view-elenco' || viewAttiva === 'view-dashboard' || viewAttiva === 'view-cestino' || viewAttiva === 'view-statistiche') && !salvatoLocalmenteDiRecente('servizi-' + annoCorrenteServizi)){
       servizi = (await kvGet('servizi-' + annoCorrenteServizi)) || [];
     }
-    if(viewAttiva === 'view-fogli' || viewAttiva === 'view-cestino'){
+    if((viewAttiva === 'view-fogli' || viewAttiva === 'view-cestino') && !salvatoLocalmenteDiRecente('fogli-' + annoCorrenteFogli)){
       fogliMarcia = (await kvGet('fogli-' + annoCorrenteFogli)) || [];
     }
-    if(viewAttiva === 'view-eccedenza118'){
+    if(viewAttiva === 'view-eccedenza118' && !salvatoLocalmenteDiRecente('interventi118')){
       interventi118 = (await kvGet('interventi118')) || [];
     }
     if(viewAttiva === 'view-presidi' || viewAttiva === 'view-gestionepresidi'){
-      presidi = (await kvGet('presidi-magazzino')) || [];
-      prestiti = (await kvGet('prestiti-presidi')) || [];
+      if(!salvatoLocalmenteDiRecente('presidi-magazzino')) presidi = (await kvGet('presidi-magazzino')) || [];
+      if(!salvatoLocalmenteDiRecente('prestiti-presidi')) prestiti = (await kvGet('prestiti-presidi')) || [];
     }
     if(viewAttiva === 'view-turniscu'){
-      turniScu = (await kvGet('turniScu')) || {};
-      turniScuPubblicati = (await kvGet('turniScuPubblicati')) || {};
-      utenti = (await kvGet('utenti')) || [];
+      if(!salvatoLocalmenteDiRecente('turniScu')) turniScu = (await kvGet('turniScu')) || {};
+      if(!salvatoLocalmenteDiRecente('turniScuPubblicati')) turniScuPubblicati = (await kvGet('turniScuPubblicati')) || {};
+      if(!salvatoLocalmenteDiRecente('utenti')) utenti = (await kvGet('utenti')) || [];
     }
     // Il numero di guasti aperti sul contatore del menu deve restare
     // aggiornato anche quando non si è sulla pagina "Guasti mezzi".
-    if(canGestireGuastiMezzi()){
+    if(canGestireGuastiMezzi() && !salvatoLocalmenteDiRecente('guastiMezzi')){
       guastiMezzi = (await kvGet('guastiMezzi')) || [];
       aggiornaBadgeGuastiMezzi();
     }
