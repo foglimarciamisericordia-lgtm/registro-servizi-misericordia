@@ -2715,29 +2715,56 @@ async function ricaricaDatiCorrenti(){
   if(transizionePaziente118InCorso) return;
   const viewAttiva = document.querySelector('.view.active')?.id;
   try {
+    // NB: in ognuno dei blocchi seguenti, salvatoLocalmenteDiRecente viene
+    // ricontrollato ANCHE dopo l'attesa della fetch (non solo prima di
+    // avviarla): senza questo secondo controllo, se un salvataggio locale
+    // arrivava proprio mentre la fetch di rilettura era già partita, il dato
+    // riletto (potenzialmente meno recente) veniva comunque applicato,
+    // sovrascrivendo in memoria un salvataggio più fresco.
     if((viewAttiva === 'view-elenco' || viewAttiva === 'view-dashboard' || viewAttiva === 'view-cestino' || viewAttiva === 'view-statistiche') && !salvatoLocalmenteDiRecente('servizi-' + annoCorrenteServizi)){
-      servizi = (await kvGet('servizi-' + annoCorrenteServizi)) || [];
+      const datiFreschi = (await kvGet('servizi-' + annoCorrenteServizi)) || [];
+      if(!salvatoLocalmenteDiRecente('servizi-' + annoCorrenteServizi)) servizi = datiFreschi;
     }
     if((viewAttiva === 'view-fogli' || viewAttiva === 'view-cestino') && !salvatoLocalmenteDiRecente('fogli-' + annoCorrenteFogli)){
-      fogliMarcia = (await kvGet('fogli-' + annoCorrenteFogli)) || [];
+      const datiFreschi = (await kvGet('fogli-' + annoCorrenteFogli)) || [];
+      if(!salvatoLocalmenteDiRecente('fogli-' + annoCorrenteFogli)) fogliMarcia = datiFreschi;
     }
-    if(viewAttiva === 'view-eccedenza118' && !salvatoLocalmenteDiRecente('interventi118')){
-      interventi118 = (await kvGet('interventi118')) || [];
+    if(viewAttiva === 'view-eccedenza118' && !salvatoLocalmenteDiRecente('interventi118') && !transizionePaziente118InCorso){
+      const datiFreschi = (await kvGet('interventi118')) || [];
+      if(!salvatoLocalmenteDiRecente('interventi118') && !transizionePaziente118InCorso) interventi118 = datiFreschi;
     }
     if(viewAttiva === 'view-presidi' || viewAttiva === 'view-gestionepresidi'){
-      if(!salvatoLocalmenteDiRecente('presidi-magazzino')) presidi = (await kvGet('presidi-magazzino')) || [];
-      if(!salvatoLocalmenteDiRecente('prestiti-presidi')) prestiti = (await kvGet('prestiti-presidi')) || [];
+      if(!salvatoLocalmenteDiRecente('presidi-magazzino')){
+        const datiFreschi = (await kvGet('presidi-magazzino')) || [];
+        if(!salvatoLocalmenteDiRecente('presidi-magazzino')) presidi = datiFreschi;
+      }
+      if(!salvatoLocalmenteDiRecente('prestiti-presidi')){
+        const datiFreschi = (await kvGet('prestiti-presidi')) || [];
+        if(!salvatoLocalmenteDiRecente('prestiti-presidi')) prestiti = datiFreschi;
+      }
     }
     if(viewAttiva === 'view-turniscu'){
-      if(!salvatoLocalmenteDiRecente('turniScu')) turniScu = (await kvGet('turniScu')) || {};
-      if(!salvatoLocalmenteDiRecente('turniScuPubblicati')) turniScuPubblicati = (await kvGet('turniScuPubblicati')) || {};
-      if(!salvatoLocalmenteDiRecente('utenti')) utenti = (await kvGet('utenti')) || [];
+      if(!salvatoLocalmenteDiRecente('turniScu')){
+        const datiFreschi = (await kvGet('turniScu')) || {};
+        if(!salvatoLocalmenteDiRecente('turniScu')) turniScu = datiFreschi;
+      }
+      if(!salvatoLocalmenteDiRecente('turniScuPubblicati')){
+        const datiFreschi = (await kvGet('turniScuPubblicati')) || {};
+        if(!salvatoLocalmenteDiRecente('turniScuPubblicati')) turniScuPubblicati = datiFreschi;
+      }
+      if(!salvatoLocalmenteDiRecente('utenti')){
+        const datiFreschi = (await kvGet('utenti')) || [];
+        if(!salvatoLocalmenteDiRecente('utenti')) utenti = datiFreschi;
+      }
     }
     // Il numero di guasti aperti sul contatore del menu deve restare
     // aggiornato anche quando non si è sulla pagina "Guasti mezzi".
     if(canGestireGuastiMezzi() && !salvatoLocalmenteDiRecente('guastiMezzi')){
-      guastiMezzi = (await kvGet('guastiMezzi')) || [];
-      aggiornaBadgeGuastiMezzi();
+      const datiFreschi = (await kvGet('guastiMezzi')) || [];
+      if(!salvatoLocalmenteDiRecente('guastiMezzi')){
+        guastiMezzi = datiFreschi;
+        aggiornaBadgeGuastiMezzi();
+      }
     }
     if(viewAttiva === 'view-elenco'){ renderElenco(); }
     if(viewAttiva === 'view-dashboard'){ renderCalendar(); }
@@ -8429,18 +8456,33 @@ async function validaSchedaDefinitivamente118(id, bottone){
   // istante, e senza questo avviso sembrava che il primo click non avesse
   // avuto alcun effetto, inducendo a premere una seconda volta.
   if(bottone){ bottone.disabled = true; bottone.textContent = '⏳ Validazione in corso...'; }
-  const adesso = new Date().toISOString();
-  membriGruppo.forEach(p => {
-    p.validata = true;
-    p.validataDa = currentUser.nome+' '+currentUser.cognome;
-    p.validataIl = adesso;
-    p.aggiornatoIl = adesso;
-  });
-  await saveInterventi118();
-  renderElenco118();
-  const esito = await salvaPdfGruppoSuDriveInBackground118(scheda.gruppoInterventoId, id);
-  if(!esito.ok){
-    alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi validandola di nuovo, oppure segnala il problema.');
+  // Protezione fondamentale: la generazione del PDF (html2canvas) più
+  // l'upload su Drive può impiegare ben più dei 70 secondi coperti da
+  // salvatoLocalmenteDiRecente (specie con più pazienti/foto o connessione
+  // lenta) — senza questo blocco, un aggiornamento automatico dei dati
+  // (ogni 45s o al ritorno del focus sulla finestra) scattato a metà
+  // dell'operazione poteva rimpiazzare interamente interventi118 con dati
+  // non ancora aggiornati, facendo "sparire" a schermo la validazione appena
+  // fatta e, ai click successivi, generare PDF duplicati su Drive (perché
+  // pdfDriveFileId risultava perso). Riusiamo lo stesso flag già usato per
+  // le altre operazioni critiche su interventi118.
+  transizionePaziente118InCorso = true;
+  try {
+    const adesso = new Date().toISOString();
+    membriGruppo.forEach(p => {
+      p.validata = true;
+      p.validataDa = currentUser.nome+' '+currentUser.cognome;
+      p.validataIl = adesso;
+      p.aggiornatoIl = adesso;
+    });
+    await saveInterventi118();
+    renderElenco118();
+    const esito = await salvaPdfGruppoSuDriveInBackground118(scheda.gruppoInterventoId, id);
+    if(!esito.ok){
+      alert('La scheda è stata validata correttamente, ma il salvataggio del PDF su Drive non è riuscito (' + esito.errore + '). Riprova più tardi validandola di nuovo, oppure segnala il problema.');
+    }
+  } finally {
+    transizionePaziente118InCorso = false;
   }
 }
 // Annulla una validazione fatta per errore: riporta la scheda allo stato
@@ -8462,15 +8504,23 @@ async function riapriValidazioneScheda118(id, bottone){
     : 'Annullare la validazione di questa scheda? Tornerà tra le schede "Da Validare" e potrà essere corretta e validata di nuovo.';
   if(!confirm(messaggio)) return;
   if(bottone){ bottone.disabled = true; bottone.textContent = '⏳ Riapertura in corso...'; }
-  const adesso = new Date().toISOString();
-  membriGruppo.forEach(p => {
-    p.validata = false;
-    p.riapertaValidazioneDa = currentUser.nome+' '+currentUser.cognome;
-    p.riapertaValidazioneIl = adesso;
-    p.aggiornatoIl = adesso;
-  });
-  await saveInterventi118();
-  renderElenco118();
+  // Stessa protezione usata in validaSchedaDefinitivamente118: evita che un
+  // aggiornamento automatico dei dati, scattato proprio durante il
+  // salvataggio, sovrascriva in memoria il risultato appena ottenuto.
+  transizionePaziente118InCorso = true;
+  try {
+    const adesso = new Date().toISOString();
+    membriGruppo.forEach(p => {
+      p.validata = false;
+      p.riapertaValidazioneDa = currentUser.nome+' '+currentUser.cognome;
+      p.riapertaValidazioneIl = adesso;
+      p.aggiornatoIl = adesso;
+    });
+    await saveInterventi118();
+    renderElenco118();
+  } finally {
+    transizionePaziente118InCorso = false;
+  }
 }
 async function chiudiScheda118FromModal(){
   if(!canFirmareEccedenza()) return;
