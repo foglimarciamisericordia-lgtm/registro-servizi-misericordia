@@ -2869,10 +2869,10 @@ function canManageUsers(){ return haRuolo('amministratore'); }
 // Dashboard, Elenco servizi, Prestito presidi: solo Volontario e SCU (oltre
 // ad Amministratore). Nessun altro livello li porta con sé.
 function canVedereServizi(){ return haRuolo('operatore') || haRuolo('scu'); }
-// Assegnare l'equipaggio/mezzo e chiudere un servizio: solo Responsabile
-// Servizi, indipendentemente dagli altri livelli selezionati.
+// Assegnare l'equipaggio/mezzo e chiudere un servizio: Responsabile Servizi
+// e SCU, indipendentemente dagli altri livelli selezionati.
 function canEditEquipaggio(){ return haRuolo('responsabile') || haRuolo('scu'); }
-function canCloseService(){ return haRuolo('responsabile'); }
+function canCloseService(){ return haRuolo('responsabile') || haRuolo('scu'); }
 function canEditServizio(sv){
   if(haRuolo('amministratore')) return true;
   if(sv && sv.chiuso) return false;
