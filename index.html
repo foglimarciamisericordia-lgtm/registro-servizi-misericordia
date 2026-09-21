@@ -2444,6 +2444,7 @@ async function aggiornaIndiceServizi(anno){
   }
 }
 async function saveServizi(){
+  await kvSet('servizi-' + annoCorrenteServizi, servizi);
   await aggiornaIndiceServizi(annoCorrenteServizi);
 }
 async function salvaUnServizio(servizioObj, anno){
@@ -4147,6 +4148,28 @@ async function eliminaUtenteDefinitivo(id){
   await saveUtenti();
   renderCestino();
 }
+// "Elimina tutto definitivamente" della sezione Utenti: come per la singola
+// eliminazione, salta (lasciandolo nel cestino) l'eventuale amministratore
+// che risulterebbe l'unico rimasto attivo, ed avvisa se qualcuno è stato
+// saltato per questo motivo.
+async function eliminaTuttiUtentiDefinitivo(){
+  const cestinati = utenti.filter(u=>u.cestinato);
+  if(cestinati.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutti i ${cestinati.length} utenti nel cestino? L'azione non è reversibile.`)) return;
+  const daRimuovere = cestinati.filter(u => !(ruoliUtente(u).includes('amministratore') && ultimoAmministratoreAttivo(u.id)));
+  const saltati = cestinati.length - daRimuovere.length;
+  if(daRimuovere.length === 0){
+    alert('Nessun utente è stato eliminato: risultava/risultavano l\'unico amministratore attivo.');
+    return;
+  }
+  const idsDaRimuovere = daRimuovere.map(u=>u.id);
+  utenti = utenti.filter(u => !idsDaRimuovere.includes(u.id));
+  await saveUtenti();
+  if(saltati > 0){
+    alert(`Eliminati definitivamente ${daRimuovere.length} utenti su ${cestinati.length}: ${saltati} non eliminato/i perché risultava/no l'unico amministratore attivo.`);
+  }
+  renderCestino();
+}
 
 /* ============ IL MIO ACCOUNT ============ */
 function openAccountModal(forzato){
@@ -4434,6 +4457,31 @@ async function eliminaMezzoDefinitivo(id){
   await saveMezzi();
   renderCestino();
 }
+// "Elimina tutto definitivamente" della sezione Mezzi: come per la
+// singola eliminazione, salta (lasciandoli nel cestino) i mezzi ancora
+// collegati a servizi o fogli di marcia esistenti, per non perdere lo
+// storico — ed avvisa alla fine quanti ne sono stati effettivamente
+// eliminati rispetto al totale.
+async function eliminaTuttiMezziDefinitivo(){
+  const cestinati = mezzi.filter(m=>m.cestinato);
+  if(cestinati.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutti i ${cestinati.length} mezzi nel cestino? L'azione non è reversibile. I mezzi ancora collegati a servizi o fogli di marcia esistenti verranno saltati e resteranno nel cestino.`)) return;
+  const idsDaRimuovere = [];
+  for(const m of cestinati){
+    const collegato = await mezzoHaDatiCollegati(m.id);
+    if(!collegato) idsDaRimuovere.push(m.id);
+  }
+  if(idsDaRimuovere.length === 0){
+    alert('Nessun mezzo è stato eliminato: sono tutti ancora collegati a servizi o fogli di marcia esistenti.');
+    return;
+  }
+  mezzi = mezzi.filter(m => !idsDaRimuovere.includes(m.id));
+  await saveMezzi();
+  if(idsDaRimuovere.length < cestinati.length){
+    alert(`Eliminati definitivamente ${idsDaRimuovere.length} mezzi su ${cestinati.length}: gli altri sono ancora collegati a servizi o fogli di marcia esistenti e restano nel cestino.`);
+  }
+  renderCestino();
+}
 function opzioniMezzoSelect(valoreCorrente){
   const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.bloccato));
   if(mezzi.length === 0) return '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
@@ -4547,6 +4595,14 @@ async function eliminaTariffaDefinitivo(id){
   await saveRimborsi();
   renderCestino();
 }
+async function eliminaTutteTariffeDefinitivo(){
+  const cestinate = rimborsi.filter(r=>r.cestinato);
+  if(cestinate.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutte le ${cestinate.length} tariffe nel cestino? L'azione non è reversibile.`)) return;
+  rimborsi = rimborsi.filter(r=>!r.cestinato);
+  await saveRimborsi();
+  renderCestino();
+}
 function editMaggiorazione(id){
   const m = maggiorazioniOssigeno.find(x=>x.id===id);
   if(!m) return;
@@ -4595,6 +4651,14 @@ async function ripristinaMaggiorazioneCestino(id){
 async function eliminaMaggiorazioneDefinitivo(id){
   if(!confirm('Eliminare definitivamente questa maggiorazione?')) return;
   maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m=>m.id!==id);
+  await saveMaggiorazioni();
+  renderCestino();
+}
+async function eliminaTutteMaggiorazioniDefinitivo(){
+  const cestinate = maggiorazioniOssigeno.filter(m=>m.cestinato);
+  if(cestinate.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutte le ${cestinate.length} maggiorazioni nel cestino? L'azione non è reversibile.`)) return;
+  maggiorazioniOssigeno = maggiorazioniOssigeno.filter(m=>!m.cestinato);
   await saveMaggiorazioni();
   renderCestino();
 }
@@ -5049,6 +5113,19 @@ async function eliminaServizioDefinitivoECestino(id, anno){
   await eliminaUnServizio(id, anno);
   renderCestino();
 }
+// "Elimina tutto definitivamente" della sezione Servizi del Cestino: agisce
+// solo sull'anno attualmente selezionato (annoCorrenteServizi), come mostrato
+// nel titolo della sezione — non tocca il cestino di altri anni.
+async function eliminaTuttiServiziDefinitivo(){
+  const lista = await fetchServiziAnno(annoCorrenteServizi);
+  const cestinati = lista.filter(s=>s.cestinato);
+  if(cestinati.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutti i ${cestinati.length} servizi nel cestino (anno ${annoCorrenteServizi})? L'azione non è reversibile.`)) return;
+  const aggiornati = lista.filter(s=>!s.cestinato);
+  await kvSet('servizi-' + annoCorrenteServizi, aggiornati);
+  servizi = aggiornati;
+  renderCestino();
+}
 async function riparaServiziSenzaId(){
   if(!haRuolo('amministratore')) return;
   if(!confirm('Cercare e riparare i servizi con ID o dati mancanti, in tutti gli anni disponibili? Dopo la riparazione potrai modificarli o eliminarli normalmente.')) return;
@@ -5086,9 +5163,12 @@ async function renderCestino(){
     const restano = Math.max(0, Math.ceil(GIORNI_CONSERVAZIONE_CESTINO - giorniTrascorsi(dataIso)));
     return `${formatDateTime(dataIso)} — eliminato tra ${restano} giorno${restano===1?'':'i'}`;
   };
-  const sezione = (titolo, elementi, renderRiga) => {
+  const sezione = (titolo, elementi, renderRiga, eliminaTuttoFn) => {
     if(elementi.length === 0) return `<div class="section-title">${titolo}</div><div class="empty-state">Cestino vuoto.</div>`;
-    return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Elemento</th><th>Cestinato il</th><th></th></tr></thead><tbody>${elementi.map(renderRiga).join('')}</tbody></table>`;
+    const bottoneEliminaTutto = eliminaTuttoFn
+      ? `<button class="action-btn danger" onclick="${eliminaTuttoFn}()">🗑 Elimina tutto definitivamente</button>`
+      : '';
+    return `<div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span>${titolo}</span>${bottoneEliminaTutto}</div><table class="mini-table"><thead><tr><th>Elemento</th><th>Cestinato il</th><th></th></tr></thead><tbody>${elementi.map(renderRiga).join('')}</tbody></table>`;
   };
 
   let html = '';
@@ -5097,7 +5177,7 @@ async function renderCestino(){
     <td>${formatNumeroServizio(s.numeroProgressivo, s.numeroAnno)} — ${escapeHtml(nomeVisualizzatoServizio(s))}</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(s.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaServizioECestino('${s.id}',${s.numeroAnno})">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaServizioDefinitivoECestino('${s.id}',${s.numeroAnno})">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTuttiServiziDefinitivo');
 
   html += sezione(`Fogli di marcia (anno ${annoCorrenteFogli})`, fogliMarcia.filter(f=>f.cestinato), f => {
     const mezzo = mezzi.find(x=>x.id===f.mezzoId);
@@ -5105,37 +5185,37 @@ async function renderCestino(){
     <td>N° ${f.numeroProgressivo} — ${mezzo?(escapeHtml(mezzo.tipo)+' '+escapeHtml(mezzo.targa)):''}</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(f.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaFoglioCestino('${f.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaFoglioDefinitivo('${f.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`;});
+  </tr>`;}, 'eliminaTuttiFogliDefinitivo');
 
   html += sezione('Mezzi', mezzi.filter(m=>m.cestinato), m => `<tr>
     <td>${escapeHtml(m.tipo)} — ${escapeHtml(m.targa)}</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(m.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaMezzoCestino('${m.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaMezzoDefinitivo('${m.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTuttiMezziDefinitivo');
 
   html += sezione('Utenti', utenti.filter(u=>u.cestinato), u => `<tr>
     <td>${escapeHtml(u.nome)} ${escapeHtml(u.cognome)} (@${escapeHtml(u.username)})</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(u.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaUtenteCestino('${u.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaUtenteDefinitivo('${u.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTuttiUtentiDefinitivo');
 
   html += sezione('Tariffe rimborso', rimborsi.filter(r=>r.cestinato), r => `<tr>
     <td>${escapeHtml(r.comunePartenza)} → ${escapeHtml(r.comuneArrivo)} (${escapeHtml(r.tipoMezzo||'Qualsiasi')})</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(r.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaTariffaCestino('${r.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaTariffaDefinitivo('${r.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTutteTariffeDefinitivo');
 
   html += sezione('Maggiorazioni ossigeno', maggiorazioniOssigeno.filter(m=>m.cestinato), m => `<tr>
     <td>${m.flussoDa}-${m.flussoA} L/min</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(m.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaMaggiorazioneCestino('${m.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaMaggiorazioneDefinitivo('${m.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTutteMaggiorazioniDefinitivo');
 
   html += sezione('Schede 118', interventi118.filter(s=>s.cestinato), s => `<tr>
     <td>${formattaNumeroScheda118(s)} — ${escapeHtml(((s.cognome||'')+' '+(s.nome||'')).trim() || 'Paziente non indicato')}</td>
     <td class="mono" style="font-size:11.5px;">${formatResiduo(s.cestinatoIl)}</td>
     <td><div class="row-actions"><button class="action-btn primary" onclick="ripristinaSchedaCestino118('${s.id}')">↺ Ripristina</button> <button class="action-btn danger" onclick="eliminaSchedaDefinitivo118('${s.id}')">🗑 Elimina definitivo</button></div></td>
-  </tr>`);
+  </tr>`, 'eliminaTutteSchedeDefinitivo118');
 
   document.getElementById('cestino-container').innerHTML = html;
 }
@@ -5323,6 +5403,16 @@ async function ripristinaFoglioCestino(id){
 async function eliminaFoglioDefinitivo(id){
   if(!confirm('Eliminare definitivamente questa riga del foglio di marcia?')) return;
   fogliMarcia = fogliMarcia.filter(x=>x.id!==id);
+  await saveFogliMarciaData();
+  renderCestino();
+}
+// "Elimina tutto definitivamente" della sezione Fogli di marcia: agisce solo
+// sull'anno attualmente selezionato (annoCorrenteFogli).
+async function eliminaTuttiFogliDefinitivo(){
+  const cestinati = fogliMarcia.filter(f=>f.cestinato);
+  if(cestinati.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutte le ${cestinati.length} righe del foglio di marcia nel cestino (anno ${annoCorrenteFogli})? L'azione non è reversibile.`)) return;
+  fogliMarcia = fogliMarcia.filter(f=>!f.cestinato);
   await saveFogliMarciaData();
   renderCestino();
 }
@@ -8107,6 +8197,14 @@ async function ripristinaSchedaCestino118(id){
 async function eliminaSchedaDefinitivo118(id){
   if(!confirm('Eliminare definitivamente questa scheda 118? L\'azione non è reversibile.')) return;
   interventi118 = interventi118.filter(x=>x.id!==id);
+  await saveInterventi118();
+  renderCestino();
+}
+async function eliminaTutteSchedeDefinitivo118(){
+  const cestinate = interventi118.filter(s=>s.cestinato);
+  if(cestinate.length === 0) return;
+  if(!confirm(`Eliminare definitivamente tutte le ${cestinate.length} schede 118 nel cestino? L'azione non è reversibile.`)) return;
+  interventi118 = interventi118.filter(s=>!s.cestinato);
   await saveInterventi118();
   renderCestino();
 }
