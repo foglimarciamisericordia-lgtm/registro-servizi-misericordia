@@ -2119,11 +2119,18 @@ async function kvSet(key, value){
   }
 }
 const ultimiSalvataggiLocali = {};
-// Compromesso tra sicurezza e reattività: abbastanza breve da non ritardare
-// troppo la visibilità delle modifiche fatte da altri utenti sulla stessa
-// chiave, abbastanza lungo da coprire la finestra tipica di propagazione di
-// Cloudflare KV.
-const SOGLIA_ATTESA_PROPAGAZIONE_KV_MS = 20000;
+// Cloudflare dichiara che una scrittura può impiegare fino a 60 secondi per
+// propagarsi a tutti i suoi nodi nel caso peggiore: un valore più basso
+// (provato inizialmente a 20s) si è rivelato insufficiente nella pratica —
+// bastava controllare con calma il risultato su Drive prima di tornare sul
+// sito per superare la soglia e ricadere nello stesso problema. Usiamo
+// quindi il limite massimo dichiarato da Cloudflare più un margine di
+// sicurezza, accettando che le modifiche fatte da altri utenti sulla stessa
+// chiave possano metterci fino a un minuto abbondante a comparire in
+// automatico: è un compromesso preferibile al rischio di far sembrare che
+// un'azione come "Valida" non abbia funzionato, inducendo a ripeterla e a
+// creare doppioni su Drive.
+const SOGLIA_ATTESA_PROPAGAZIONE_KV_MS = 70000;
 function salvatoLocalmenteDiRecente(chiave){
   return (Date.now() - (ultimiSalvataggiLocali[chiave] || 0)) < SOGLIA_ATTESA_PROPAGAZIONE_KV_MS;
 }
