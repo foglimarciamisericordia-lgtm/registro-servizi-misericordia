@@ -6066,11 +6066,6 @@ async function renderStatistiche(){
   const righeMezzo = [...mezzoIds].map(id=>({ nome: nomeMezzo(id), conteggio: perMezzoConteggio[id]||0, km: kmPerMezzo[id]||0 }))
     .sort((a,b)=> b.conteggio - a.conteggio);
 
-  // Compilatore del foglio di marcia (chi ha registrato l'uscita effettiva),
-  // non più l'ultimo operatore che ha toccato il servizio programmato.
-  const perOperatore = {};
-  fogliFiltrati.forEach(f=>{ const k = f.compilatore || 'Sconosciuto'; perOperatore[k] = (perOperatore[k]||0)+1; });
-
   const perMotivazione = {};
   fogliFiltrati.forEach(f=>{ const k = f.motivazioneServizio || 'Non specificata'; perMotivazione[k] = (perMotivazione[k]||0)+1; });
 
@@ -6165,7 +6160,6 @@ async function renderStatistiche(){
     tabellaMezzoMese +
     tabellaMezzo +
     tabellaRimborsoMezzo +
-    tabellaSemplice('Servizi effettivi per compilatore del foglio di marcia', perOperatore) +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
 }
 function stampaStatistiche(){
