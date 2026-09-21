@@ -6038,7 +6038,6 @@ async function renderStatistiche(){
     : '';
 
   const serviziFiltrati = servizi.filter(s => nelPeriodo(s.perGiorno));
-  const totaleServizi = serviziFiltrati.length;
 
   const perStato = {verde:0, giallo:0, rosso:0};
   serviziFiltrati.forEach(s=>{ if(perStato[s.stato]!==undefined) perStato[s.stato]++; });
@@ -6046,21 +6045,31 @@ async function renderStatistiche(){
   const fogliAnno = await fetchFogliAnno(annoCorrenteServizi);
   const fogliFiltrati = fogliAnno.filter(f => nelPeriodo(f.dataPartenza));
 
+  // I conteggi "servizi" delle statistiche (totale, per mese, per mezzo, per
+  // mezzo e mese) si basano sui fogli di marcia — le uscite EFFETTIVAMENTE
+  // registrate — e non sui servizi programmati: un servizio programmato può
+  // essere annullato, spostato di data, o essere infine svolto con un mezzo
+  // diverso da quello assegnato in fase di programmazione. Il foglio di
+  // marcia riflette invece ciò che è realmente avvenuto.
+  const totaleServizi = fogliFiltrati.length;
+
   const nomeMezzo = id => {
     const m = mezzi.find(x=>x.id===id);
     return m ? (m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa) : 'Non assegnato';
   };
 
   const perMezzoConteggio = {};
-  serviziFiltrati.forEach(s=>{ const k = s.mezzoId || ''; perMezzoConteggio[k] = (perMezzoConteggio[k]||0)+1; });
+  fogliFiltrati.forEach(f=>{ const k = f.mezzoId || ''; perMezzoConteggio[k] = (perMezzoConteggio[k]||0)+1; });
   const kmPerMezzo = {};
   fogliFiltrati.forEach(f=>{ const k = f.mezzoId || ''; kmPerMezzo[k] = (kmPerMezzo[k]||0) + (parseFloat(f.kmTotale)||0); });
   const mezzoIds = new Set([...Object.keys(perMezzoConteggio), ...Object.keys(kmPerMezzo)]);
   const righeMezzo = [...mezzoIds].map(id=>({ nome: nomeMezzo(id), conteggio: perMezzoConteggio[id]||0, km: kmPerMezzo[id]||0 }))
     .sort((a,b)=> b.conteggio - a.conteggio);
 
+  // Compilatore del foglio di marcia (chi ha registrato l'uscita effettiva),
+  // non più l'ultimo operatore che ha toccato il servizio programmato.
   const perOperatore = {};
-  serviziFiltrati.forEach(s=>{ const k = s.ultimoOperatore || s.operatoreInserimento || 'Sconosciuto'; perOperatore[k] = (perOperatore[k]||0)+1; });
+  fogliFiltrati.forEach(f=>{ const k = f.compilatore || 'Sconosciuto'; perOperatore[k] = (perOperatore[k]||0)+1; });
 
   const perMotivazione = {};
   fogliFiltrati.forEach(f=>{ const k = f.motivazioneServizio || 'Non specificata'; perMotivazione[k] = (perMotivazione[k]||0)+1; });
@@ -6084,20 +6093,21 @@ async function renderStatistiche(){
   const nomiMesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
   const perMese = Array(12).fill(0);
-  serviziFiltrati.forEach(s=>{
-    if(s.perGiorno){
-      const d = new Date(s.perGiorno+'T00:00:00');
+  fogliFiltrati.forEach(f=>{
+    if(f.dataPartenza){
+      const d = new Date(f.dataPartenza+'T00:00:00');
       if(d.getFullYear() === annoCorrenteServizi) perMese[d.getMonth()]++;
     }
   });
 
-  // Servizi per mezzo, suddivisi per mese, con totale di riga e di colonna.
+  // Servizi (fogli di marcia effettivi) per mezzo, suddivisi per mese, con
+  // totale di riga e di colonna.
   const perMezzoMese = {};
-  serviziFiltrati.forEach(s=>{
-    if(!s.perGiorno) return;
-    const d = new Date(s.perGiorno+'T00:00:00');
+  fogliFiltrati.forEach(f=>{
+    if(!f.dataPartenza) return;
+    const d = new Date(f.dataPartenza+'T00:00:00');
     if(d.getFullYear() !== annoCorrenteServizi) return;
-    const k = s.mezzoId || '';
+    const k = f.mezzoId || '';
     if(!perMezzoMese[k]) perMezzoMese[k] = Array(12).fill(0);
     perMezzoMese[k][d.getMonth()]++;
   });
@@ -6107,14 +6117,14 @@ async function renderStatistiche(){
   }).sort((a,b)=> b.totale - a.totale);
 
   const cardsHtml = `
-    <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;">Dati riferiti all'anno ${annoCorrenteServizi}${periodoLabel} (cambia anno dalla barra laterale, periodo dal filtro qui sopra)</p>
+    <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;">Dati riferiti all'anno ${annoCorrenteServizi}${periodoLabel} (cambia anno dalla barra laterale, periodo dal filtro qui sopra). I conteggi dei servizi si basano sulle uscite effettivamente registrate nei fogli di marcia, non sui servizi programmati.</p>
     <div class="users-grid" style="margin-bottom:24px;">
-      <div class="user-card"><div class="nm" style="font-size:22px;">${totaleServizi}</div><div class="un">Servizi totali registrati</div></div>
-      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.verde}</div><div class="un">Confermati</div></div>
-      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.giallo}</div><div class="un">Da confermare</div></div>
-      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.rosso}</div><div class="un">Annullati</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">${totaleServizi}</div><div class="un">Servizi effettivi registrati (fogli di marcia)</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.verde}</div><div class="un">Servizi programmati confermati</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.giallo}</div><div class="un">Servizi programmati da confermare</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.rosso}</div><div class="un">Servizi programmati annullati</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">${kmTotaliGenerali}</div><div class="un">Km totali percorsi (fogli di marcia)</div></div>
-      <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoTotaleSuggerito.toFixed(2)}</div><div class="un">Totale rimborso spese suggerito</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoTotaleSuggerito.toFixed(2)}</div><div class="un">Totale rimborso spese suggerito (servizi programmati)</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoRicevutoTotale.toFixed(2)}</div><div class="un">Totale rimborso spese ricevuto (ricevute carburante sui fogli di marcia)</div></div>
     </div>`;
 
@@ -6124,15 +6134,15 @@ async function renderStatistiche(){
     return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Voce</th><th>Conteggio</th></tr></thead><tbody>${righe.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td class="mono">${v}</td></tr>`).join('')}</tbody></table>`;
   };
 
-  const tabellaMese = `<div class="section-title">Servizi per mese (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
+  const tabellaMese = `<div class="section-title">Servizi effettivi per mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
 
   const tabellaMezzo = righeMezzo.length
-    ? `<div class="section-title">Servizi per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Servizi</th><th>Km totali (fogli di marcia)</th></tr></thead><tbody>${righeMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.conteggio}</td><td class="mono">${r.km}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="section-title">Servizi per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
+    ? `<div class="section-title">Servizi effettivi per mezzo, da fogli di marcia${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Servizi</th><th>Km totali (fogli di marcia)</th></tr></thead><tbody>${righeMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.conteggio}</td><td class="mono">${r.km}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="section-title">Servizi effettivi per mezzo, da fogli di marcia${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
   let tabellaMezzoMese;
   if(righeMezzoMese.length === 0){
-    tabellaMezzoMese = `<div class="section-title">Servizi per mezzo e mese (${annoCorrenteServizi})</div><div class="empty-state">Nessun dato.</div>`;
+    tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><div class="empty-state">Nessun dato.</div>`;
   } else {
     const totaliColonna = Array(12).fill(0);
     let totaleComplessivo = 0;
@@ -6142,7 +6152,7 @@ async function renderStatistiche(){
       return `<tr><td>${escapeHtml(r.nome)}</td>${r.perMese.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono"><strong>${r.totale}</strong></td></tr>`;
     }).join('');
     const rigaTotali = `<tr style="font-weight:700;"><td>Totale</td>${totaliColonna.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono">${totaleComplessivo}</td></tr>`;
-    tabellaMezzoMese = `<div class="section-title">Servizi per mezzo e mese (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th></tr></thead><tbody>${righeHtml}${rigaTotali}</tbody></table>`;
+    tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th></tr></thead><tbody>${righeHtml}${rigaTotali}</tbody></table>`;
   }
 
   const tabellaRimborsoMezzo = righeRimborsoMezzo.length
@@ -6155,7 +6165,7 @@ async function renderStatistiche(){
     tabellaMezzoMese +
     tabellaMezzo +
     tabellaRimborsoMezzo +
-    tabellaSemplice('Servizi per operatore (ultima modifica)', perOperatore) +
+    tabellaSemplice('Servizi effettivi per compilatore del foglio di marcia', perOperatore) +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
 }
 function stampaStatistiche(){
