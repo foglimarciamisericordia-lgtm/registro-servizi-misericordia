@@ -2013,6 +2013,11 @@ let salvataggioServizioInCorso = false;
 let fogliMarcia = [];
 let editingFoglioId = null;
 let servizioCollegatoFoglio = null;
+// Foglio di marcia da cui è stata avviata l'ultima segnalazione guasto (se
+// avviata direttamente da una riga dell'elenco Fogli di marcia, o dal foglio
+// aperto in modifica): permette di collegare la segnalazione a equipaggio e
+// numero servizio di quel foglio. Vedi apriSegnalaGuastoModal/salvaSegnalazioneGuasto.
+let guastoSegnalazioneFoglioId = null;
 let annoCorrenteServizi = new Date().getFullYear();
 let anniDisponibiliServizi = [];
 let annoCorrenteFogli = new Date().getFullYear();
@@ -3435,10 +3440,27 @@ function aggiornaBadgeGuastiMezzi(){
   badge.style.display = aperti > 0 ? 'inline-block' : 'none';
   badge.textContent = aperti;
 }
-function apriSegnalaGuastoModal(){
+function apriSegnalaGuastoModal(foglioId){
+  // Se il pulsante è cliccato da una riga dell'elenco Fogli di marcia,
+  // foglioId arriva esplicitamente (anche se undefined non verrebbe mai
+  // passato da lì, essendo sempre un id reale). Se invece il pulsante è
+  // quello dentro il modal di compilazione/modifica foglio, foglioId non
+  // viene passato: colleghiamo comunque al foglio in modifica se già
+  // esistente (editingFoglioId), altrimenti a nessun foglio.
+  guastoSegnalazioneFoglioId = (foglioId !== undefined) ? foglioId : editingFoglioId;
   document.getElementById('gm-mezzoId').innerHTML = mezziOrdinati(mezzi.filter(m=>!m.archiviato))
     .map(m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
-  const mezzoCorrente = document.getElementById('fm-mezzoId').value;
+  // Il mezzo da preselezionare: da una riga dell'elenco usiamo il mezzo di
+  // quella riga; dall'interno del modal di compilazione/modifica usiamo
+  // invece il valore attualmente scelto nel form (anche se non ancora
+  // salvato), come già faceva questa funzione.
+  let mezzoCorrente;
+  if(foglioId !== undefined){
+    const foglioRiferimento = fogliMarcia.find(x=>x.id===foglioId);
+    mezzoCorrente = foglioRiferimento ? foglioRiferimento.mezzoId : '';
+  } else {
+    mezzoCorrente = document.getElementById('fm-mezzoId').value;
+  }
   if(mezzoCorrente) document.getElementById('gm-mezzoId').value = mezzoCorrente;
   document.getElementById('gm-descrizione').value = '';
   document.getElementById('gm-gravita').value = 'media';
@@ -3446,9 +3468,16 @@ function apriSegnalaGuastoModal(){
 }
 function closeSegnalaGuastoModal(){
   document.getElementById('segnala-guasto-modal-backdrop').classList.remove('active');
+  guastoSegnalazioneFoglioId = null;
 }
 async function salvaSegnalazioneGuasto(ev){
   ev.preventDefault();
+  // "Fotografiamo" equipaggio e numero servizio del foglio collegato (se
+  // presente) al momento della segnalazione: restano così leggibili nella
+  // scheda del guasto anche se in seguito il foglio o il servizio vengono
+  // modificati, cestinati o eliminati.
+  const foglioRiferimento = guastoSegnalazioneFoglioId ? fogliMarcia.find(x=>x.id===guastoSegnalazioneFoglioId) : null;
+  const servizioRiferimento = foglioRiferimento?.servizioId ? servizi.find(s=>s.id===foglioRiferimento.servizioId) : null;
   const guasto = {
     id: 'guasto-' + Date.now(),
     mezzoId: document.getElementById('gm-mezzoId').value,
@@ -3457,7 +3486,12 @@ async function salvaSegnalazioneGuasto(ev){
     segnalatoDa: currentUser.nome + ' ' + currentUser.cognome,
     segnalatoIl: new Date().toISOString(),
     stato: 'aperto',
-    risoltoDa: null, risoltoIl: null, notaRisoluzione: ''
+    risoltoDa: null, risoltoIl: null, notaRisoluzione: '',
+    foglioId: foglioRiferimento ? foglioRiferimento.id : null,
+    numeroServizio: servizioRiferimento ? formatNumeroServizio(servizioRiferimento.numeroProgressivo, servizioRiferimento.numeroAnno) : null,
+    autista: foglioRiferimento?.autista || null,
+    soccorritore1: foglioRiferimento?.soccorritore1 || null,
+    soccorritore2: foglioRiferimento?.soccorritore2 || null,
   };
   guastiMezzi.push(guasto);
   await saveGuastiMezzi();
@@ -3467,10 +3501,11 @@ async function salvaSegnalazioneGuasto(ev){
   // resto del flusso se l'invio fallisce (es. token Google scaduto): la
   // segnalazione resta comunque visibile in app con il suo contatore.
   try {
+    const equipaggioTestoEmail = [guasto.autista, guasto.soccorritore1, guasto.soccorritore2].filter(Boolean).join(', ') || '—';
     await inviaEmailViaWorker(
       null,
       `Nuovo guasto segnalato — ${nomeMezzoPerGuasto(guasto.mezzoId)}`,
-      `È stato segnalato un nuovo guasto.\n\nMezzo: ${nomeMezzoPerGuasto(guasto.mezzoId)}\nGravità: ${GRAVITA_GUASTO_LABEL[guasto.gravita]||guasto.gravita}\nDescrizione: ${guasto.descrizione}\nSegnalato da: ${guasto.segnalatoDa}\nData: ${new Date(guasto.segnalatoIl).toLocaleString('it-IT')}\n\nApri la sezione "Guasti mezzi" per i dettagli.`,
+      `È stato segnalato un nuovo guasto.\n\nMezzo: ${nomeMezzoPerGuasto(guasto.mezzoId)}\nServizio: ${guasto.numeroServizio || 'Nessun servizio collegato'}\nEquipaggio: ${equipaggioTestoEmail}\nGravità: ${GRAVITA_GUASTO_LABEL[guasto.gravita]||guasto.gravita}\nDescrizione: ${guasto.descrizione}\nSegnalato da: ${guasto.segnalatoDa}\nData: ${new Date(guasto.segnalatoIl).toLocaleString('it-IT')}\n\nApri la sezione "Guasti mezzi" per i dettagli.`,
       null, null,
       'responsabile_mezzi'
     );
@@ -3529,6 +3564,7 @@ function renderGuastiMezzi(){
     const colGravita = GRAVITA_GUASTO_COLORE[g.gravita] || { bg:'#E2E3E5', fg:'#333' };
     const mezzo = mezzi.find(m=>m.id===g.mezzoId);
     const mezzoBloccato = !!mezzo?.bloccato;
+    const equipaggioTesto = [g.autista, g.soccorritore1, g.soccorritore2].filter(Boolean).join(', ');
     return `
     <div class="user-card" style="border-left:4px solid ${g.stato==='aperto' ? '#B23A24' : '#1E6B45'};">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
@@ -3540,7 +3576,8 @@ function renderGuastiMezzi(){
           <span style="display:inline-block;padding:5px 14px;border-radius:8px;background:${g.stato==='risolto' ? '#DCEBE1' : '#FBE1DC'};color:${g.stato==='risolto' ? '#1E6B45' : '#B23A24'};font-weight:700;font-size:13px;">${g.stato==='risolto' ? 'Risolto' : 'Aperto'}</span>
         </div>
       </div>
-      <p style="margin:10px 0;font-size:13.5px;">${escapeHtml(g.descrizione)}</p>
+      <p style="margin:10px 0;font-size:13.5px;font-weight:700;">${escapeHtml(g.descrizione)}</p>
+      ${(g.numeroServizio || equipaggioTesto) ? `<p class="map-hint">${g.numeroServizio ? 'Servizio n° '+escapeHtml(g.numeroServizio) : 'Nessun servizio collegato'}${equipaggioTesto ? ' — Equipaggio: '+escapeHtml(equipaggioTesto) : ''}</p>` : ''}
       <p class="map-hint">Segnalato da ${escapeHtml(g.segnalatoDa)} il ${new Date(g.segnalatoIl).toLocaleString('it-IT')}</p>
       ${g.stato==='risolto' ? `<p class="map-hint">Risolto da ${escapeHtml(g.risoltoDa||'—')} il ${g.risoltoIl ? new Date(g.risoltoIl).toLocaleString('it-IT') : '—'}${g.notaRisoluzione ? ' — '+escapeHtml(g.notaRisoluzione) : ''}</p>` : ''}
       <div class="row-actions" style="margin-top:8px;">
@@ -4721,6 +4758,7 @@ function renderFogliMarcia(){
       <td>${escapeHtml(f.compilatore||'—')}</td>
       <td><div class="row-actions">
         <button class="action-btn" onclick="viewFoglioModal('${f.id}')">👁 Visualizza</button>
+        <button class="action-btn" style="color:#B23A24;" onclick="apriSegnalaGuastoModal('${f.id}')">⚠️ Segnala guasto</button>
         ${isAdmin?`<button class="action-btn primary" onclick="openFoglioModal('${f.id}')">✎ Modifica</button> <button class="action-btn danger" onclick="deleteFoglio('${f.id}')">🗑 Elimina</button>`:''}
       </div></td>
     </tr>`;
