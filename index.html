@@ -7977,8 +7977,8 @@ function renderElenco118(){
     const cellaAzioniGruppo = eCollegataRiga ? '' : `<td rowspan="${membriGruppo.length}" style="text-align:center;vertical-align:middle;background:var(--surface-1,#f7f8fa);border-left:1px solid #e3e6ea;">
       <div class="row-actions-gruppo">
         <button class="action-btn" onclick="viewStampaScheda118('${s.id}')">👁 Anteprima PDF${etichettaGruppo}</button>
-        ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}')">✅ Valida${etichettaGruppo}</button>` : ''}
-        ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}')">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
+        ${(canChiudereEccedenza() && !isChiuso) ? `<button class="action-btn" onclick="validaSchedaDefinitivamente118('${s.id}', this)">✅ Valida${etichettaGruppo}</button>` : ''}
+        ${(s.validata && haRuolo('amministratore')) ? `<button class="action-btn" onclick="riapriValidazioneScheda118('${s.id}', this)">↺ Riapri validazione${etichettaGruppo}</button>` : ''}
         ${(s.firmata && !foglioGiaCompilato) ? `<button class="action-btn" onclick="generaFoglioDaScheda118('${s.id}')">🚐 Foglio marcia</button>` : ''}
         ${canInviareEmailScheda118(s) ? `<button class="action-btn" onclick="apriInviaEmailScheda118DaElenco('${s.id}')">✉️ Invia email</button>` : ''}
       </div>
@@ -8382,7 +8382,7 @@ async function saveScheda118(event){
 // un amministratore) e genera/aggiorna il PDF su Drive. Se la scheda era già
 // stata validata in precedenza (riaperta e corretta da un amministratore),
 // il PDF viene sovrascritto invece di crearne uno nuovo.
-async function validaSchedaDefinitivamente118(id){
+async function validaSchedaDefinitivamente118(id, bottone){
   if(!canChiudereEccedenza()) return;
   const scheda = interventi118.find(x=>x.id===id);
   if(!scheda) return;
@@ -8397,6 +8397,11 @@ async function validaSchedaDefinitivamente118(id){
     ? `Confermi la validazione definitiva di questo intervento (${membriGruppo.length} pazienti)? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato un unico PDF su Drive con tutti i pazienti.`
     : 'Confermi la validazione definitiva di questa scheda? Dopo la validazione sarà riapribile solo da un amministratore, e verrà generato il PDF su Drive.';
   if(!confirm(messaggio)) return;
+  // Disabilita subito il pulsante e mostra che l'operazione è in corso: il
+  // salvataggio (scrittura dati + upload del PDF su Drive) richiede qualche
+  // istante, e senza questo avviso sembrava che il primo click non avesse
+  // avuto alcun effetto, inducendo a premere una seconda volta.
+  if(bottone){ bottone.disabled = true; bottone.textContent = '⏳ Validazione in corso...'; }
   const adesso = new Date().toISOString();
   membriGruppo.forEach(p => {
     p.validata = true;
@@ -8418,7 +8423,7 @@ async function validaSchedaDefinitivamente118(id){
 // solo passaggio. Il PDF eventualmente già caricato su Drive NON viene
 // rimosso qui: se la scheda verrà corretta e validata di nuovo, verrà
 // semplicemente sovrascritto.
-async function riapriValidazioneScheda118(id){
+async function riapriValidazioneScheda118(id, bottone){
   if(!haRuolo('amministratore')) return;
   const scheda = interventi118.find(x=>x.id===id);
   if(!scheda) return;
@@ -8429,6 +8434,7 @@ async function riapriValidazioneScheda118(id){
     ? `Annullare la validazione di questo intervento (${membriGruppo.length} pazienti)? Tornerà tra le schede "Da Validare" e potrà essere corretto e validato di nuovo.`
     : 'Annullare la validazione di questa scheda? Tornerà tra le schede "Da Validare" e potrà essere corretta e validata di nuovo.';
   if(!confirm(messaggio)) return;
+  if(bottone){ bottone.disabled = true; bottone.textContent = '⏳ Riapertura in corso...'; }
   const adesso = new Date().toISOString();
   membriGruppo.forEach(p => {
     p.validata = false;
