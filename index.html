@@ -2871,7 +2871,7 @@ function canManageUsers(){ return haRuolo('amministratore'); }
 function canVedereServizi(){ return haRuolo('operatore') || haRuolo('scu'); }
 // Assegnare l'equipaggio/mezzo e chiudere un servizio: solo Responsabile
 // Servizi, indipendentemente dagli altri livelli selezionati.
-function canEditEquipaggio(){ return haRuolo('responsabile'); }
+function canEditEquipaggio(){ return haRuolo('responsabile') || haRuolo('scu'); }
 function canCloseService(){ return haRuolo('responsabile'); }
 function canEditServizio(sv){
   if(haRuolo('amministratore')) return true;
