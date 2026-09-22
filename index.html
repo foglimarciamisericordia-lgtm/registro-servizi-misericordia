@@ -2931,8 +2931,8 @@ function canInviareEmailScheda118(sch){
 // Un utente SCU vede il calendario (i propri turni e quelli dei colleghi),
 // ma non può modificarlo. Solo Responsabile SCU (o Amministratore) può
 // impostare i turni.
-function canVedereTurniScu(){ return haRuolo('scu') || haRuolo('responsabileScu'); }
-function canGestireTurniScu(){ return haRuolo('responsabileScu'); }
+function canVedereTurniScu(){ return haRuolo('scu') || haRuolo('responsabileScu') || haRuolo('responsabileMezzi') || haRuolo('responsabile118') || haRuolo('responsabile'); }
+function canGestireTurniScu(){ return haRuolo('responsabileScu') || haRuolo('responsabileMezzi') || haRuolo('responsabile118') || haRuolo('responsabile'); }
 // --- Permessi Guasti Mezzi ---
 // Chiunque compili un foglio di marcia può segnalare un guasto (non serve un
 // livello dedicato). Solo Responsabile Mezzi (o Amministratore) vede
@@ -3171,7 +3171,12 @@ async function stampaPdfGrigliaTurniScu(){
   document.body.appendChild(paginaCattura);
   try {
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const canvas = await html2canvas(paginaCattura, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    // Risoluzione 2x (non 3x) e JPEG compresso invece di PNG: per una
+    // tabella di testo come questa il risultato resta perfettamente
+    // leggibile, ma il file finale pesa una frazione (un PNG a piena
+    // risoluzione di una griglia larga con molte righe/colonne arrivava
+    // a decine di MB).
+    const canvas = await html2canvas(paginaCattura, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
     const larghezzaPagina = pdf.internal.pageSize.getWidth();
@@ -3187,8 +3192,8 @@ async function stampaPdfGrigliaTurniScu(){
     const x = (larghezzaPagina - larghezzaFinale) / 2;
     const y = margine;
 
-    const immagineDati = canvas.toDataURL('image/png');
-    pdf.addImage(immagineDati, 'PNG', x, y, larghezzaFinale, altezzaFinale);
+    const immagineDati = canvas.toDataURL('image/jpeg', 0.85);
+    pdf.addImage(immagineDati, 'JPEG', x, y, larghezzaFinale, altezzaFinale);
 
     const nomeFile = 'turni-scu-' + etichettaSettimana.replace(/[^0-9a-zA-Z]+/g, '_') + '.pdf';
     pdf.save(nomeFile);
