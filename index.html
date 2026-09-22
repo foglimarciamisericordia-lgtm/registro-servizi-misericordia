@@ -3594,10 +3594,12 @@ function renderSituazioneMezzi(){
 
 let editingSituazioneMezzoId = null;
 let formSituazioneMezzoAperto = null; // null | 'assicurazione' | 'revisione' | 'revisioneSanitaria' | 'manutenzione'
+let voceRegistroMezzoInModifica = null; // la voce di registro in modifica (null = form per una nuova registrazione)
 
 function apriSituazioneMezzoModal(mezzoId){
   editingSituazioneMezzoId = mezzoId;
   formSituazioneMezzoAperto = null;
+  voceRegistroMezzoInModifica = null;
   renderDettaglioSituazioneMezzo();
   document.getElementById('situazione-mezzo-modal-backdrop').classList.add('active');
 }
@@ -3605,9 +3607,37 @@ function closeSituazioneMezzoModal(){
   document.getElementById('situazione-mezzo-modal-backdrop').classList.remove('active');
   editingSituazioneMezzoId = null;
   formSituazioneMezzoAperto = null;
+  voceRegistroMezzoInModifica = null;
 }
+// Apre il form per una NUOVA registrazione (pulsante "+ Registra"): se la
+// stessa sezione era già aperta in modalità "nuovo", la richiude; se era
+// aperta in modalità "modifica" di una voce esistente, la porta invece a un
+// form vuoto per una nuova voce.
 function apriFormSituazioneMezzo(sezione){
-  formSituazioneMezzoAperto = (formSituazioneMezzoAperto === sezione) ? null : sezione;
+  if(formSituazioneMezzoAperto === sezione && !voceRegistroMezzoInModifica){
+    formSituazioneMezzoAperto = null;
+  } else {
+    formSituazioneMezzoAperto = sezione;
+    voceRegistroMezzoInModifica = null;
+  }
+  renderDettaglioSituazioneMezzo();
+}
+// Apre il form precompilato con i dati di una voce già registrata (pulsante ✎).
+function modificaVoceRegistroMezzo(chiave, voceId){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const campo = CHIAVE_REGISTRO_MEZZO[chiave];
+  const voce = campo && (m[campo]||[]).find(v=>v.id===voceId);
+  if(!voce) return;
+  formSituazioneMezzoAperto = chiave;
+  voceRegistroMezzoInModifica = voce;
+  renderDettaglioSituazioneMezzo();
+}
+// Chiude qualunque form aperto (pulsante "Annulla"), sia in modalità nuovo
+// che in modalità modifica.
+function chiudiFormSituazioneMezzo(){
+  formSituazioneMezzoAperto = null;
+  voceRegistroMezzoInModifica = null;
   renderDettaglioSituazioneMezzo();
 }
 
@@ -3616,10 +3646,11 @@ function renderDettaglioSituazioneMezzo(){
   if(!m) return;
   document.getElementById('situazione-mezzo-titolo').textContent = m.tipo + (m.codice?' — '+m.codice:'') + ' — ' + m.targa;
   const r = riepilogoSituazioneMezzo(m);
+  const vm = voceRegistroMezzoInModifica; // voce in modifica per la sezione attualmente aperta (null = form vuoto)
 
   const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
     const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td><div class="row-actions"><button class="action-btn" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></div></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
     return `
     <div class="user-card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -3647,17 +3678,17 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
     `<div class="grid2" style="margin-top:10px;">
-      <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Nuova scadenza *</label><input type="date" id="sm-assicurazione-scadenza"></div>
-      <div class="field"><label>Presso (compagnia/agenzia)</label><input type="text" id="sm-assicurazione-presso" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).presso||'')}"></div>
-      <div class="field"><label>N° polizza</label><input type="text" id="sm-assicurazione-numeroPolizza" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).numeroPolizza||'')}"></div>
-      <div class="field"><label>Costo sostenuto €</label><input type="number" step="0.01" id="sm-assicurazione-costo"></div>
+      <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Nuova scadenza *</label><input type="date" id="sm-assicurazione-scadenza" value="${vm ? (vm.scadenza||'') : ''}"></div>
+      <div class="field"><label>Presso (compagnia/agenzia)</label><input type="text" id="sm-assicurazione-presso" value="${escapeHtml(vm ? (vm.presso||'') : ((ultimaVoceRegistro(m.registroAssicurazione)||{}).presso||''))}"></div>
+      <div class="field"><label>N° polizza</label><input type="text" id="sm-assicurazione-numeroPolizza" value="${escapeHtml(vm ? (vm.numeroPolizza||'') : ((ultimaVoceRegistro(m.registroAssicurazione)||{}).numeroPolizza||''))}"></div>
+      <div class="field"><label>Costo sostenuto €</label><input type="number" step="0.01" id="sm-assicurazione-costo" value="${vm && vm.costo!=null ? vm.costo : ''}"></div>
     </div>
-    <div class="field"><label>Link PDF polizza (su Drive)</label><input type="url" id="sm-assicurazione-linkPdf" placeholder="https://drive.google.com/..."></div>
-    <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoAnnuale" checked> <label for="sm-assicurazione-rinnovoAnnuale" style="margin:0;">Rinnovo annuale</label></div>
+    <div class="field"><label>Link PDF polizza (su Drive)</label><input type="url" id="sm-assicurazione-linkPdf" value="${escapeHtml(vm ? (vm.linkPdf||'') : '')}" placeholder="https://drive.google.com/..."></div>
+    <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoAnnuale" ${(vm ? !!vm.rinnovoAnnuale : true) ? 'checked' : ''}> <label for="sm-assicurazione-rinnovoAnnuale" style="margin:0;">Rinnovo annuale</label></div>
     <div class="row-actions" style="margin-top:6px;">
-      <button type="button" class="action-btn primary" onclick="salvaRegistroAssicurazioneMezzo()">Salva</button>
-      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('assicurazione')">Annulla</button>
+      <button type="button" class="action-btn primary" onclick="salvaRegistroAssicurazioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
+      <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
     </div>`
   );
 
@@ -3668,13 +3699,13 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Note', valore:v=>v.note||'' }
     ],
     `<div class="grid2" style="margin-top:10px;">
-      <div class="field"><label>Data revisione *</label><input type="date" id="sm-revisione-data" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Km (facoltativo)</label><input type="number" id="sm-revisione-km"></div>
+      <div class="field"><label>Data revisione *</label><input type="date" id="sm-revisione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Km (facoltativo)</label><input type="number" id="sm-revisione-km" value="${vm && vm.km!=null ? vm.km : ''}"></div>
     </div>
-    <div class="field"><label>Note</label><input type="text" id="sm-revisione-note"></div>
+    <div class="field"><label>Note</label><input type="text" id="sm-revisione-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
     <div class="row-actions" style="margin-top:6px;">
-      <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneMezzo()">Salva</button>
-      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('revisione')">Annulla</button>
+      <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
+      <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
     </div>`
   );
 
@@ -3682,13 +3713,15 @@ function renderDettaglioSituazioneMezzo(){
     html += sezione('revisioneSanitaria', 'Revisione sanitaria (ogni 2 anni)', r.revisioneSanitaria, m.registroRevisioneSanitaria,
       [
         { titolo:'Data', valore:v=>formatDataIt(v.data) },
-        { titolo:'Note', valore:v=>v.note||'' }
+        { titolo:'Note', valore:v=>v.note||'' },
+        { titolo:'PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
       ],
-      `<div class="field" style="margin-top:10px;"><label>Data revisione sanitaria *</label><input type="date" id="sm-revisioneSanitaria-data" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Note</label><input type="text" id="sm-revisioneSanitaria-note"></div>
+      `<div class="field" style="margin-top:10px;"><label>Data revisione sanitaria *</label><input type="date" id="sm-revisioneSanitaria-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Note</label><input type="text" id="sm-revisioneSanitaria-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
+      <div class="field"><label>Link PDF (su Drive)</label><input type="url" id="sm-revisioneSanitaria-linkPdf" value="${escapeHtml(vm ? (vm.linkPdf||'') : '')}" placeholder="https://drive.google.com/..."></div>
       <div class="row-actions" style="margin-top:6px;">
-        <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneSanitariaMezzo()">Salva</button>
-        <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('revisioneSanitaria')">Annulla</button>
+        <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneSanitariaMezzo()">${vm?'Salva modifiche':'Salva'}</button>
+        <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
       </div>`
     );
   }
@@ -3703,20 +3736,20 @@ function renderDettaglioSituazioneMezzo(){
     ],
     `<p class="map-hint" style="margin-top:8px;">Km attuali noti (dall'ultimo foglio di marcia): ${kmAttuali!=null ? kmAttuali : 'non disponibili'}</p>
     <div class="grid2" style="margin-top:6px;">
-      <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${kmAttuali!=null?kmAttuali:''}"></div>
+      <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
     </div>
     <div class="field"><label>Tipo intervento *</label>
       <select id="sm-manutenzione-tipo">
-        <option value="tagliando">Tagliando ordinario</option>
-        <option value="riparazione">Riparazione</option>
-        <option value="altro">Altro</option>
+        <option value="tagliando" ${(!vm || vm.tipo==='tagliando')?'selected':''}>Tagliando ordinario</option>
+        <option value="riparazione" ${(vm && vm.tipo==='riparazione')?'selected':''}>Riparazione</option>
+        <option value="altro" ${(vm && vm.tipo==='altro')?'selected':''}>Altro</option>
       </select>
     </div>
-    <div class="field"><label>Note</label><input type="text" id="sm-manutenzione-note"></div>
+    <div class="field"><label>Note</label><input type="text" id="sm-manutenzione-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
     <div class="row-actions" style="margin-top:6px;">
-      <button type="button" class="action-btn primary" onclick="salvaRegistroManutenzioneMezzo()">Salva</button>
-      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('manutenzione')">Annulla</button>
+      <button type="button" class="action-btn primary" onclick="salvaRegistroManutenzioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
+      <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
     </div>`
   );
 
@@ -3730,18 +3763,21 @@ async function salvaRegistroAssicurazioneMezzo(){
   const scadenza = document.getElementById('sm-assicurazione-scadenza').value;
   if(!data || !scadenza){ alert('Inserisci data del rinnovo e nuova scadenza.'); return; }
   if(!m.registroAssicurazione) m.registroAssicurazione = [];
-  m.registroAssicurazione.push({
-    id: 'ass-' + Date.now(),
+  const valori = {
     data, scadenza,
     presso: document.getElementById('sm-assicurazione-presso').value.trim(),
     numeroPolizza: document.getElementById('sm-assicurazione-numeroPolizza').value.trim(),
     rinnovoAnnuale: document.getElementById('sm-assicurazione-rinnovoAnnuale').checked,
     costo: document.getElementById('sm-assicurazione-costo').value || null,
     linkPdf: document.getElementById('sm-assicurazione-linkPdf').value.trim() || null
-  });
+  };
+  if(voceRegistroMezzoInModifica){
+    Object.assign(voceRegistroMezzoInModifica, valori);
+  } else {
+    m.registroAssicurazione.push({ id: 'ass-' + Date.now(), ...valori });
+  }
   await saveMezzi();
-  formSituazioneMezzoAperto = null;
-  renderDettaglioSituazioneMezzo();
+  chiudiFormSituazioneMezzo();
   renderSituazioneMezzi();
   aggiornaBadgeGuastiMezzi();
 }
@@ -3751,15 +3787,18 @@ async function salvaRegistroRevisioneMezzo(){
   const data = document.getElementById('sm-revisione-data').value;
   if(!data){ alert('Inserisci la data della revisione.'); return; }
   if(!m.registroRevisioni) m.registroRevisioni = [];
-  m.registroRevisioni.push({
-    id: 'rev-' + Date.now(),
+  const valori = {
     data,
     km: document.getElementById('sm-revisione-km').value || null,
     note: document.getElementById('sm-revisione-note').value.trim()
-  });
+  };
+  if(voceRegistroMezzoInModifica){
+    Object.assign(voceRegistroMezzoInModifica, valori);
+  } else {
+    m.registroRevisioni.push({ id: 'rev-' + Date.now(), ...valori });
+  }
   await saveMezzi();
-  formSituazioneMezzoAperto = null;
-  renderDettaglioSituazioneMezzo();
+  chiudiFormSituazioneMezzo();
   renderSituazioneMezzi();
   aggiornaBadgeGuastiMezzi();
 }
@@ -3769,14 +3808,18 @@ async function salvaRegistroRevisioneSanitariaMezzo(){
   const data = document.getElementById('sm-revisioneSanitaria-data').value;
   if(!data){ alert('Inserisci la data della revisione sanitaria.'); return; }
   if(!m.registroRevisioneSanitaria) m.registroRevisioneSanitaria = [];
-  m.registroRevisioneSanitaria.push({
-    id: 'revsan-' + Date.now(),
+  const valori = {
     data,
-    note: document.getElementById('sm-revisioneSanitaria-note').value.trim()
-  });
+    note: document.getElementById('sm-revisioneSanitaria-note').value.trim(),
+    linkPdf: document.getElementById('sm-revisioneSanitaria-linkPdf').value.trim() || null
+  };
+  if(voceRegistroMezzoInModifica){
+    Object.assign(voceRegistroMezzoInModifica, valori);
+  } else {
+    m.registroRevisioneSanitaria.push({ id: 'revsan-' + Date.now(), ...valori });
+  }
   await saveMezzi();
-  formSituazioneMezzoAperto = null;
-  renderDettaglioSituazioneMezzo();
+  chiudiFormSituazioneMezzo();
   renderSituazioneMezzi();
   aggiornaBadgeGuastiMezzi();
 }
@@ -3786,16 +3829,19 @@ async function salvaRegistroManutenzioneMezzo(){
   const data = document.getElementById('sm-manutenzione-data').value;
   if(!data){ alert('Inserisci la data dell\'intervento.'); return; }
   if(!m.registroManutenzioni) m.registroManutenzioni = [];
-  m.registroManutenzioni.push({
-    id: 'man-' + Date.now(),
+  const valori = {
     data,
     km: document.getElementById('sm-manutenzione-km').value || null,
     tipo: document.getElementById('sm-manutenzione-tipo').value,
     note: document.getElementById('sm-manutenzione-note').value.trim()
-  });
+  };
+  if(voceRegistroMezzoInModifica){
+    Object.assign(voceRegistroMezzoInModifica, valori);
+  } else {
+    m.registroManutenzioni.push({ id: 'man-' + Date.now(), ...valori });
+  }
   await saveMezzi();
-  formSituazioneMezzoAperto = null;
-  renderDettaglioSituazioneMezzo();
+  chiudiFormSituazioneMezzo();
   renderSituazioneMezzi();
   aggiornaBadgeGuastiMezzi();
 }
@@ -3807,6 +3853,10 @@ async function eliminaVoceRegistroMezzo(chiave, voceId){
   const campo = CHIAVE_REGISTRO_MEZZO[chiave];
   if(!campo || !m[campo]) return;
   m[campo] = m[campo].filter(v=>v.id!==voceId);
+  if(voceRegistroMezzoInModifica && voceRegistroMezzoInModifica.id === voceId){
+    formSituazioneMezzoAperto = null;
+    voceRegistroMezzoInModifica = null;
+  }
   await saveMezzi();
   renderDettaglioSituazioneMezzo();
   renderSituazioneMezzi();
