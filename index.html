@@ -728,26 +728,21 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             <p>Segnalazioni di guasto e monitoraggio assicurazione, revisioni e tagliandi</p>
           </div>
         </div>
-        <div class="seg" style="margin-bottom:14px;width:fit-content;">
-          <button data-tab="segnalazioni" class="active" onclick="cambiaTabGuastiMezzi('segnalazioni')">Segnalazioni guasto</button>
-          <button data-tab="situazione" onclick="cambiaTabGuastiMezzi('situazione')">Situazione mezzi</button>
+        <div class="section-title">Segnalazioni guasto</div>
+        <div class="filters" style="align-items:center;">
+          <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
+            <option value="aperto">Solo aperti</option>
+            <option value="tutti">Tutti</option>
+            <option value="risolto">Solo risolti</option>
+          </select>
+          <select id="gm-filtro-mezzo" onchange="renderGuastiMezzi()">
+            <option value="">Tutti i mezzi</option>
+          </select>
         </div>
-        <div id="tab-guasti-segnalazioni">
-          <div class="filters" style="align-items:center;">
-            <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
-              <option value="aperto">Solo aperti</option>
-              <option value="tutti">Tutti</option>
-              <option value="risolto">Solo risolti</option>
-            </select>
-            <select id="gm-filtro-mezzo" onchange="renderGuastiMezzi()">
-              <option value="">Tutti i mezzi</option>
-            </select>
-          </div>
-          <div id="guastimezzi-container"></div>
-        </div>
-        <div id="tab-guasti-situazione" style="display:none;">
-          <div id="situazionemezzi-container"></div>
-        </div>
+        <div id="guastimezzi-container"></div>
+
+        <div class="section-title" style="margin-top:30px;">Situazione mezzi</div>
+        <div id="situazionemezzi-container"></div>
       </div>
 
       <!-- SITUAZIONE MEZZO (assicurazione / revisione / revisione sanitaria / tagliando) -->
@@ -3466,11 +3461,6 @@ function aggiornaBadgeGuastiMezzi(){
   const totale = aperti + mezziCritici;
   badge.style.display = totale > 0 ? 'inline-block' : 'none';
   badge.textContent = totale;
-}
-function cambiaTabGuastiMezzi(tab){
-  document.querySelectorAll('#view-guastimezzi .seg button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.getElementById('tab-guasti-segnalazioni').style.display = (tab==='segnalazioni') ? 'block' : 'none';
-  document.getElementById('tab-guasti-situazione').style.display = (tab==='situazione') ? 'block' : 'none';
 }
 
 // ============================================================================
