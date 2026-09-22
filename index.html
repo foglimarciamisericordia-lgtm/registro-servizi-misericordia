@@ -436,7 +436,7 @@
       <div class="nav-item" id="nav-presidi" data-view="presidi" onclick="switchView('presidi')" style="display:none;">🦽 Prestito presidi</div>
       <div class="nav-item" id="nav-eccedenza118" data-view="eccedenza118" onclick="switchView('eccedenza118')" style="display:none;">🚑 Eccedenze 118</div>
       <div class="nav-item" id="nav-turniscu" data-view="turniscu" onclick="switchView('turniscu')" style="display:none;">🗓️ Turni SCU</div>
-      <div class="nav-item" id="nav-guastimezzi" data-view="guastimezzi" onclick="switchView('guastimezzi')" style="display:none;">⚠️ Guasti mezzi <span id="nav-guastimezzi-badge" style="display:none;background:#B23A24;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;"></span></div>
+      <div class="nav-item" id="nav-guastimezzi" data-view="guastimezzi" onclick="switchView('guastimezzi')" style="display:none;">⚠️ Guasti/Situazione mezzi <span id="nav-guastimezzi-badge" style="display:none;background:#B23A24;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;"></span></div>
       <div class="nav-item" id="nav-statistiche" data-view="statistiche" onclick="switchView('statistiche')" style="display:none;">📊 Statistiche</div>
       <div class="nav-item" id="nav-cestino" data-view="cestino" onclick="switchView('cestino')" style="display:none;">🗑️ Cestino</div>
       <div class="nav-spacer"></div>
@@ -724,21 +724,39 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div class="view" id="view-guastimezzi">
         <div class="page-head">
           <div>
-            <h2>Guasti mezzi</h2>
-            <p>Segnalazioni di guasto inviate dal foglio di marcia</p>
+            <h2>Guasti/Situazione mezzi</h2>
+            <p>Segnalazioni di guasto e monitoraggio assicurazione, revisioni e tagliandi</p>
           </div>
         </div>
-        <div class="filters" style="align-items:center;">
-          <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
-            <option value="aperto">Solo aperti</option>
-            <option value="tutti">Tutti</option>
-            <option value="risolto">Solo risolti</option>
-          </select>
-          <select id="gm-filtro-mezzo" onchange="renderGuastiMezzi()">
-            <option value="">Tutti i mezzi</option>
-          </select>
+        <div class="seg" style="margin-bottom:14px;width:fit-content;">
+          <button data-tab="segnalazioni" class="active" onclick="cambiaTabGuastiMezzi('segnalazioni')">Segnalazioni guasto</button>
+          <button data-tab="situazione" onclick="cambiaTabGuastiMezzi('situazione')">Situazione mezzi</button>
         </div>
-        <div id="guastimezzi-container"></div>
+        <div id="tab-guasti-segnalazioni">
+          <div class="filters" style="align-items:center;">
+            <select id="gm-filtro-stato" onchange="renderGuastiMezzi()">
+              <option value="aperto">Solo aperti</option>
+              <option value="tutti">Tutti</option>
+              <option value="risolto">Solo risolti</option>
+            </select>
+            <select id="gm-filtro-mezzo" onchange="renderGuastiMezzi()">
+              <option value="">Tutti i mezzi</option>
+            </select>
+          </div>
+          <div id="guastimezzi-container"></div>
+        </div>
+        <div id="tab-guasti-situazione" style="display:none;">
+          <div id="situazionemezzi-container"></div>
+        </div>
+      </div>
+
+      <!-- SITUAZIONE MEZZO (assicurazione / revisione / revisione sanitaria / tagliando) -->
+      <div class="modal-backdrop" id="situazione-mezzo-modal-backdrop">
+        <div class="modal" style="max-width:640px;">
+          <button class="close-x" onclick="closeSituazioneMezzoModal()">✕</button>
+          <h3 id="situazione-mezzo-titolo">Situazione mezzo</h3>
+          <div id="situazione-mezzo-contenuto"></div>
+        </div>
       </div>
 
       <!-- RISOLVI GUASTO -->
@@ -2786,7 +2804,7 @@ async function ricaricaDatiCorrenti(){
     if(viewAttiva === 'view-presidi'){ aggiornaEDisegnaPrestiti(); }
     if(viewAttiva === 'view-gestionepresidi'){ aggiornaEDisegnaGestionePresidi(); }
     if(viewAttiva === 'view-turniscu'){ renderTurniScu(); }
-    if(viewAttiva === 'view-guastimezzi'){ renderGuastiMezzi(); }
+    if(viewAttiva === 'view-guastimezzi'){ renderGuastiMezzi(); renderSituazioneMezzi(); }
   } catch(e){
     // Connessione assente al momento del giro: si ritenta al prossimo intervallo.
   }
@@ -2835,7 +2853,7 @@ function switchView(v){
   if(v === 'cestino') renderCestino();
   if(v === 'dashboard') renderCalendar();
   if(v === 'turniscu') renderTurniScu();
-  if(v === 'guastimezzi') renderGuastiMezzi();
+  if(v === 'guastimezzi'){ renderGuastiMezzi(); renderSituazioneMezzi(); }
   if(window.innerWidth <= 900) closeSidebarMobile();
 }
 function toggleSidebar(){
@@ -3435,16 +3453,370 @@ async function cancellaGiornoTurniScu(dataISO){
 
 /* ============ GUASTI MEZZI ============ */
 async function saveGuastiMezzi(){ await kvSet('guastiMezzi', guastiMezzi); }
-// Aggiorna il contatore rosso sulla voce di menu "Guasti mezzi" con il
-// numero di segnalazioni ancora aperte: è il modo con cui il Responsabile
-// Mezzi si accorge subito, appena entra, che c'è qualcosa da vedere.
+// Aggiorna il contatore rosso sulla voce di menu "Guasti/Situazione mezzi" con
+// il numero di segnalazioni di guasto ancora aperte PIÙ il numero di mezzi
+// con almeno una scadenza (assicurazione/revisione/revisione sanitaria/
+// tagliando) già scaduta: è il modo con cui il Responsabile Mezzi si accorge
+// subito, appena entra, che c'è qualcosa da vedere.
 function aggiornaBadgeGuastiMezzi(){
   const badge = document.getElementById('nav-guastimezzi-badge');
   if(!badge) return;
   const aperti = guastiMezzi.filter(g => g.stato === 'aperto').length;
-  badge.style.display = aperti > 0 ? 'inline-block' : 'none';
-  badge.textContent = aperti;
+  const mezziCritici = mezzi.filter(m=>!m.archiviato && !m.cestinato && riepilogoSituazioneMezzo(m).critico).length;
+  const totale = aperti + mezziCritici;
+  badge.style.display = totale > 0 ? 'inline-block' : 'none';
+  badge.textContent = totale;
 }
+function cambiaTabGuastiMezzi(tab){
+  document.querySelectorAll('#view-guastimezzi .seg button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('tab-guasti-segnalazioni').style.display = (tab==='segnalazioni') ? 'block' : 'none';
+  document.getElementById('tab-guasti-situazione').style.display = (tab==='situazione') ? 'block' : 'none';
+}
+
+// ============================================================================
+// Situazione mezzi: assicurazione, revisione, revisione sanitaria, tagliando.
+// ============================================================================
+
+const GIORNI_MARGINE_SCADENZA = 30;         // sotto questa soglia: "in scadenza" (giallo)
+const GIORNI_TOLLERANZA_ASSICURAZIONE = 15; // dopo la scadenza dell'assicurazione, la copertura
+                                             // resta valida per altri 15 giorni (finestra di
+                                             // tolleranza per il pagamento del rinnovo)
+const KM_TAGLIANDO = 15000;
+const KM_MARGINE_TAGLIANDO = 1000;
+const GIORNI_TAGLIANDO = 365;
+const GIORNI_MARGINE_TAGLIANDO = 30;
+
+// Giorni trascorsi da "dataIso" a oggi: positivo se la data è nel passato,
+// negativo se è nel futuro.
+function giorniDaOggi(dataIso){
+  if(!dataIso) return null;
+  const oggi = new Date(); oggi.setHours(0,0,0,0);
+  const d = new Date(dataIso+'T00:00:00');
+  return Math.round((oggi - d) / 86400000);
+}
+function aggiungiAnniData(dataIso, anni){
+  const d = new Date(dataIso+'T00:00:00');
+  d.setFullYear(d.getFullYear()+anni);
+  return d.toISOString().slice(0,10);
+}
+// L'ultima voce di un registro (per data più recente); null se il registro è vuoto.
+function ultimaVoceRegistro(lista){
+  if(!lista || lista.length===0) return null;
+  return [...lista].sort((a,b)=> (b.data||'').localeCompare(a.data||''))[0];
+}
+// Stato di una scadenza a data fissa (assicurazione/revisione/revisione
+// sanitaria): 'mancante' se non è mai stata registrata una data, altrimenti
+// 'ok' / 'in-scadenza' / 'scaduto' in base ai giorni mancanti e all'eventuale
+// margine di tolleranza (usato solo per l'assicurazione).
+function statoScadenzaData(dataScadenza, giorniTolleranza){
+  if(!dataScadenza) return { stato:'mancante' };
+  const giorniPassati = giorniDaOggi(dataScadenza); // negativo = scadenza futura
+  const giorniMancanti = -giorniPassati;
+  if(giorniMancanti > GIORNI_MARGINE_SCADENZA) return { stato:'ok', giorniMancanti };
+  if(giorniPassati <= (giorniTolleranza||0)) return { stato:'in-scadenza', giorniMancanti };
+  return { stato:'scaduto', giorniPassati: giorniPassati - (giorniTolleranza||0) };
+}
+function scadenzaAssicurazioneMezzo(m){
+  const ultima = ultimaVoceRegistro(m.registroAssicurazione);
+  return ultima ? ultima.scadenza : null;
+}
+function scadenzaRevisioneMezzo(m){
+  const ultima = ultimaVoceRegistro(m.registroRevisioni);
+  if(!ultima || !ultima.data) return null;
+  const anni = (m.tipo === 'Ambulanza') ? 1 : 2;
+  return aggiungiAnniData(ultima.data, anni);
+}
+function scadenzaRevisioneSanitariaMezzo(m){
+  if(m.tipo !== 'Ambulanza') return null;
+  const ultima = ultimaVoceRegistro(m.registroRevisioneSanitaria);
+  if(!ultima || !ultima.data) return null;
+  return aggiungiAnniData(ultima.data, 2);
+}
+// Km più recenti noti per un mezzo: presi dall'ultimo foglio di marcia
+// compilato per quel mezzo nell'anno attualmente caricato (Km finali).
+function kmAttualiMezzo(mezzoId){
+  const fogli = fogliMarcia.filter(f=>f.mezzoId===mezzoId && f.kmFinali!=null && f.kmFinali!=='' && !f.cestinato);
+  if(fogli.length===0) return null;
+  const ultimo = [...fogli].sort((a,b)=> (b.dataPartenza||'').localeCompare(a.dataPartenza||'') || (b.orarioPartenza||'').localeCompare(a.orarioPartenza||''))[0];
+  const km = parseFloat(ultimo.kmFinali);
+  return isFinite(km) ? km : null;
+}
+function statoTagliandoMezzo(m){
+  const ultimo = ultimaVoceRegistro((m.registroManutenzioni||[]).filter(v=>v.tipo==='tagliando'));
+  if(!ultimo || !ultimo.data) return { stato:'mancante' };
+  const kmAttuali = kmAttualiMezzo(m.id);
+  const giorniPassati = giorniDaOggi(ultimo.data);
+  const giorniMancanti = GIORNI_TAGLIANDO - giorniPassati;
+  const kmPercorsi = (kmAttuali!=null && ultimo.km!=null) ? Math.max(0, kmAttuali - (parseFloat(ultimo.km)||0)) : null;
+  const kmMancanti = kmPercorsi!=null ? (KM_TAGLIANDO - kmPercorsi) : null;
+  const scaduto = giorniMancanti <= 0 || (kmMancanti!=null && kmMancanti <= 0);
+  const inScadenza = !scaduto && (giorniMancanti <= GIORNI_MARGINE_TAGLIANDO || (kmMancanti!=null && kmMancanti <= KM_MARGINE_TAGLIANDO));
+  return { stato: scaduto?'scaduto':(inScadenza?'in-scadenza':'ok'), giorniMancanti, kmMancanti, kmPercorsi, ultimo };
+}
+// Riepilogo unico dei 4 indicatori per un mezzo, usato sia per le card sia
+// per il conteggio del badge di menu ("critico" = almeno uno scaduto).
+function riepilogoSituazioneMezzo(m){
+  const assicurazione = statoScadenzaData(scadenzaAssicurazioneMezzo(m), GIORNI_TOLLERANZA_ASSICURAZIONE);
+  const revisione = statoScadenzaData(scadenzaRevisioneMezzo(m), 0);
+  const revisioneSanitaria = (m.tipo === 'Ambulanza') ? statoScadenzaData(scadenzaRevisioneSanitariaMezzo(m), 0) : null;
+  const tagliando = statoTagliandoMezzo(m);
+  const critico = [assicurazione, revisione, revisioneSanitaria, tagliando].some(v => v && v.stato === 'scaduto');
+  return { assicurazione, revisione, revisioneSanitaria, tagliando, critico };
+}
+const ETICHETTA_STATO_SCADENZA = { ok:'Valida', 'in-scadenza':'In scadenza', scaduto:'Scaduta', mancante:'Da registrare' };
+const COLORE_STATO_SCADENZA = {
+  ok: { bg:'#DCEBE1', fg:'#1E6B45' },
+  'in-scadenza': { bg:'#FFF3CD', fg:'#8A6D1A' },
+  scaduto: { bg:'#FBE1DC', fg:'#B23A24' },
+  mancante: { bg:'#E2E3E5', fg:'#555' }
+};
+function badgeStatoScadenza(info){
+  if(!info) return '';
+  const c = COLORE_STATO_SCADENZA[info.stato];
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:8px;background:${c.bg};color:${c.fg};font-weight:700;font-size:12px;">${ETICHETTA_STATO_SCADENZA[info.stato]}</span>`;
+}
+
+function renderSituazioneMezzi(){
+  if(!canGestireGuastiMezzi()) return;
+  const container = document.getElementById('situazionemezzi-container');
+  if(!container) return;
+  const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
+  if(attivi.length === 0){ container.innerHTML = '<div class="empty-state">Nessun mezzo attivo registrato.</div>'; return; }
+  container.innerHTML = '<div class="users-grid">' + attivi.map(m=>{
+    const r = riepilogoSituazioneMezzo(m);
+    return `
+    <div class="user-card" style="cursor:pointer;" onclick="apriSituazioneMezzoModal('${m.id}')">
+      <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
+      <div class="un mono">${escapeHtml(m.targa)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
+        <div>Assicurazione ${badgeStatoScadenza(r.assicurazione)}</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <div>Revisione ${badgeStatoScadenza(r.revisione)}</div>
+      </div>
+      ${r.revisioneSanitaria ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"><div>Revisione sanitaria ${badgeStatoScadenza(r.revisioneSanitaria)}</div></div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <div>Tagliando ${badgeStatoScadenza(r.tagliando)}</div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+let editingSituazioneMezzoId = null;
+let formSituazioneMezzoAperto = null; // null | 'assicurazione' | 'revisione' | 'revisioneSanitaria' | 'manutenzione'
+
+function apriSituazioneMezzoModal(mezzoId){
+  editingSituazioneMezzoId = mezzoId;
+  formSituazioneMezzoAperto = null;
+  renderDettaglioSituazioneMezzo();
+  document.getElementById('situazione-mezzo-modal-backdrop').classList.add('active');
+}
+function closeSituazioneMezzoModal(){
+  document.getElementById('situazione-mezzo-modal-backdrop').classList.remove('active');
+  editingSituazioneMezzoId = null;
+  formSituazioneMezzoAperto = null;
+}
+function apriFormSituazioneMezzo(sezione){
+  formSituazioneMezzoAperto = (formSituazioneMezzoAperto === sezione) ? null : sezione;
+  renderDettaglioSituazioneMezzo();
+}
+
+function renderDettaglioSituazioneMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  document.getElementById('situazione-mezzo-titolo').textContent = m.tipo + (m.codice?' — '+m.codice:'') + ' — ' + m.targa;
+  const r = riepilogoSituazioneMezzo(m);
+
+  const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
+    const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${escapeHtml(c.valore(v))}</td>`).join('')}<td><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    return `
+    <div class="user-card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div class="nm" style="font-size:15px;">${titolo}</div>
+        ${badgeStatoScadenza(info)}
+      </div>
+      ${info && info.stato!=='mancante' ? `<p class="map-hint" style="margin-top:4px;">${
+        info.stato==='scaduto' ? `Scaduta da ${info.giorniPassati} giorni` : `Mancano ${info.giorniMancanti} giorni`
+      }</p>` : ''}
+      ${formSituazioneMezzoAperto===chiave ? formHtml : `<button type="button" class="action-btn primary" style="margin-top:8px;" onclick="apriFormSituazioneMezzo('${chiave}')">+ Registra</button>`}
+      ${tabellaRegistro}
+    </div>`;
+  };
+
+  let html = '';
+
+  html += sezione('assicurazione', 'Assicurazione', r.assicurazione, m.registroAssicurazione,
+    [
+      { titolo:'Data', valore:v=>formatDataIt(v.data) },
+      { titolo:'Presso', valore:v=>v.presso||'' },
+      { titolo:'N° polizza', valore:v=>v.numeroPolizza||'' },
+      { titolo:'Scadenza', valore:v=>formatDataIt(v.scadenza) },
+      { titolo:'Rinnovo', valore:v=>v.rinnovoAnnuale?'Annuale':'Non annuale' }
+    ],
+    `<div class="grid2" style="margin-top:10px;">
+      <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Nuova scadenza *</label><input type="date" id="sm-assicurazione-scadenza"></div>
+      <div class="field"><label>Presso (compagnia/agenzia)</label><input type="text" id="sm-assicurazione-presso" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).presso||'')}"></div>
+      <div class="field"><label>N° polizza</label><input type="text" id="sm-assicurazione-numeroPolizza" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).numeroPolizza||'')}"></div>
+    </div>
+    <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoAnnuale" checked> <label for="sm-assicurazione-rinnovoAnnuale" style="margin:0;">Rinnovo annuale</label></div>
+    <div class="row-actions" style="margin-top:6px;">
+      <button type="button" class="action-btn primary" onclick="salvaRegistroAssicurazioneMezzo()">Salva</button>
+      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('assicurazione')">Annulla</button>
+    </div>`
+  );
+
+  html += sezione('revisione', 'Revisione' + (m.tipo==='Ambulanza' ? ' (ogni anno)' : ' (ogni 2 anni)'), r.revisione, m.registroRevisioni,
+    [
+      { titolo:'Data', valore:v=>formatDataIt(v.data) },
+      { titolo:'Km', valore:v=>v.km||'' },
+      { titolo:'Note', valore:v=>v.note||'' }
+    ],
+    `<div class="grid2" style="margin-top:10px;">
+      <div class="field"><label>Data revisione *</label><input type="date" id="sm-revisione-data" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Km (facoltativo)</label><input type="number" id="sm-revisione-km"></div>
+    </div>
+    <div class="field"><label>Note</label><input type="text" id="sm-revisione-note"></div>
+    <div class="row-actions" style="margin-top:6px;">
+      <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneMezzo()">Salva</button>
+      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('revisione')">Annulla</button>
+    </div>`
+  );
+
+  if(m.tipo === 'Ambulanza'){
+    html += sezione('revisioneSanitaria', 'Revisione sanitaria (ogni 2 anni)', r.revisioneSanitaria, m.registroRevisioneSanitaria,
+      [
+        { titolo:'Data', valore:v=>formatDataIt(v.data) },
+        { titolo:'Note', valore:v=>v.note||'' }
+      ],
+      `<div class="field" style="margin-top:10px;"><label>Data revisione sanitaria *</label><input type="date" id="sm-revisioneSanitaria-data" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Note</label><input type="text" id="sm-revisioneSanitaria-note"></div>
+      <div class="row-actions" style="margin-top:6px;">
+        <button type="button" class="action-btn primary" onclick="salvaRegistroRevisioneSanitariaMezzo()">Salva</button>
+        <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('revisioneSanitaria')">Annulla</button>
+      </div>`
+    );
+  }
+
+  const kmAttuali = kmAttualiMezzo(m.id);
+  html += sezione('manutenzione', 'Tagliando e manutenzioni (ogni 15.000 km o 1 anno)', r.tagliando, m.registroManutenzioni,
+    [
+      { titolo:'Data', valore:v=>formatDataIt(v.data) },
+      { titolo:'Km', valore:v=>v.km||'' },
+      { titolo:'Tipo', valore:v=>({tagliando:'Tagliando', riparazione:'Riparazione', altro:'Altro'}[v.tipo]||v.tipo) },
+      { titolo:'Note', valore:v=>v.note||'' }
+    ],
+    `<p class="map-hint" style="margin-top:8px;">Km attuali noti (dall'ultimo foglio di marcia): ${kmAttuali!=null ? kmAttuali : 'non disponibili'}</p>
+    <div class="grid2" style="margin-top:6px;">
+      <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${kmAttuali!=null?kmAttuali:''}"></div>
+    </div>
+    <div class="field"><label>Tipo intervento *</label>
+      <select id="sm-manutenzione-tipo">
+        <option value="tagliando">Tagliando ordinario</option>
+        <option value="riparazione">Riparazione</option>
+        <option value="altro">Altro</option>
+      </select>
+    </div>
+    <div class="field"><label>Note</label><input type="text" id="sm-manutenzione-note"></div>
+    <div class="row-actions" style="margin-top:6px;">
+      <button type="button" class="action-btn primary" onclick="salvaRegistroManutenzioneMezzo()">Salva</button>
+      <button type="button" class="action-btn" onclick="apriFormSituazioneMezzo('manutenzione')">Annulla</button>
+    </div>`
+  );
+
+  document.getElementById('situazione-mezzo-contenuto').innerHTML = html;
+}
+
+async function salvaRegistroAssicurazioneMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const data = document.getElementById('sm-assicurazione-data').value;
+  const scadenza = document.getElementById('sm-assicurazione-scadenza').value;
+  if(!data || !scadenza){ alert('Inserisci data del rinnovo e nuova scadenza.'); return; }
+  if(!m.registroAssicurazione) m.registroAssicurazione = [];
+  m.registroAssicurazione.push({
+    id: 'ass-' + Date.now(),
+    data, scadenza,
+    presso: document.getElementById('sm-assicurazione-presso').value.trim(),
+    numeroPolizza: document.getElementById('sm-assicurazione-numeroPolizza').value.trim(),
+    rinnovoAnnuale: document.getElementById('sm-assicurazione-rinnovoAnnuale').checked
+  });
+  await saveMezzi();
+  formSituazioneMezzoAperto = null;
+  renderDettaglioSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+async function salvaRegistroRevisioneMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const data = document.getElementById('sm-revisione-data').value;
+  if(!data){ alert('Inserisci la data della revisione.'); return; }
+  if(!m.registroRevisioni) m.registroRevisioni = [];
+  m.registroRevisioni.push({
+    id: 'rev-' + Date.now(),
+    data,
+    km: document.getElementById('sm-revisione-km').value || null,
+    note: document.getElementById('sm-revisione-note').value.trim()
+  });
+  await saveMezzi();
+  formSituazioneMezzoAperto = null;
+  renderDettaglioSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+async function salvaRegistroRevisioneSanitariaMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const data = document.getElementById('sm-revisioneSanitaria-data').value;
+  if(!data){ alert('Inserisci la data della revisione sanitaria.'); return; }
+  if(!m.registroRevisioneSanitaria) m.registroRevisioneSanitaria = [];
+  m.registroRevisioneSanitaria.push({
+    id: 'revsan-' + Date.now(),
+    data,
+    note: document.getElementById('sm-revisioneSanitaria-note').value.trim()
+  });
+  await saveMezzi();
+  formSituazioneMezzoAperto = null;
+  renderDettaglioSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+async function salvaRegistroManutenzioneMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const data = document.getElementById('sm-manutenzione-data').value;
+  if(!data){ alert('Inserisci la data dell\'intervento.'); return; }
+  if(!m.registroManutenzioni) m.registroManutenzioni = [];
+  m.registroManutenzioni.push({
+    id: 'man-' + Date.now(),
+    data,
+    km: document.getElementById('sm-manutenzione-km').value || null,
+    tipo: document.getElementById('sm-manutenzione-tipo').value,
+    note: document.getElementById('sm-manutenzione-note').value.trim()
+  });
+  await saveMezzi();
+  formSituazioneMezzoAperto = null;
+  renderDettaglioSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+const CHIAVE_REGISTRO_MEZZO = { assicurazione:'registroAssicurazione', revisione:'registroRevisioni', revisioneSanitaria:'registroRevisioneSanitaria', manutenzione:'registroManutenzioni' };
+async function eliminaVoceRegistroMezzo(chiave, voceId){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  if(!confirm('Eliminare questa registrazione?')) return;
+  const campo = CHIAVE_REGISTRO_MEZZO[chiave];
+  if(!campo || !m[campo]) return;
+  m[campo] = m[campo].filter(v=>v.id!==voceId);
+  await saveMezzi();
+  renderDettaglioSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+
 function apriSegnalaGuastoModal(foglioId){
   // Se il pulsante è cliccato da una riga dell'elenco Fogli di marcia,
   // foglioId arriva esplicitamente (anche se undefined non verrebbe mai
