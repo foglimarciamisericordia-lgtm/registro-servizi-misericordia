@@ -3650,7 +3650,7 @@ function renderDettaglioSituazioneMezzo(){
 
   const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
     const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td><div class="row-actions"><button class="action-btn" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></div></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td style="white-space:nowrap;"><button class="action-btn" style="padding:5px 8px;" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button> <button class="action-btn danger" style="padding:5px 8px;" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
     return `
     <div class="user-card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
