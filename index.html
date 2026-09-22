@@ -238,6 +238,7 @@
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
   .modal-backdrop.active{display:flex;}
   .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;z-index:0;}
+  .modal-wide{max-width:900px;}
   .modal h3{margin:0 0 2px;font-size:18px;}
   .modal .modal-sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 18px;}
   fieldset{border:1px solid var(--line-soft);border-radius:8px;margin:0 0 16px;padding:14px 16px 6px;}
@@ -360,6 +361,7 @@
     #elenco-container, #tariffe-container, #maggiorazioni-container, #fogli-container, #users-container.table-wrap{overflow-x:auto;}
     .grid3, .grid2, .grid4, .view-grid{grid-template-columns:1fr;}
     .modal{padding:22px 18px 24px;max-width:95vw;}
+    .modal-wide{max-width:95vw;}
     .page-head{flex-direction:column;align-items:flex-start;}
     .cal-toolbar{gap:8px;}
     .users-grid{grid-template-columns:1fr;}
@@ -747,7 +749,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
 
       <!-- SITUAZIONE MEZZO (assicurazione / revisione / revisione sanitaria / tagliando) -->
       <div class="modal-backdrop" id="situazione-mezzo-modal-backdrop">
-        <div class="modal" style="max-width:640px;">
+        <div class="modal modal-wide">
           <button class="close-x" onclick="closeSituazioneMezzoModal()">✕</button>
           <h3 id="situazione-mezzo-titolo">Situazione mezzo</h3>
           <div id="situazione-mezzo-contenuto"></div>
@@ -3650,7 +3652,7 @@ function renderDettaglioSituazioneMezzo(){
 
   const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
     const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td style="white-space:nowrap;"><button class="action-btn" style="padding:5px 8px;" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button> <button class="action-btn danger" style="padding:5px 8px;" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td style="white-space:nowrap;">${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td style="white-space:nowrap;"><button class="action-btn" style="padding:5px 8px;" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button> <button class="action-btn danger" style="padding:5px 8px;" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
     return `
     <div class="user-card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
