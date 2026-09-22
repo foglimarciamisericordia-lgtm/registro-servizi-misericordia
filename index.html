@@ -6058,13 +6058,8 @@ async function renderStatistiche(){
     return m ? (m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa) : 'Non assegnato';
   };
 
-  const perMezzoConteggio = {};
-  fogliFiltrati.forEach(f=>{ const k = f.mezzoId || ''; perMezzoConteggio[k] = (perMezzoConteggio[k]||0)+1; });
   const kmPerMezzo = {};
   fogliFiltrati.forEach(f=>{ const k = f.mezzoId || ''; kmPerMezzo[k] = (kmPerMezzo[k]||0) + (parseFloat(f.kmTotale)||0); });
-  const mezzoIds = new Set([...Object.keys(perMezzoConteggio), ...Object.keys(kmPerMezzo)]);
-  const righeMezzo = [...mezzoIds].map(id=>({ nome: nomeMezzo(id), conteggio: perMezzoConteggio[id]||0, km: kmPerMezzo[id]||0 }))
-    .sort((a,b)=> b.conteggio - a.conteggio);
 
   const perMotivazione = {};
   fogliFiltrati.forEach(f=>{ const k = f.motivazioneServizio || 'Non specificata'; perMotivazione[k] = (perMotivazione[k]||0)+1; });
@@ -6073,14 +6068,16 @@ async function renderStatistiche(){
   const rimborsoTotaleSuggerito = serviziFiltrati.reduce((tot,s)=> tot + (parseFloat(s.rimborsoSuggerito)||0), 0);
 
   // Rimborso spese REALMENTE ricevuto: a differenza del "suggerito" (calcolato
-  // dall'app in base alla tabella tariffe), questo si ricava dagli importi
-  // delle ricevute carburante effettivamente registrate sui fogli di marcia.
-  const rimborsoRicevutoTotale = fogliFiltrati.reduce((tot,f)=> tot + (f.carburante==='Si' ? (parseFloat(f.carburanteTotale)||0) : 0), 0);
+  // dall'app in base alla tabella tariffe), questo si ricava dal campo
+  // "Ricevuta n. / Importo €" effettivamente registrato sui fogli di marcia
+  // (distinto dal campo "Carburante", che riguarda solo i rifornimenti).
+  const rimborsoRicevutoTotale = fogliFiltrati.reduce((tot,f)=> tot + (parseFloat(f.importo)||0), 0);
   const rimborsoRicevutoPerMezzo = {};
   fogliFiltrati.forEach(f=>{
-    if(f.carburante!=='Si') return;
+    const importo = parseFloat(f.importo)||0;
+    if(importo === 0) return;
     const k = f.mezzoId || '';
-    rimborsoRicevutoPerMezzo[k] = (rimborsoRicevutoPerMezzo[k]||0) + (parseFloat(f.carburanteTotale)||0);
+    rimborsoRicevutoPerMezzo[k] = (rimborsoRicevutoPerMezzo[k]||0) + importo;
   });
   const righeRimborsoMezzo = Object.keys(rimborsoRicevutoPerMezzo).map(id=>({ nome: nomeMezzo(id), totale: rimborsoRicevutoPerMezzo[id] }))
     .sort((a,b)=> b.totale - a.totale);
@@ -6108,7 +6105,7 @@ async function renderStatistiche(){
   });
   const righeMezzoMese = Object.keys(perMezzoMese).map(id=>{
     const perMeseMezzo = perMezzoMese[id];
-    return { nome: nomeMezzo(id), perMese: perMeseMezzo, totale: perMeseMezzo.reduce((a,b)=>a+b,0) };
+    return { nome: nomeMezzo(id), perMese: perMeseMezzo, totale: perMeseMezzo.reduce((a,b)=>a+b,0), km: kmPerMezzo[id]||0 };
   }).sort((a,b)=> b.totale - a.totale);
 
   const cardsHtml = `
@@ -6120,7 +6117,7 @@ async function renderStatistiche(){
       <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.rosso}</div><div class="un">Servizi programmati annullati</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">${kmTotaliGenerali}</div><div class="un">Km totali percorsi (fogli di marcia)</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoTotaleSuggerito.toFixed(2)}</div><div class="un">Totale rimborso spese suggerito (servizi programmati)</div></div>
-      <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoRicevutoTotale.toFixed(2)}</div><div class="un">Totale rimborso spese ricevuto (ricevute carburante sui fogli di marcia)</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoRicevutoTotale.toFixed(2)}</div><div class="un">Totale rimborso spese ricevuto (ricevute registrate sui fogli di marcia)</div></div>
     </div>`;
 
   const tabellaSemplice = (titolo, obj) => {
@@ -6131,23 +6128,21 @@ async function renderStatistiche(){
 
   const tabellaMese = `<div class="section-title">Servizi effettivi per mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
 
-  const tabellaMezzo = righeMezzo.length
-    ? `<div class="section-title">Servizi effettivi per mezzo, da fogli di marcia${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Servizi</th><th>Km totali (fogli di marcia)</th></tr></thead><tbody>${righeMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.conteggio}</td><td class="mono">${r.km}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="section-title">Servizi effettivi per mezzo, da fogli di marcia${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
-
   let tabellaMezzoMese;
   if(righeMezzoMese.length === 0){
     tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><div class="empty-state">Nessun dato.</div>`;
   } else {
     const totaliColonna = Array(12).fill(0);
     let totaleComplessivo = 0;
+    let kmComplessivo = 0;
     const righeHtml = righeMezzoMese.map(r=>{
       r.perMese.forEach((v,i)=>{ totaliColonna[i]+=v; });
       totaleComplessivo += r.totale;
-      return `<tr><td>${escapeHtml(r.nome)}</td>${r.perMese.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono"><strong>${r.totale}</strong></td></tr>`;
+      kmComplessivo += r.km;
+      return `<tr><td>${escapeHtml(r.nome)}</td>${r.perMese.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono"><strong>${r.totale}</strong></td><td class="mono">${r.km}</td></tr>`;
     }).join('');
-    const rigaTotali = `<tr style="font-weight:700;"><td>Totale</td>${totaliColonna.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono">${totaleComplessivo}</td></tr>`;
-    tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th></tr></thead><tbody>${righeHtml}${rigaTotali}</tbody></table>`;
+    const rigaTotali = `<tr style="font-weight:700;"><td>Totale</td>${totaliColonna.map(v=>`<td class="mono">${v}</td>`).join('')}<td class="mono">${totaleComplessivo}</td><td class="mono">${kmComplessivo}</td></tr>`;
+    tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th><th>Km totali</th></tr></thead><tbody>${righeHtml}${rigaTotali}</tbody></table>`;
   }
 
   const tabellaRimborsoMezzo = righeRimborsoMezzo.length
@@ -6158,7 +6153,6 @@ async function renderStatistiche(){
     cardsHtml +
     tabellaMese +
     tabellaMezzoMese +
-    tabellaMezzo +
     tabellaRimborsoMezzo +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
 }
