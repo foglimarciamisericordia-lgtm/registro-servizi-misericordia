@@ -3619,7 +3619,7 @@ function renderDettaglioSituazioneMezzo(){
 
   const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
     const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${escapeHtml(c.valore(v))}</td>`).join('')}<td><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td>${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td><button class="action-btn danger" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
     return `
     <div class="user-card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -3642,14 +3642,18 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Presso', valore:v=>v.presso||'' },
       { titolo:'N° polizza', valore:v=>v.numeroPolizza||'' },
       { titolo:'Scadenza', valore:v=>formatDataIt(v.scadenza) },
-      { titolo:'Rinnovo', valore:v=>v.rinnovoAnnuale?'Annuale':'Non annuale' }
+      { titolo:'Rinnovo', valore:v=>v.rinnovoAnnuale?'Annuale':'Non annuale' },
+      { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
+      { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
     `<div class="grid2" style="margin-top:10px;">
       <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label>Nuova scadenza *</label><input type="date" id="sm-assicurazione-scadenza"></div>
       <div class="field"><label>Presso (compagnia/agenzia)</label><input type="text" id="sm-assicurazione-presso" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).presso||'')}"></div>
       <div class="field"><label>N° polizza</label><input type="text" id="sm-assicurazione-numeroPolizza" value="${escapeHtml((ultimaVoceRegistro(m.registroAssicurazione)||{}).numeroPolizza||'')}"></div>
+      <div class="field"><label>Costo sostenuto €</label><input type="number" step="0.01" id="sm-assicurazione-costo"></div>
     </div>
+    <div class="field"><label>Link PDF polizza (su Drive)</label><input type="url" id="sm-assicurazione-linkPdf" placeholder="https://drive.google.com/..."></div>
     <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoAnnuale" checked> <label for="sm-assicurazione-rinnovoAnnuale" style="margin:0;">Rinnovo annuale</label></div>
     <div class="row-actions" style="margin-top:6px;">
       <button type="button" class="action-btn primary" onclick="salvaRegistroAssicurazioneMezzo()">Salva</button>
@@ -3731,7 +3735,9 @@ async function salvaRegistroAssicurazioneMezzo(){
     data, scadenza,
     presso: document.getElementById('sm-assicurazione-presso').value.trim(),
     numeroPolizza: document.getElementById('sm-assicurazione-numeroPolizza').value.trim(),
-    rinnovoAnnuale: document.getElementById('sm-assicurazione-rinnovoAnnuale').checked
+    rinnovoAnnuale: document.getElementById('sm-assicurazione-rinnovoAnnuale').checked,
+    costo: document.getElementById('sm-assicurazione-costo').value || null,
+    linkPdf: document.getElementById('sm-assicurazione-linkPdf').value.trim() || null
   });
   await saveMezzi();
   formSituazioneMezzoAperto = null;
