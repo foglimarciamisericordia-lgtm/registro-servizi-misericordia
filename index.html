@@ -3647,6 +3647,19 @@ function chiudiFormSituazioneMezzo(){
   voceRegistroMezzoInModifica = null;
   renderDettaglioSituazioneMezzo();
 }
+function apriFormCartaCircolazioneMezzo(){
+  formSituazioneMezzoAperto = (formSituazioneMezzoAperto === 'cartaCircolazione') ? null : 'cartaCircolazione';
+  voceRegistroMezzoInModifica = null;
+  renderDettaglioSituazioneMezzo();
+}
+async function salvaLinkCartaCircolazioneMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  m.linkCartaCircolazione = document.getElementById('sm-cartaCircolazione-link').value.trim() || null;
+  await saveMezzi();
+  chiudiFormSituazioneMezzo();
+  renderSituazioneMezzi();
+}
 
 function renderDettaglioSituazioneMezzo(){
   const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
@@ -3673,6 +3686,23 @@ function renderDettaglioSituazioneMezzo(){
   };
 
   let html = '';
+
+  // Carta di circolazione: un solo link (non un registro di rinnovi come
+  // assicurazione/revisioni, dato che non ha scadenze periodiche).
+  const linkCartaAttuale = m.linkCartaCircolazione || '';
+  const formCartaCircolazione = formSituazioneMezzoAperto === 'cartaCircolazione'
+    ? `<div class="field" style="margin-top:10px;"><label>Link carta di circolazione (su Drive)</label><input type="url" id="sm-cartaCircolazione-link" value="${escapeHtml(linkCartaAttuale)}" placeholder="https://drive.google.com/..."></div>
+       <div class="row-actions" style="margin-top:6px;">
+         <button type="button" class="action-btn primary" onclick="salvaLinkCartaCircolazioneMezzo()">Salva</button>
+         <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
+       </div>`
+    : (linkCartaAttuale
+        ? `<div style="margin-top:8px;"><a href="${escapeHtml(linkCartaAttuale)}" target="_blank" rel="noopener">apri</a> <button type="button" class="action-btn" style="margin-left:8px;" onclick="apriFormCartaCircolazioneMezzo()">✎ Modifica</button></div>`
+        : `<button type="button" class="action-btn primary" style="margin-top:8px;" onclick="apriFormCartaCircolazioneMezzo()">+ Aggiungi link</button>`);
+  html += `<div class="user-card" style="margin-bottom:14px;">
+    <div class="nm" style="font-size:15px;">Carta di circolazione</div>
+    ${formCartaCircolazione}
+  </div>`;
 
   html += sezione('assicurazione', 'Assicurazione', r.assicurazione, m.registroAssicurazione,
     [
