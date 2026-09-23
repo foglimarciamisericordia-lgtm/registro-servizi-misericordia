@@ -2845,7 +2845,7 @@ function switchView(v){
   document.getElementById('view-' + v).classList.add('active');
   if(v === 'elenco'){
     const campoData = document.getElementById('f-dataServizio');
-    if(campoData) campoData.value = new Date().toISOString().slice(0,10);
+    if(campoData) campoData.value = dataOggiIso();
     popolaFiltriMezzoElenco(); renderElenco();
   }
   if(v === 'utenti') renderUsers();
@@ -3492,6 +3492,18 @@ const KM_MARGINE_TAGLIANDO = 1000;
 const GIORNI_TAGLIANDO = 365;
 const GIORNI_MARGINE_TAGLIANDO = 30;
 
+// Formatta un oggetto Date in "AAAA-MM-GG" usando i valori LOCALI (non UTC):
+// toISOString() converte in UTC, e siccome l'Italia è sempre avanti rispetto
+// a UTC (sia con l'ora solare che con quella legale) questo può far
+// "retrocedere" la data di un giorno — un bug subdolo ma sistematico per chi
+// usa il sito dall'Italia. Tutte le funzioni sotto usano questo helper
+// invece di toISOString() per evitarlo.
+function formattaDataIsoLocale(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function dataOggiIso(){
+  return formattaDataIsoLocale(new Date());
+}
 // Giorni trascorsi da "dataIso" a oggi: positivo se la data è nel passato,
 // negativo se è nel futuro.
 function giorniDaOggi(dataIso){
@@ -3503,7 +3515,17 @@ function giorniDaOggi(dataIso){
 function aggiungiAnniData(dataIso, anni){
   const d = new Date(dataIso+'T00:00:00');
   d.setFullYear(d.getFullYear()+anni);
-  return d.toISOString().slice(0,10);
+  return formattaDataIsoLocale(d);
+}
+// Ultimo giorno del mese di "dataIso", "anni" anni dopo (stesso mese, ma
+// sempre l'ultimo giorno): usato per la revisione dei mezzi, la cui
+// scadenza è sempre fissata a fine mese, non nello stesso giorno esatto in
+// cui è stata effettuata. Es.: revisione fatta l'1 settembre 2025, +1 anno
+// -> 30 settembre 2026 (non 1 settembre 2026).
+function ultimoGiornoMeseTraAnni(dataIso, anni){
+  const d = new Date(dataIso+'T00:00:00');
+  const ultimoGiorno = new Date(d.getFullYear()+anni, d.getMonth()+1, 0);
+  return formattaDataIsoLocale(ultimoGiorno);
 }
 // L'ultima voce di un registro (per data più recente); null se il registro è vuoto.
 function ultimaVoceRegistro(lista){
@@ -3529,9 +3551,11 @@ function scadenzaAssicurazioneMezzo(m){
 function scadenzaRevisioneMezzo(m){
   const ultima = ultimaVoceRegistro(m.registroRevisioni);
   if(!ultima || !ultima.data) return null;
-  // Ambulanze e camion: revisione ogni anno. Tutti gli altri mezzi: ogni 2 anni.
+  // Ambulanze e camion: revisione ogni anno. Tutti gli altri mezzi: ogni 2
+  // anni. La scadenza è sempre l'ultimo giorno del mese in cui è stata
+  // effettuata (non lo stesso giorno esatto).
   const anni = (m.tipo === 'Ambulanza' || m.tipo === 'Camion') ? 1 : 2;
-  return aggiungiAnniData(ultima.data, anni);
+  return ultimoGiornoMeseTraAnni(ultima.data, anni);
 }
 function scadenzaRevisioneSanitariaMezzo(m){
   if(m.tipo !== 'Ambulanza') return null;
@@ -3725,7 +3749,7 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
     `<div class="grid2" style="margin-top:10px;">
-      <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Data pagamento/rinnovo *</label><input type="date" id="sm-assicurazione-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Nuova scadenza *</label><input type="date" id="sm-assicurazione-scadenza" value="${vm ? (vm.scadenza||'') : ''}"></div>
       <div class="field"><label>Presso (compagnia/agenzia)</label><input type="text" id="sm-assicurazione-presso" value="${escapeHtml(vm ? (vm.presso||'') : ((ultimaVoceRegistro(m.registroAssicurazione)||{}).presso||''))}"></div>
       <div class="field"><label>N° polizza</label><input type="text" id="sm-assicurazione-numeroPolizza" value="${escapeHtml(vm ? (vm.numeroPolizza||'') : ((ultimaVoceRegistro(m.registroAssicurazione)||{}).numeroPolizza||''))}"></div>
@@ -3746,7 +3770,7 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Note', valore:v=>v.note||'' }
     ],
     `<div class="grid2" style="margin-top:10px;">
-      <div class="field"><label>Data revisione *</label><input type="date" id="sm-revisione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Data revisione *</label><input type="date" id="sm-revisione-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Km (facoltativo)</label><input type="number" id="sm-revisione-km" value="${vm && vm.km!=null ? vm.km : ''}"></div>
     </div>
     <div class="field"><label>Note</label><input type="text" id="sm-revisione-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
@@ -3763,7 +3787,7 @@ function renderDettaglioSituazioneMezzo(){
         { titolo:'Note', valore:v=>v.note||'' },
         { titolo:'PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
       ],
-      `<div class="field" style="margin-top:10px;"><label>Data revisione sanitaria *</label><input type="date" id="sm-revisioneSanitaria-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      `<div class="field" style="margin-top:10px;"><label>Data revisione sanitaria *</label><input type="date" id="sm-revisioneSanitaria-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Note</label><input type="text" id="sm-revisioneSanitaria-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
       <div class="field"><label>Link PDF (su Drive)</label><input type="url" id="sm-revisioneSanitaria-linkPdf" value="${escapeHtml(vm ? (vm.linkPdf||'') : '')}" placeholder="https://drive.google.com/..."></div>
       <div class="row-actions" style="margin-top:6px;">
@@ -3783,7 +3807,7 @@ function renderDettaglioSituazioneMezzo(){
     ],
     `<p class="map-hint" style="margin-top:8px;">Km attuali noti (dall'ultimo foglio di marcia): ${kmAttuali!=null ? kmAttuali : 'non disponibili'}</p>
     <div class="grid2" style="margin-top:6px;">
-      <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${vm ? vm.data : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
     </div>
     <div class="field"><label>Tipo intervento *</label>
