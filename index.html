@@ -1239,7 +1239,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           </div>
           <div class="grid2">
             <div class="field"><label>Tipo di squadra 2</label>
-              <select id="sf-tipoMezzoEvento2"><option value="">-- seleziona --</option><option>Ambulanza</option><option>Squadra appiedata</option><option>Camion</option><option>Pma</option></select>
+              <select id="sf-tipoMezzoEvento2"><option value="">-- seleziona --</option><option>Ambulanza</option><option>Squadra appiedata</option><option>Camion</option><option>Pma</option><option>Banco Alimentare</option></select>
             </div>
           </div>
           <div class="grid2">
@@ -2822,6 +2822,12 @@ async function doLogout(){
 }
 
 /* ============ NAVIGAZIONE ============ */
+// Al primo ingresso in Elenco servizi in questa sessione, il filtro data
+// viene precompilato con la data odierna (altrimenti l'elenco mostra tutti i
+// servizi di sempre, difficile da consultare). Se poi l'utente lo svuota con
+// "Azzera data", il campo resta vuoto anche navigando altrove e tornando
+// indietro: non viene mai reimpostato una seconda volta.
+let filtroDataElencoImpostato = false;
 function switchView(v){
   // Controllo di sicurezza: anche se il pulsante di menu è nascosto, non si
   // deve mai poter raggiungere una vista per cui questo utente non ha il
@@ -2838,7 +2844,14 @@ function switchView(v){
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === v));
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
-  if(v === 'elenco'){ popolaFiltriMezzoElenco(); renderElenco(); }
+  if(v === 'elenco'){
+    if(!filtroDataElencoImpostato){
+      filtroDataElencoImpostato = true;
+      const campoData = document.getElementById('f-dataServizio');
+      if(campoData && !campoData.value) campoData.value = new Date().toISOString().slice(0,10);
+    }
+    popolaFiltriMezzoElenco(); renderElenco();
+  }
   if(v === 'utenti') renderUsers();
   if(v === 'mezzi') renderMezzi();
   if(v === 'rimborsi') renderRimborsi();
@@ -3520,7 +3533,8 @@ function scadenzaAssicurazioneMezzo(m){
 function scadenzaRevisioneMezzo(m){
   const ultima = ultimaVoceRegistro(m.registroRevisioni);
   if(!ultima || !ultima.data) return null;
-  const anni = (m.tipo === 'Ambulanza') ? 1 : 2;
+  // Ambulanze e camion: revisione ogni anno. Tutti gli altri mezzi: ogni 2 anni.
+  const anni = (m.tipo === 'Ambulanza' || m.tipo === 'Camion') ? 1 : 2;
   return aggiungiAnniData(ultima.data, anni);
 }
 function scadenzaRevisioneSanitariaMezzo(m){
@@ -3729,7 +3743,7 @@ function renderDettaglioSituazioneMezzo(){
     </div>`
   );
 
-  html += sezione('revisione', 'Revisione' + (m.tipo==='Ambulanza' ? ' (ogni anno)' : ' (ogni 2 anni)'), r.revisione, m.registroRevisioni,
+  html += sezione('revisione', 'Revisione' + ((m.tipo==='Ambulanza' || m.tipo==='Camion') ? ' (ogni anno)' : ' (ogni 2 anni)'), r.revisione, m.registroRevisioni,
     [
       { titolo:'Data', valore:v=>formatDataIt(v.data) },
       { titolo:'Km', valore:v=>v.km||'' },
