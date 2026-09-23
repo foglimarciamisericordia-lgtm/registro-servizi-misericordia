@@ -3607,30 +3607,56 @@ function badgeStatoScadenza(info){
   return `<span style="display:inline-block;padding:3px 10px;border-radius:8px;background:${c.bg};color:${c.fg};font-weight:700;font-size:12px;">${ETICHETTA_STATO_SCADENZA[info.stato]}</span>`;
 }
 
+// Breve dettaglio sotto il badge di stato: la data di scadenza per
+// assicurazione/revisione/revisione sanitaria, i km percorsi per il
+// tagliando. Stringa vuota quando lo stato è "mancante" (nulla da mostrare).
+function dettaglioScadenzaData(info, dataScadenza){
+  if(!info || info.stato === 'mancante' || !dataScadenza) return '';
+  return 'Scad. ' + formatDataIt(dataScadenza);
+}
+function dettaglioTagliandoMezzo(info){
+  if(!info || info.stato === 'mancante') return '';
+  if(info.kmPercorsi != null) return Math.round(info.kmPercorsi) + ' km dall\'ultimo';
+  return '';
+}
+
 function renderSituazioneMezzi(){
   if(!canGestireGuastiMezzi()) return;
   const container = document.getElementById('situazionemezzi-container');
   if(!container) return;
   const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.cestinato));
   if(attivi.length === 0){ container.innerHTML = '<div class="empty-state">Nessun mezzo attivo registrato.</div>'; return; }
-  container.innerHTML = '<div class="users-grid">' + attivi.map(m=>{
+
+  const colonne = 'grid-template-columns:2.3fr 1.3fr 1.3fr 1.3fr 1.3fr 0.9fr;';
+  const intestazione = `<div style="display:grid;${colonne}gap:12px;padding:12px 20px;background:#F3F5F7;border-bottom:1px solid var(--line);">
+    <div style="font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">Mezzo</div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">Assicurazione</div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">Revisione</div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">Revisione sanitaria</div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">Tagliando</div>
+    <div></div>
+  </div>`;
+
+  const righe = attivi.map(m=>{
     const r = riepilogoSituazioneMezzo(m);
-    return `
-    <div class="user-card" style="cursor:pointer;" onclick="apriSituazioneMezzoModal('${m.id}')">
-      <div class="nm">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
-      <div class="un mono">${escapeHtml(m.targa)}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
-        <div>Assicurazione ${badgeStatoScadenza(r.assicurazione)}</div>
+    const dettAss = dettaglioScadenzaData(r.assicurazione, scadenzaAssicurazioneMezzo(m));
+    const dettRev = dettaglioScadenzaData(r.revisione, scadenzaRevisioneMezzo(m));
+    const dettSan = r.revisioneSanitaria ? dettaglioScadenzaData(r.revisioneSanitaria, scadenzaRevisioneSanitariaMezzo(m)) : '';
+    const dettTag = dettaglioTagliandoMezzo(r.tagliando);
+    return `<div style="display:grid;${colonne}gap:12px;padding:11px 20px;align-items:center;border-bottom:1px solid var(--line-soft);cursor:pointer;" onclick="apriSituazioneMezzoModal('${m.id}')">
+      <div>
+        <div style="font-size:14px;font-weight:600;">${escapeHtml(m.tipo)}${m.codice?' — '+escapeHtml(m.codice):''}</div>
+        <div class="mono" style="font-size:11.5px;color:var(--ink-soft);margin-top:1px;">${escapeHtml(m.targa)}</div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
-        <div>Revisione ${badgeStatoScadenza(r.revisione)}</div>
-      </div>
-      ${r.revisioneSanitaria ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"><div>Revisione sanitaria ${badgeStatoScadenza(r.revisioneSanitaria)}</div></div>` : ''}
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
-        <div>Tagliando ${badgeStatoScadenza(r.tagliando)}</div>
-      </div>
+      <div>${badgeStatoScadenza(r.assicurazione)}${dettAss?`<div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">${dettAss}</div>`:''}</div>
+      <div>${badgeStatoScadenza(r.revisione)}${dettRev?`<div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">${dettRev}</div>`:''}</div>
+      <div>${r.revisioneSanitaria ? (badgeStatoScadenza(r.revisioneSanitaria)+(dettSan?`<div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">${dettSan}</div>`:'')) : '<span style="font-size:13px;color:var(--ink-soft);">—</span>'}</div>
+      <div>${badgeStatoScadenza(r.tagliando)}${dettTag?`<div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">${dettTag}</div>`:''}</div>
+      <div style="text-align:right;"><a href="#" onclick="event.preventDefault();apriSituazioneMezzoModal('${m.id}')" style="font-size:13px;font-weight:600;">Apri →</a></div>
     </div>`;
-  }).join('') + '</div>';
+  }).join('');
+
+  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;overflow-x:auto;">${intestazione}${righe}</div>`;
 }
 
 let editingSituazioneMezzoId = null;
