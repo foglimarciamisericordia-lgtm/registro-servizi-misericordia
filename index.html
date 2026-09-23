@@ -2822,12 +2822,11 @@ async function doLogout(){
 }
 
 /* ============ NAVIGAZIONE ============ */
-// Al primo ingresso in Elenco servizi in questa sessione, il filtro data
-// viene precompilato con la data odierna (altrimenti l'elenco mostra tutti i
-// servizi di sempre, difficile da consultare). Se poi l'utente lo svuota con
-// "Azzera data", il campo resta vuoto anche navigando altrove e tornando
-// indietro: non viene mai reimpostato una seconda volta.
-let filtroDataElencoImpostato = false;
+// Ogni volta che si entra in Elenco servizi, il filtro data viene
+// reimpostato sulla data odierna (altrimenti l'elenco mostra tutti i servizi
+// di sempre, difficile da consultare). "Azzera data" resta utile per vedere
+// tutto SENZA cambiare pagina, ma non è definitivo: uscendo e rientrando
+// nella sezione, il filtro torna sempre sulla data di oggi.
 function switchView(v){
   // Controllo di sicurezza: anche se il pulsante di menu è nascosto, non si
   // deve mai poter raggiungere una vista per cui questo utente non ha il
@@ -2845,11 +2844,8 @@ function switchView(v){
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
   if(v === 'elenco'){
-    if(!filtroDataElencoImpostato){
-      filtroDataElencoImpostato = true;
-      const campoData = document.getElementById('f-dataServizio');
-      if(campoData && !campoData.value) campoData.value = new Date().toISOString().slice(0,10);
-    }
+    const campoData = document.getElementById('f-dataServizio');
+    if(campoData) campoData.value = new Date().toISOString().slice(0,10);
     popolaFiltriMezzoElenco(); renderElenco();
   }
   if(v === 'utenti') renderUsers();
