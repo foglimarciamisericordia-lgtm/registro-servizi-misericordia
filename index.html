@@ -463,8 +463,8 @@
             <p>Quadro mensile, settimanale e giornaliero dei servizi registrati</p>
           </div>
           <div style="display:flex;gap:10px;">
-            <button class="btn btn-ghost" style="background:#EDE7F6;color:#6A4FA0;border-color:#D9CCEF;" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
             <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
+            <button class="btn btn-ghost" style="background:#EDE7F6;color:#6A4FA0;border-color:#D9CCEF;" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
           </div>
         </div>
         <div class="cal-toolbar">
@@ -489,7 +489,10 @@
             <h2>Elenco servizi</h2>
             <p>Tutti i servizi registrati, inclusi quelli annullati</p>
           </div>
-          <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
+            <button class="btn btn-ghost" style="background:#EDE7F6;color:#6A4FA0;border-color:#D9CCEF;" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
+          </div>
         </div>
         <div class="filters">
           <select id="f-stato" onchange="renderElenco()">
@@ -4435,7 +4438,7 @@ function renderCalendar(){
       const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayNotes.map(a=>`<div class="pill nota" onclick="event.stopPropagation();visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="event.stopPropagation();visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 Nota</div>`).join('')}
         ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
         ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
@@ -4459,7 +4462,7 @@ function renderCalendar(){
       const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
-        ${dayNotes.map(a=>`<div class="pill nota" onclick="visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 Nota</div>`).join('')}
         ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
       </div>`;
     }
@@ -4489,7 +4492,10 @@ function renderCalendar(){
         </div>`;
       }).join('');
     }
-    html += `<button class="btn btn-add" style="margin-top:10px;" onclick="openServiceModal(null,'${k}')">+ Aggiungi servizio in questo giorno</button></div>`;
+    html += `<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn btn-add" onclick="openServiceModal(null,'${k}')">+ Aggiungi servizio in questo giorno</button>
+      <button class="btn btn-ghost" style="background:#EDE7F6;color:#6A4FA0;border-color:#D9CCEF;" onclick="apriAnnotazioneModal(null,'${k}')">+ Aggiungi annotazione in questo giorno</button>
+    </div></div>`;
     container.innerHTML = html;
   }
 }
