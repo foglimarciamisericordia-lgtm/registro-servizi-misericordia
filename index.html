@@ -91,6 +91,7 @@
   .pill{font-size:10.5px;font-weight:600;background:var(--teal-bg);color:var(--ink);border-left:3px solid var(--teal);border-radius:4px;padding:2px 5px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
   .pill.giallo{background:var(--amber-bg);color:var(--ink);border-left-color:var(--amber);}
   .pill.rosso{background:var(--red-bg);color:var(--ink);border-left-color:var(--red);}
+  .pill.nota{background:#EDE7F6;color:var(--ink);border-left-color:#6A4FA0;font-style:italic;}
 
   .cal-week-cols{display:grid;grid-template-columns:repeat(7,1fr);min-height:400px;}
   .week-day-col{border-right:1px solid var(--line-soft);padding:6px;min-width:0;overflow:hidden;}
@@ -101,6 +102,7 @@
   .pill-giorno{border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:4px solid var(--teal);background:var(--teal-bg);cursor:pointer;}
   .pill-giorno.giallo{border-left-color:var(--amber);background:var(--amber-bg);}
   .pill-giorno.rosso{border-left-color:var(--red);background:var(--red-bg);}
+  .pill-giorno.nota{border-left-color:#6A4FA0;background:#EDE7F6;}
   .pill-giorno .pg-titolo{font-weight:700;font-size:13.5px;color:var(--ink);}
   .pill-giorno .pg-orario{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin:3px 0;}
   .pill-giorno .pg-percorso{font-size:12.5px;color:var(--ink-soft);}
@@ -460,7 +462,10 @@
             <h2>Dashboard servizi</h2>
             <p>Quadro mensile, settimanale e giornaliero dei servizi registrati</p>
           </div>
-          <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-ghost" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
+            <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
+          </div>
         </div>
         <div class="cal-toolbar">
           <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
@@ -1078,6 +1083,27 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeSegnalaGuastoModal()">Annulla</button>
         <button type="submit" class="btn btn-primary" style="width:auto;">Invia segnalazione e salva</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL ANNOTAZIONI DASHBOARD -->
+<div class="modal-backdrop" id="annotazione-modal-backdrop">
+  <div class="modal" style="max-width:520px;">
+    <button class="close-x" onclick="closeAnnotazioneModal()">✕</button>
+    <h3 id="annotazione-modal-title">Nuova annotazione</h3>
+    <p class="modal-sub">Compare nel calendario della Dashboard, nel giorno scelto, prima dei servizi.</p>
+    <p class="modal-sub" id="annotazione-cronologia" style="display:none;"></p>
+    <form id="annotazione-form" onsubmit="return salvaAnnotazioneDashboard(event)">
+      <div class="field"><label>Data *</label><input type="date" id="an-data" required></div>
+      <div class="field"><label>Annotazione *</label><textarea id="an-testo" rows="6" required placeholder="Scrivi qui la nota..."></textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btn-elimina-annotazione" style="display:none;color:#B14B3F;" onclick="eliminaAnnotazioneDashboard()">🗑 Elimina</button>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-ghost" onclick="closeAnnotazioneModal()">Annulla</button>
+          <button type="submit" class="btn btn-primary" style="width:auto;">Salva</button>
+        </div>
       </div>
     </form>
   </div>
@@ -2059,6 +2085,11 @@ let turniScuPubblicati = {};
 // { id, mezzoId, descrizione, gravita, segnalatoDa, segnalatoIl, stato:
 // 'aperto'|'risolto', risoltoDa, risoltoIl, notaRisoluzione }
 let guastiMezzi = [];
+// Annotazioni libere sulla Dashboard servizi: { id, data (AAAA-MM-GG), testo,
+// creatoDa, creatoIl }. Compaiono nel calendario, prima dei servizi del
+// giorno, con un colore dedicato (viola) per non confondersi con lo stato
+// dei servizi (verde/giallo/rosso).
+let annotazioniDashboard = [];
 let settimanaTurniScu = lunediSettimanaCorrente();
 function lunediSettimanaCorrente(d){
   const data = d ? new Date(d) : new Date();
@@ -2349,7 +2380,7 @@ async function loadData(){
   // Prima "ondata": tutte le letture indipendenti tra loro partono insieme,
   // invece che una dopo l'altra — l'attesa totale diventa quella della
   // richiesta più lenta, non la somma di tutte quante.
-  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes, turniScuPubblicatiRes, guastiMezziRes] = await Promise.all([
+  const [utentiRes, mezziRes, rimborsiRes, maggiorazioniRes, tipiRes, indiceServizi, indiceFogli, presidiRes, prestitiRes, tipiPresidioRes, interventi118Res, turniScuRes, turniScuPubblicatiRes, guastiMezziRes, annotazioniDashboardRes] = await Promise.all([
     kvGet('utenti'),
     kvGet('mezzi'),
     kvGet('rimborsi'),
@@ -2363,7 +2394,8 @@ async function loadData(){
     kvGet('interventi118'),
     kvGet('turniScu'),
     kvGet('turniScuPubblicati'),
-    kvGet('guastiMezzi')
+    kvGet('guastiMezzi'),
+    kvGet('annotazioniDashboard')
   ]);
 
   utenti = utentiRes || [];
@@ -2376,6 +2408,7 @@ async function loadData(){
   turniScu = turniScuRes || {};
   turniScuPubblicati = turniScuPubblicatiRes || {};
   guastiMezzi = guastiMezziRes || [];
+  annotazioniDashboard = annotazioniDashboardRes || [];
   if(tipiPresidioRes && tipiPresidioRes.length){
     tipiPresidio = tipiPresidioRes;
   } else {
@@ -2418,6 +2451,7 @@ async function loadData(){
 }
 async function saveUtenti(){ await kvSet('utenti', utenti); }
 async function saveMezzi(){ await kvSet('mezzi', mezzi); }
+async function saveAnnotazioniDashboard(){ await kvSet('annotazioniDashboard', annotazioniDashboard); }
 async function saveRimborsi(){ await kvSet('rimborsi', rimborsi); }
 async function saveMaggiorazioni(){ await kvSet('maggiorazioniOssigeno', maggiorazioniOssigeno); }
 async function savePresidiData(){ await kvSet('presidi-magazzino', presidi); }
@@ -2792,6 +2826,10 @@ async function ricaricaDatiCorrenti(){
         guastiMezzi = datiFreschi;
         aggiornaBadgeGuastiMezzi();
       }
+    }
+    if(viewAttiva === 'view-dashboard' && !salvatoLocalmenteDiRecente('annotazioniDashboard')){
+      const datiFreschi = (await kvGet('annotazioniDashboard')) || [];
+      if(!salvatoLocalmenteDiRecente('annotazioniDashboard')) annotazioniDashboard = datiFreschi;
     }
     if(viewAttiva === 'view-elenco'){ renderElenco(); }
     if(viewAttiva === 'view-dashboard'){ renderCalendar(); }
@@ -3987,6 +4025,70 @@ function apriSegnalaGuastoModal(foglioId){
   document.getElementById('gm-gravita').value = 'media';
   document.getElementById('segnala-guasto-modal-backdrop').classList.add('active');
 }
+
+// ============================================================================
+// Annotazioni Dashboard: note libere legate a una data, mostrate nel
+// calendario prima dei servizi del giorno.
+// ============================================================================
+let editingAnnotazioneId = null;
+function apriAnnotazioneModal(id, dataPreselezionata){
+  const esistente = id ? annotazioniDashboard.find(a=>a.id===id) : null;
+  editingAnnotazioneId = esistente ? esistente.id : null;
+  document.getElementById('annotazione-modal-title').textContent = esistente ? 'Modifica annotazione' : 'Nuova annotazione';
+  document.getElementById('an-data').value = esistente ? esistente.data : (dataPreselezionata || '');
+  document.getElementById('an-testo').value = esistente ? esistente.testo : '';
+  document.getElementById('btn-elimina-annotazione').style.display = esistente ? 'inline-block' : 'none';
+  const cronologia = document.getElementById('annotazione-cronologia');
+  if(esistente){
+    let testoCronologia = 'Creata da ' + esistente.creatoDa + ' il ' + new Date(esistente.creatoIl).toLocaleString('it-IT');
+    if(esistente.modificatoDa){
+      testoCronologia += ' — ultima modifica di ' + esistente.modificatoDa + ' il ' + new Date(esistente.modificatoIl).toLocaleString('it-IT');
+    }
+    cronologia.textContent = testoCronologia;
+    cronologia.style.display = 'block';
+  } else {
+    cronologia.style.display = 'none';
+  }
+  document.getElementById('annotazione-modal-backdrop').classList.add('active');
+}
+function closeAnnotazioneModal(){
+  document.getElementById('annotazione-modal-backdrop').classList.remove('active');
+  editingAnnotazioneId = null;
+}
+async function salvaAnnotazioneDashboard(ev){
+  ev.preventDefault();
+  const data = document.getElementById('an-data').value;
+  const testo = document.getElementById('an-testo').value.trim();
+  if(!data || !testo) return false;
+  if(editingAnnotazioneId){
+    const a = annotazioniDashboard.find(x=>x.id===editingAnnotazioneId);
+    if(a){
+      a.data = data; a.testo = testo;
+      a.modificatoDa = currentUser.nome+' '+currentUser.cognome;
+      a.modificatoIl = new Date().toISOString();
+    }
+  } else {
+    annotazioniDashboard.push({
+      id: 'nota-' + Date.now(),
+      data, testo,
+      creatoDa: currentUser.nome+' '+currentUser.cognome,
+      creatoIl: new Date().toISOString()
+    });
+  }
+  await saveAnnotazioniDashboard();
+  closeAnnotazioneModal();
+  renderCalendar();
+  return false;
+}
+async function eliminaAnnotazioneDashboard(){
+  if(!editingAnnotazioneId) return;
+  if(!confirm('Eliminare questa annotazione?')) return;
+  annotazioniDashboard = annotazioniDashboard.filter(a=>a.id!==editingAnnotazioneId);
+  await saveAnnotazioniDashboard();
+  closeAnnotazioneModal();
+  renderCalendar();
+}
+
 function closeSegnalaGuastoModal(){
   document.getElementById('segnala-guasto-modal-backdrop').classList.remove('active');
   guastoSegnalazioneFoglioId = null;
@@ -4279,8 +4381,10 @@ function renderCalendar(){
       const outside = d.getMonth() !== m;
       const isToday = k === today;
       const dayServices = attivi.filter(s => s.perGiorno === k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+      const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="event.stopPropagation();apriAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
         ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
         ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
@@ -4301,8 +4405,10 @@ function renderCalendar(){
       const k = dateKey(d);
       const isToday = k === oggi;
       const dayServices = attivi.filter(s => s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+      const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="apriAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
         ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
       </div>`;
     }
@@ -4314,9 +4420,14 @@ function renderCalendar(){
     const k = dateKey(d);
     titleEl.textContent = d.getDate()+' '+MESI[d.getMonth()]+' '+d.getFullYear();
     const dayServices = attivi.filter(s=>s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
+    const dayNotes = annotazioniDashboard.filter(a => a.data === k);
     let html = '<div class="cal-grid" style="padding:16px;">';
+    html += dayNotes.map(a=>`<div class="pill-giorno nota" onclick="apriAnnotazioneModal('${a.id}')">
+      <div class="pg-titolo">📌 Annotazione</div>
+      <div class="pg-percorso">${escapeHtml(a.testo)}</div>
+    </div>`).join('');
     if(dayServices.length === 0){
-      html += '<div class="empty-state">Nessun servizio in programma per questo giorno.</div>';
+      if(dayNotes.length === 0) html += '<div class="empty-state">Nessun servizio in programma per questo giorno.</div>';
     } else {
       html += dayServices.map(s=>{
         const nomeMezzo = mezzoVisualizzatoServizio(s) ? (escapeHtml(nomeVisualizzatoServizio(s))+'/'+escapeHtml(mezzoVisualizzatoServizio(s))) : escapeHtml(nomeVisualizzatoServizio(s));
@@ -6584,6 +6695,9 @@ async function renderStatistiche(){
   // Il rimborso suggerito dei servizi annullati non va conteggiato: un
   // servizio annullato non genera mai una spesa reale da rimborsare.
   const rimborsoTotaleSuggerito = serviziFiltrati.reduce((tot,s)=> tot + (s.stato==='rosso' ? 0 : (parseFloat(s.rimborsoSuggerito)||0)), 0);
+  // Mancati rimborsi: il rimborso suggerito dei soli servizi annullati —
+  // quanto sarebbe spettato se non fossero stati annullati.
+  const rimborsoMancatoAnnullati = serviziFiltrati.reduce((tot,s)=> tot + (s.stato==='rosso' ? (parseFloat(s.rimborsoSuggerito)||0) : 0), 0);
 
   // Rimborso spese REALMENTE ricevuto: a differenza del "suggerito" (calcolato
   // dall'app in base alla tabella tariffe), questo si ricava dal campo
@@ -6635,6 +6749,7 @@ async function renderStatistiche(){
       <div class="user-card"><div class="nm" style="font-size:22px;">${perStato.rosso}</div><div class="un">Servizi programmati annullati</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">${kmTotaliGenerali}</div><div class="un">Km totali percorsi (fogli di marcia)</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoTotaleSuggerito.toFixed(2)}</div><div class="un">Totale rimborso spese suggerito (servizi programmati)</div></div>
+      <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoMancatoAnnullati.toFixed(2)}</div><div class="un">Mancati rimborsi per servizi annullati</div></div>
       <div class="user-card"><div class="nm" style="font-size:22px;">€ ${rimborsoRicevutoTotale.toFixed(2)}</div><div class="un">Totale rimborso spese ricevuto (ricevute registrate sui fogli di marcia)</div></div>
     </div>`;
 
