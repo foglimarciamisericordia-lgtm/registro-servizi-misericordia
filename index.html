@@ -7028,6 +7028,7 @@ function viewServiceModal(id){
     <h4>Stato</h4>
     <div class="view-grid">
       ${item('Stato', statoLabel[s.stato] || s.stato)}
+      ${s.stato === 'rosso' ? item('Motivazione annullamento', s.motivazioneAnnullamento) : ''}
       ${item('Assegnazione', s.chiuso ? 'Assegnato' : 'Non ancora assegnato')}
       ${item('Ultimo operatore', s.ultimoOperatore || s.operatoreInserimento)}
       ${item('Ultima modifica il', formatDateTime(s.ultimaModificaIl))}
