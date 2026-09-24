@@ -463,7 +463,7 @@
             <p>Quadro mensile, settimanale e giornaliero dei servizi registrati</p>
           </div>
           <div style="display:flex;gap:10px;">
-            <button class="btn btn-ghost" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
+            <button class="btn btn-ghost" style="background:#EDE7F6;color:#6A4FA0;border-color:#D9CCEF;" onclick="apriAnnotazioneModal()">🗒 Annotazioni</button>
             <button class="btn btn-add" onclick="openServiceModal()">+ Aggiungi servizio</button>
           </div>
         </div>
@@ -1106,6 +1106,25 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- MODAL VISUALIZZA ANNOTAZIONE -->
+<div class="modal-backdrop" id="annotazione-view-modal-backdrop">
+  <div class="modal" style="max-width:520px;">
+    <button class="close-x" onclick="closeAnnotazioneViewModal()">✕</button>
+    <h3>Annotazione</h3>
+    <p class="mono" id="annotazione-view-data" style="color:var(--ink-soft);font-size:13px;margin:0 0 14px;"></p>
+    <p id="annotazione-view-testo" style="white-space:pre-wrap;margin:0 0 14px;"></p>
+    <p class="modal-sub" id="annotazione-view-cronologia"></p>
+    <div class="modal-actions">
+      <div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" style="width:auto;" onclick="modificaDaVisualizzazioneAnnotazione()">Modifica</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAnnotazioneViewModal()">Chiudi</button>
+        <button type="button" class="btn btn-ghost" style="color:#B14B3F;" onclick="eliminaAnnotazioneDaVisualizzazione()">🗑 Elimina</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4089,6 +4108,38 @@ async function eliminaAnnotazioneDashboard(){
   renderCalendar();
 }
 
+let viewingAnnotazioneId = null;
+function visualizzaAnnotazioneModal(id){
+  const a = annotazioniDashboard.find(x=>x.id===id);
+  if(!a) return;
+  viewingAnnotazioneId = id;
+  document.getElementById('annotazione-view-data').textContent = formatDataIt(a.data);
+  document.getElementById('annotazione-view-testo').textContent = a.testo;
+  let cronologia = 'Creata da ' + a.creatoDa + ' il ' + new Date(a.creatoIl).toLocaleString('it-IT');
+  if(a.modificatoDa){
+    cronologia += ' — ultima modifica di ' + a.modificatoDa + ' il ' + new Date(a.modificatoIl).toLocaleString('it-IT');
+  }
+  document.getElementById('annotazione-view-cronologia').textContent = cronologia;
+  document.getElementById('annotazione-view-modal-backdrop').classList.add('active');
+}
+function closeAnnotazioneViewModal(){
+  document.getElementById('annotazione-view-modal-backdrop').classList.remove('active');
+  viewingAnnotazioneId = null;
+}
+function modificaDaVisualizzazioneAnnotazione(){
+  const id = viewingAnnotazioneId;
+  closeAnnotazioneViewModal();
+  apriAnnotazioneModal(id);
+}
+async function eliminaAnnotazioneDaVisualizzazione(){
+  if(!viewingAnnotazioneId) return;
+  if(!confirm('Eliminare questa annotazione?')) return;
+  annotazioniDashboard = annotazioniDashboard.filter(a=>a.id!==viewingAnnotazioneId);
+  await saveAnnotazioniDashboard();
+  closeAnnotazioneViewModal();
+  renderCalendar();
+}
+
 function closeSegnalaGuastoModal(){
   document.getElementById('segnala-guasto-modal-backdrop').classList.remove('active');
   guastoSegnalazioneFoglioId = null;
@@ -4384,7 +4435,7 @@ function renderCalendar(){
       const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="cal-cell ${outside?'outside':''} ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">
         <div class="daynum">${d.getDate()}</div>
-        ${dayNotes.map(a=>`<div class="pill nota" onclick="event.stopPropagation();apriAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="event.stopPropagation();visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
         ${dayServices.slice(0,4).map(s=>`<div class="pill ${s.stato}" onclick="event.stopPropagation();viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
         ${dayServices.length>4?`<div class="link-piu-altri" onclick="event.stopPropagation();mostraTuttiServiziGiorno('${k}', event)">+${dayServices.length-4} altri</div>`:''}
       </div>`;
@@ -4408,7 +4459,7 @@ function renderCalendar(){
       const dayNotes = annotazioniDashboard.filter(a => a.data === k);
       html += `<div class="week-day-col">
         <div class="week-day-header ${isToday?'today':''}" onclick="openServiceModal(null,'${k}')">${GIORNI[i]} ${d.getDate()}</div>
-        ${dayNotes.map(a=>`<div class="pill nota" onclick="apriAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
+        ${dayNotes.map(a=>`<div class="pill nota" onclick="visualizzaAnnotazioneModal('${a.id}')" title="${escapeHtml(a.testo)}">📌 ${escapeHtml(a.testo)}</div>`).join('')}
         ${dayServices.length===0 ? '' : dayServices.map(s=>`<div class="pill ${s.stato}" onclick="viewServiceModal('${s.id}')">${orarioVisualizzatoServizio(s)||''} ${escapeHtml(nomeVisualizzatoServizio(s))}${mezzoVisualizzatoServizio(s)?' - '+escapeHtml(mezzoVisualizzatoServizio(s)):''}</div>`).join('')}
       </div>`;
     }
@@ -4422,7 +4473,7 @@ function renderCalendar(){
     const dayServices = attivi.filter(s=>s.perGiorno===k).sort((a,b)=> (a.alleOre||'').localeCompare(b.alleOre||''));
     const dayNotes = annotazioniDashboard.filter(a => a.data === k);
     let html = '<div class="cal-grid" style="padding:16px;">';
-    html += dayNotes.map(a=>`<div class="pill-giorno nota" onclick="apriAnnotazioneModal('${a.id}')">
+    html += dayNotes.map(a=>`<div class="pill-giorno nota" onclick="visualizzaAnnotazioneModal('${a.id}')">
       <div class="pg-titolo">📌 Annotazione</div>
       <div class="pg-percorso">${escapeHtml(a.testo)}</div>
     </div>`).join('');
