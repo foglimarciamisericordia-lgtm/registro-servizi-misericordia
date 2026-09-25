@@ -4538,7 +4538,7 @@ async function renderElenco(){
     if(avvisoRicerca) avvisoRicerca.textContent = '';
   }
   list = list.filter(s => !s.cestinato);
-  list.sort((a,b)=> (b.perGiorno||'').localeCompare(a.perGiorno||'') || (b.alleOre||'').localeCompare(a.alleOre||''));
+  list.sort((a,b)=> (a.perGiorno||'').localeCompare(b.perGiorno||'') || (a.alleOre||'').localeCompare(b.alleOre||''));
   if(stato) list = list.filter(s=>s.stato===stato);
   if(cerca) list = list.filter(s=>(s.cognome||'').toLowerCase().includes(cerca) || (s.nome||'').toLowerCase().includes(cerca));
   if(dataServizio) list = list.filter(s=>s.perGiorno === dataServizio);
