@@ -4590,6 +4590,7 @@ function nomeMezzoAssegnato(s){
   // Va sempre a leggere il mezzo attuale (per id), non il testo salvato al
   // momento della registrazione: così un cambio di nome/targa/sigla si
   // riflette subito anche sui servizi già registrati in passato.
+  if(s.mezzoId === 'APPIEDATA') return 'Appiedata (nessun mezzo)';
   if(s.mezzoId){
     const m = mezzi.find(x=>x.id===s.mezzoId);
     if(m) return m.tipo + (m.codice?' '+m.codice:'') + ' — ' + m.targa;
@@ -5215,19 +5216,24 @@ async function eliminaTuttiMezziDefinitivo(){
   }
   renderCestino();
 }
-function opzioniMezzoSelect(valoreCorrente){
+function opzioniMezzoSelect(valoreCorrente, includiAppiedata){
   const attivi = mezziOrdinati(mezzi.filter(m=>!m.archiviato && !m.bloccato));
-  if(mezzi.length === 0) return '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
+  // "Appiedata" (nessun mezzo assegnato): solo per Eventi/manifestazioni,
+  // dove una squadra può intervenire a piedi senza un veicolo specifico.
+  const opzioneAppiedata = includiAppiedata ? '<option value="APPIEDATA">Appiedata (nessun mezzo)</option>' : '';
+  if(mezzi.length === 0 && !includiAppiedata) return '<option value="">-- nessun mezzo registrato: chiedi all\'amministratore --</option>';
   const opt = m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}${m.archiviato?' (archiviato)':''}${m.bloccato?' (bloccato per guasto)':''}</option>`;
   let elenco = attivi;
-  if(valoreCorrente && !attivi.some(m=>m.id===valoreCorrente)){
+  if(valoreCorrente && valoreCorrente !== 'APPIEDATA' && !attivi.some(m=>m.id===valoreCorrente)){
     const storico = mezzi.find(m=>m.id===valoreCorrente);
     if(storico) elenco = [...attivi, storico];
   }
-  return '<option value="">-- seleziona --</option>' + elenco.map(opt).join('');
+  return '<option value="">-- seleziona --</option>' + opzioneAppiedata + elenco.map(opt).join('');
 }
 function fillMezzoSelect(valoreCorrente){
-  document.getElementById('sf-mezzo').innerHTML = opzioniMezzoSelect(valoreCorrente);
+  const tipo = document.getElementById('sf-tipoScheda')?.value;
+  document.getElementById('sf-mezzo').innerHTML = opzioniMezzoSelect(valoreCorrente, tipo === 'evento');
+  document.getElementById('sf-mezzo').value = valoreCorrente || '';
 }
 
 /* ============ RIMBORSO SPESE ============ */
@@ -5957,7 +5963,7 @@ async function renderCestino(){
 function generaFoglioDaServizio(servizioId){
   const s = servizi.find(x=>x.id===servizioId);
   if(!s) return;
-  if(!s.mezzoId){ alert('Questo servizio non ha un mezzo assegnato: apri la scheda del servizio e assegna un mezzo prima di generare il foglio di marcia.'); return; }
+  if(!s.mezzoId || s.mezzoId === 'APPIEDATA'){ alert('Questo servizio non ha un mezzo assegnato (o è "Appiedata"): il foglio di marcia riguarda i km di un veicolo, quindi qui non serve.'); return; }
   switchView('fogli');
   document.getElementById('fm-selettoreMezzo').value = s.mezzoId;
   renderFogliMarcia();
@@ -6895,7 +6901,7 @@ function aggiungiBloccoEquipaggio(dati){
     <button type="button" class="btn btn-ghost" style="width:auto;margin-top:6px;" onclick="rimuoviBloccoEquipaggio(${indice})">🗑 Rimuovi questo equipaggio</button>
   `;
   document.getElementById('altri-equipaggi-container').appendChild(div);
-  document.getElementById('sf-mezzoExtra-'+indice).innerHTML = opzioniMezzoSelect(dati?.mezzoId);
+  document.getElementById('sf-mezzoExtra-'+indice).innerHTML = opzioniMezzoSelect(dati?.mezzoId, true);
   document.getElementById('sf-mezzoExtra-'+indice).value = dati?.mezzoId || '';
   const opzioniPersone = opzioniPersonaSelect();
   ['autista','soccorritore1','soccorritore2','soccorritore3'].forEach(campo=>{
@@ -7005,6 +7011,11 @@ function toggleTipoScheda(){
     const el = document.getElementById(id);
     if(el) el.required = (tipo === 'evento');
   });
+
+  // Rigenera le opzioni di "Mezzo assegnato" per includere/escludere
+  // "Appiedata" in base al tipo appena selezionato, mantenendo l'eventuale
+  // mezzo già scelto.
+  fillMezzoSelect(document.getElementById('sf-mezzo').value);
 
   if(modalitaRichiedente) scheduleGeoPreviewEvento();
 }
