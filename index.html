@@ -5620,8 +5620,11 @@ function selezionaServizioPerFoglio(servizioId){
   document.getElementById('fm-servizioCollegato').innerHTML = testoServizioCollegato({servizioId, servizioNumero: s.numeroProgressivo, servizioAnno: s.numeroAnno});
   document.getElementById('btn-scollega-servizio').style.display = 'inline-block';
   document.getElementById('fm-paziente').value = nomeVisualizzatoServizio(s);
-  document.getElementById('fm-daDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : (s.partenza||'');
-  document.getElementById('fm-aDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : (s.destinazione||'');
+  // "Da dove" è sempre la sede della Misericordia (S.M. di Licodia), da cui
+  // parte il mezzo; "A dove" riporta insieme il punto di prelievo ("Trasportare
+  // da") e la destinazione ("A") del servizio, uniti da un trattino.
+  document.getElementById('fm-daDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : 'Misericordia S.M. di Licodia';
+  document.getElementById('fm-aDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : [s.partenza, s.destinazione].filter(Boolean).join(' - ');
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
