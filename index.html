@@ -6075,7 +6075,9 @@ async function saveFoglio(ev){
 
     data.cronologia = [...(existing.cronologia || [])];
     const cambi = calcolaModificheFoglio(existing, data);
-    if(cambi.length){
+    // Le modifiche effettuate dall'amministratore non vengono registrate
+    // nella cronologia del foglio (su richiesta esplicita).
+    if(cambi.length && !isAdmin){
       data.cronologia.push({ tipo:'Modifica: ' + cambi.join(', '), chi: nomeUtenteCorrente, quando: adesso });
     }
 
