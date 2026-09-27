@@ -294,6 +294,12 @@
   .view-item .vl{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
   .view-item .vv{color:var(--ink);font-weight:500;}
   .view-note{margin-top:6px;font-size:13px;background:var(--bg);border-radius:7px;padding:8px 10px;}
+  .guasto-triangolo{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--amber-bg);color:var(--amber);font-size:13px;font-weight:700;margin-left:6px;cursor:default;}
+  .view-guasto{margin:10px 0;padding:10px 12px;border-radius:8px;background:var(--amber-bg);border-left:4px solid var(--amber);}
+  .view-guasto + .view-guasto{margin-top:8px;}
+  .view-guasto-titolo{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.03em;}
+  .view-guasto-testo{font-size:13px;margin-top:4px;line-height:1.4;}
+  .view-guasto-meta{font-size:11px;color:var(--ink-soft);margin-top:6px;}
   .print-letterhead{display:none;}
   .print-cronologia{margin-top:18px;}
   .print-cronologia li{font-size:12px;margin-bottom:3px;}
@@ -5444,8 +5450,9 @@ function renderFogliMarcia(){
     const numeroServ = servCollegato ? formatNumeroServizio(servCollegato.numeroProgressivo, servCollegato.numeroAnno) : 'libero';
     const mezzoRiga = mezzi.find(m=>m.id===f.mezzoId);
     const nomeMezzoRiga = mezzoRiga ? (mezzoRiga.tipo + (mezzoRiga.codice?' '+mezzoRiga.codice:'') + ' — ' + mezzoRiga.targa) : '—';
+    const guastiFoglio = guastiMezzi.filter(g=>g.foglioId===f.id);
     html += `<tr>
-      <td class="mono">${f.numeroProgressivo}</td>
+      <td class="mono">${f.numeroProgressivo}${guastiFoglio.length ? `<span class="guasto-triangolo" title="Guasto segnalato su questo foglio">⚠</span>` : ''}</td>
       <td>${escapeHtml(nomeMezzoRiga)}</td>
       <td class="mono">${formatDateTime(f.registratoIl)}</td>
       <td>${escapeHtml(f.motivazioneServizio||'—')}</td>
@@ -5663,6 +5670,14 @@ function viewFoglioModal(id){
       ${item('Motivazione', f.motivazioneServizio)}
     </div>
     <div class="view-item" style="margin:10px 0;">${f.servizioId ? testoServizioCollegato(f) : '<span class="vl">Rif. servizio</span><span class="vv">Nessuno (riga libera)</span>'}</div>
+
+    ${guastiMezzi.filter(g=>g.foglioId===f.id).map(g=>`
+      <div class="view-guasto">
+        <div class="view-guasto-titolo"><span>⚠</span><span>Guasto segnalato${g.gravita ? ' — ' + escapeHtml(g.gravita) : ''}</span></div>
+        <div class="view-guasto-testo">${escapeHtml(g.descrizione||'—')}</div>
+        <div class="view-guasto-meta">Segnalato da ${escapeHtml(g.segnalatoDa||'—')}${g.segnalatoIl ? ' — ' + formatDateTime(g.segnalatoIl) : ''} · Stato: <b>${g.stato==='risolto' ? 'Risolto' : 'Aperto'}</b>${g.stato==='risolto' ? ` (da ${escapeHtml(g.risoltoDa||'—')}${g.risoltoIl ? ' il ' + formatDateTime(g.risoltoIl) : ''}${g.notaRisoluzione ? ' — ' + escapeHtml(g.notaRisoluzione) : ''})` : ''}</div>
+      </div>
+    `).join('')}
 
     <h4>Percorso</h4>
     <div class="view-grid">
