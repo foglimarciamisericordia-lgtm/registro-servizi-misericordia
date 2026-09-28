@@ -1514,6 +1514,57 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
   </div>
 </div>
 
+<!-- MODAL INFORMATIVA PRIVACY (obbligatoria al primo accesso, o dopo un
+     aggiornamento del testo: si riapre finché l'utente non accetta la
+     versione corrente, indicata da INFORMATIVA_PRIVACY_VERSIONE più sotto) -->
+<div class="modal-backdrop" id="informativa-modal-backdrop">
+  <div class="modal modal-wide">
+    <h3>Informativa sul trattamento dei dati personali</h3>
+    <p class="modal-sub">Prima di continuare, leggi l'informativa. Riguarda i dati che troverai in questo programma: quelli dei soggetti seguiti e, in parte, i tuoi come utente.</p>
+    <div id="informativa-testo" style="max-height:380px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:16px 18px;font-size:13px;line-height:1.55;background:var(--bg);margin-top:6px;">
+      <p style="font-weight:700;text-align:center;">INFORMATIVA SUL TRATTAMENTO DEI DATI PERSONALI<br><span style="font-weight:500;font-size:11.5px;">(art. 13 Regolamento UE 2016/679 – GDPR)</span></p>
+      <p><strong>Titolare del trattamento:</strong> Fraternita di Misericordia di S.M. di Licodia ODV, Via Isonzo 4, 95038, S.M. di Licodia (CT) — C.F. 93017080875 - P.IVA 06231920874</p>
+      <p><strong>Finalità del trattamento:</strong> i dati sono trattati esclusivamente per:</p>
+      <ul style="margin:4px 0 12px;padding-left:20px;">
+        <li>la pianificazione, registrazione e gestione dei servizi erogati dalla Misericordia (trasporti sanitari e sociali, servizi programmati e ripetitivi, prestito di presidi sanitari);</li>
+        <li>la compilazione e gestione delle schede di intervento in eccedenza al servizio di emergenza-urgenza 118, anche ai fini della rendicontazione e degli adempimenti verso gli enti competenti;</li>
+        <li>l'organizzazione degli equipaggi e dei mezzi impiegati;</li>
+        <li>la gestione delle utenze e dei profili di accesso al programma, nonché la sicurezza e il salvataggio (backup) dei dati.</li>
+      </ul>
+      <p><strong>Categorie di dati trattati:</strong></p>
+      <ul style="margin:4px 0 12px;padding-left:20px;">
+        <li>dati degli utenti del programma (volontari e operatori): nome, cognome, credenziali di accesso, ruolo, registro delle operazioni effettuate;</li>
+        <li>dati dei beneficiari dei servizi: dati anagrafici e di contatto, indirizzi di partenza e destinazione, date e orari dei servizi, presidi concessi in prestito;</li>
+        <li>dati relativi alla salute (categorie particolari ex art. 9 GDPR): informazioni sanitarie strettamente necessarie allo svolgimento del servizio o riportate nelle schede di intervento 118;</li>
+        <li>dati relativi al servizio: equipaggi, mezzi impiegati (tipologia e targa), stato del servizio.</li>
+      </ul>
+      <p><strong>Base giuridica:</strong></p>
+      <ul style="margin:4px 0 12px;padding-left:20px;">
+        <li>esecuzione del servizio richiesto dall'interessato o di misure precontrattuali (art. 6, par. 1, lett. b);</li>
+        <li>adempimento di obblighi legali e di convenzione, incluse le attività svolte per conto del Servizio Sanitario Regionale (art. 6, par. 1, lett. c ed e);</li>
+        <li>per i dati sanitari: finalità di assistenza e cura sanitaria o sociale (art. 9, par. 2, lett. h) e, nei casi di emergenza, tutela di un interesse vitale dell'interessato (art. 9, par. 2, lett. c);</li>
+        <li>per i dati degli utenti del programma: legittimo interesse del Titolare alla sicurezza e alla corretta organizzazione delle attività (art. 6, par. 1, lett. f).</li>
+      </ul>
+      <p><strong>Conservazione:</strong> i dati sono conservati per il tempo necessario allo svolgimento del servizio e agli adempimenti di legge conseguenti, inclusi quelli di rendicontazione amministrativa e contabile. Al termine, i dati sono cancellati o resi anonimi.</p>
+      <p><strong>Accesso ai dati:</strong> l'accesso è consentito solo al personale e ai volontari autorizzati, dotati di credenziali personali e con permessi differenziati in base al ruolo (Amministratore, Responsabile, Operatore, Responsabile 118, Eccedenza): ciascun utente accede esclusivamente ai dati necessari alle proprie mansioni; le schede 118 sono visibili solo ai ruoli abilitati. I dati possono essere trattati da fornitori di servizi tecnici (hosting, archiviazione, backup e invio di email) nominati Responsabili del trattamento ai sensi dell'art. 28 GDPR, e comunicati agli enti del Servizio Sanitario e alle autorità competenti nei soli casi previsti dalla legge o dalle convenzioni in essere. I dati non sono diffusi.</p>
+      <p><strong>Riservatezza dell'utente:</strong> le credenziali di accesso sono personali e non vanno condivise; ciascun utente è responsabile della riservatezza dei dati a cui accede in ragione del proprio ruolo, e si impegna a non divulgarli né utilizzarli per finalità estranee a quelle istituzionali sopra descritte.</p>
+      <p><strong>Diritti dell'interessato:</strong> i soggetti i cui dati sono trattati possono esercitare i diritti di accesso, rettifica, cancellazione, limitazione, portabilità e opposizione previsti dagli artt. 15-22 del Regolamento UE 2016/679, rivolgendosi al Titolare ai recapiti sopra indicati. Hanno inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">www.garanteprivacy.it</a>).</p>
+    </div>
+    <div style="margin-top:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="informativa-accettata-check" onchange="document.getElementById('btn-informativa-continua').disabled = !this.checked;">
+        Ho letto l'informativa e ne prendo atto.
+      </label>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <div></div>
+      <div>
+        <button type="button" class="btn btn-primary" id="btn-informativa-continua" disabled onclick="accettaInformativaPrivacy()">Continua</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL MEZZO -->
 <div class="modal-backdrop" id="mezzo-modal-backdrop">
   <div class="modal" style="max-width:380px;">
@@ -2776,7 +2827,15 @@ async function doLogin(){
   renderTurniScu();
   renderFogliMarcia();
   aggiornaBadgeGuastiMezzi();
-  if(currentUser.mustChangePassword){
+  // Guardiamo il record appena caricato da KV (non l'oggetto restituito dal
+  // login) per sapere se questo utente ha già accettato la versione corrente
+  // dell'informativa privacy: solo dopo, se serve, gli chiediamo di cambiare
+  // la password provvisoria.
+  const recordUtenteLoggato = utenti.find(u=>u.id===currentUser.id);
+  const haAccettatoInformativaCorrente = recordUtenteLoggato && recordUtenteLoggato.informativaVersione === INFORMATIVA_PRIVACY_VERSIONE;
+  if(!haAccettatoInformativaCorrente){
+    apriInformativaPrivacyModal();
+  } else if(currentUser.mustChangePassword){
     openAccountModal(true);
   }
   resettaTimerInattivita();
@@ -4652,6 +4711,7 @@ function renderUsers(){
       <div class="un">@${escapeHtml(u.username)}</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;">${ruoliUtente(u).map(r=>`<span class="role-chip ${r}">${ruoloLabel(r)}</span>`).join('')}</div>
       ${u.mustChangePassword ? '<span class="tag-chiuso">Deve cambiare password</span>' : ''}
+      ${u.informativaVersione === INFORMATIVA_PRIVACY_VERSIONE ? `<span class="tag-assegnato" title="Versione ${escapeHtml(INFORMATIVA_PRIVACY_VERSIONE)}">Informativa accettata${u.informativaAccettataIl ? ' il ' + formatDateTime(u.informativaAccettataIl) : ''}</span>` : '<span class="tag-non-assegnato">Informativa privacy non ancora accettata</span>'}
       ${u.archiviato ? `<span class="tag-chiuso">Archiviato il ${u.dataArchiviazione||''}</span>` : ''}
       <div class="row-actions" style="margin-top:10px;">
         ${u.archiviato ? `<button class="action-btn primary" onclick="riattivaUtente('${u.id}')">↺ Riattiva</button>` : `
@@ -4902,6 +4962,34 @@ async function eliminaTuttiUtentiDefinitivo(){
     alert(`Eliminati definitivamente ${daRimuovere.length} utenti su ${cestinati.length}: ${saltati} non eliminato/i perché risultava/no l'unico amministratore attivo.`);
   }
   renderCestino();
+}
+
+/* ============ INFORMATIVA PRIVACY (accettazione obbligatoria) ============ */
+// Incrementare questa versione (es. 'v2') se in futuro cambia il testo
+// dell'informativa: chi aveva già accettato la versione precedente se la
+// ritroverà da accettare di nuovo al primo accesso utile.
+const INFORMATIVA_PRIVACY_VERSIONE = 'v1';
+function apriInformativaPrivacyModal(){
+  document.getElementById('informativa-accettata-check').checked = false;
+  document.getElementById('btn-informativa-continua').disabled = true;
+  document.getElementById('informativa-modal-backdrop').classList.add('active');
+}
+async function accettaInformativaPrivacy(){
+  if(!document.getElementById('informativa-accettata-check').checked) return;
+  const record = utenti.find(u=>u.id===currentUser.id);
+  if(record){
+    record.informativaVersione = INFORMATIVA_PRIVACY_VERSIONE;
+    record.informativaAccettataIl = new Date().toISOString();
+    await saveUtenti();
+  }
+  currentUser.informativaVersione = INFORMATIVA_PRIVACY_VERSIONE;
+  document.getElementById('informativa-modal-backdrop').classList.remove('active');
+  // Se all'utente serve anche cambiare la password provvisoria, glielo
+  // chiediamo subito dopo aver accettato l'informativa (mai prima, né
+  // contemporaneamente: un passo alla volta).
+  if(currentUser.mustChangePassword){
+    openAccountModal(true);
+  }
 }
 
 /* ============ IL MIO ACCOUNT ============ */
