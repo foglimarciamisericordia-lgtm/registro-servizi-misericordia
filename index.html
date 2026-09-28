@@ -5635,6 +5635,15 @@ function selezionaServizioPerFoglio(servizioId){
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
+  // La data di partenza (e, come base di partenza, anche quella di rientro)
+  // deve sempre derivare dal giorno del servizio ("Per il giorno"), non dalla
+  // data odierna: un servizio che inizia il 27 e finisce dopo mezzanotte
+  // (quindi il 28) deve comunque riportare "27" come data di partenza. Non
+  // tocchiamo le date se si sta modificando un foglio già esistente.
+  if(!editingFoglioId && s.perGiorno){
+    document.getElementById('fm-dataPartenza').value = s.perGiorno;
+    document.getElementById('fm-dataArrivo').value = s.perGiorno;
+  }
   closeCercaServizioModal();
 }
 function testoServizioCollegato(f){
