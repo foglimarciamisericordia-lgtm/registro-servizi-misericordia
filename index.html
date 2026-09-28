@@ -6899,6 +6899,20 @@ async function renderStatistiche(){
   const righeRimborsoMezzo = Object.keys(rimborsoRicevutoPerMezzo).map(id=>({ nome: nomeMezzo(id), totale: rimborsoRicevutoPerMezzo[id] }))
     .sort((a,b)=> b.totale - a.totale);
 
+  // Segnalazioni guasti per mezzo: guastiMezzi non è suddiviso per anno come
+  // servizi/fogli, quindi filtriamo qui sia per anno selezionato (in base
+  // alla data di segnalazione) sia per l'eventuale periodo impostato sopra.
+  const guastiFiltrati = guastiMezzi.filter(g=>{
+    if(!g.segnalatoIl) return false;
+    const dataSegnalazione = g.segnalatoIl.slice(0,10);
+    if(parseInt(dataSegnalazione.slice(0,4)) !== annoCorrenteServizi) return false;
+    return nelPeriodo(dataSegnalazione);
+  });
+  const guastiPerMezzo = {};
+  guastiFiltrati.forEach(g=>{ const k = g.mezzoId || ''; guastiPerMezzo[k] = (guastiPerMezzo[k]||0) + 1; });
+  const righeGuastiMezzo = Object.keys(guastiPerMezzo).map(id=>({ nome: nomeMezzo(id), totale: guastiPerMezzo[id] }))
+    .sort((a,b)=> b.totale - a.totale);
+
   const nomiMesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
   const perMese = Array(12).fill(0);
@@ -6967,11 +6981,16 @@ async function renderStatistiche(){
     ? `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Totale ricevuto</th></tr></thead><tbody>${righeRimborsoMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">€ ${r.totale.toFixed(2)}</td></tr>`).join('')}</tbody></table>`
     : `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
+  const tabellaGuastiMezzo = righeGuastiMezzo.length
+    ? `<div class="section-title">Segnalazioni guasti per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>N. segnalazioni</th></tr></thead><tbody>${righeGuastiMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.totale}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="section-title">Segnalazioni guasti per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
+
   document.getElementById('statistiche-container').innerHTML =
     cardsHtml +
     tabellaMese +
     tabellaMezzoMese +
     tabellaRimborsoMezzo +
+    tabellaGuastiMezzo +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
 }
 function stampaStatistiche(){
