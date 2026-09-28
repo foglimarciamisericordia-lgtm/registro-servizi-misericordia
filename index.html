@@ -239,6 +239,10 @@
   /* ---------- MODAL ---------- */
   .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;}
   .modal-backdrop.active{display:flex;}
+  /* Passaggi obbligatori (informativa privacy, cambio password al primo
+     accesso): lo sfondo deve essere del tutto opaco, senza far intravedere
+     i dati dell'app dietro, finché l'utente non ha completato il passaggio. */
+  .modal-backdrop.blocca-sfondo{background:var(--bg);z-index:200;}
   .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;z-index:0;}
   .modal-wide{max-width:900px;}
   .modal h3{margin:0 0 2px;font-size:18px;}
@@ -1517,7 +1521,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
 <!-- MODAL INFORMATIVA PRIVACY (obbligatoria al primo accesso, o dopo un
      aggiornamento del testo: si riapre finché l'utente non accetta la
      versione corrente, indicata da INFORMATIVA_PRIVACY_VERSIONE più sotto) -->
-<div class="modal-backdrop" id="informativa-modal-backdrop">
+<div class="modal-backdrop blocca-sfondo" id="informativa-modal-backdrop">
   <div class="modal modal-wide">
     <h3>Informativa sul trattamento dei dati personali</h3>
     <p class="modal-sub">Prima di continuare, leggi l'informativa. Riguarda i dati che troverai in questo programma: quelli dei soggetti seguiti e, in parte, i tuoi come utente.</p>
@@ -5004,6 +5008,7 @@ function openAccountModal(forzato){
   document.getElementById('account-modal-close').style.display = forzato ? 'none' : 'block';
   document.getElementById('account-modal-annulla').style.display = forzato ? 'none' : 'inline-block';
   document.getElementById('account-modal-backdrop').dataset.forzato = forzato ? '1' : '0';
+  document.getElementById('account-modal-backdrop').classList.toggle('blocca-sfondo', !!forzato);
   document.getElementById('account-modal-backdrop').classList.add('active');
 }
 function closeAccountModal(){
