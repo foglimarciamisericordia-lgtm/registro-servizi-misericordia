@@ -6939,6 +6939,25 @@ async function renderStatistiche(){
     return { nome: nomeMezzo(id), perMese: perMeseMezzo, totale: perMeseMezzo.reduce((a,b)=>a+b,0), km: kmPerMezzo[id]||0 };
   }).sort((a,b)=> b.totale - a.totale);
 
+  // Spesa carburante (€) per mezzo, suddivisa per mese: dal campo "Tot.
+  // carburante €" registrato sui fogli di marcia quando il rifornimento
+  // viene segnato come effettuato.
+  const carburantePerMezzoMese = {};
+  fogliFiltrati.forEach(f=>{
+    if(!f.dataPartenza) return;
+    const spesa = parseFloat(f.carburanteTotale) || 0;
+    if(spesa === 0) return;
+    const d = new Date(f.dataPartenza+'T00:00:00');
+    if(d.getFullYear() !== annoCorrenteServizi) return;
+    const k = f.mezzoId || '';
+    if(!carburantePerMezzoMese[k]) carburantePerMezzoMese[k] = Array(12).fill(0);
+    carburantePerMezzoMese[k][d.getMonth()] += spesa;
+  });
+  const righeCarburanteMezzoMese = Object.keys(carburantePerMezzoMese).map(id=>{
+    const perMeseMezzo = carburantePerMezzoMese[id];
+    return { nome: nomeMezzo(id), perMese: perMeseMezzo, totale: perMeseMezzo.reduce((a,b)=>a+b,0) };
+  }).sort((a,b)=> b.totale - a.totale);
+
   const cardsHtml = `
     <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;">Dati riferiti all'anno ${annoCorrenteServizi}${periodoLabel} (cambia anno dalla barra laterale, periodo dal filtro qui sopra). I conteggi dei servizi si basano sulle uscite effettivamente registrate nei fogli di marcia, non sui servizi programmati.</p>
     <div class="users-grid" style="margin-bottom:24px;">
@@ -6977,6 +6996,21 @@ async function renderStatistiche(){
     tabellaMezzoMese = `<div class="section-title">Servizi effettivi per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th><th>Km totali</th></tr></thead><tbody>${righeHtml}${rigaTotali}</tbody></table>`;
   }
 
+  let tabellaCarburanteMezzoMese;
+  if(righeCarburanteMezzoMese.length === 0){
+    tabellaCarburanteMezzoMese = `<div class="section-title">Spesa carburante (€) per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><div class="empty-state">Nessun dato.</div>`;
+  } else {
+    const totaliColonnaCarb = Array(12).fill(0);
+    let totaleComplessivoCarb = 0;
+    const righeHtmlCarb = righeCarburanteMezzoMese.map(r=>{
+      r.perMese.forEach((v,i)=>{ totaliColonnaCarb[i]+=v; });
+      totaleComplessivoCarb += r.totale;
+      return `<tr><td>${escapeHtml(r.nome)}</td>${r.perMese.map(v=>`<td class="mono">€ ${v.toFixed(2)}</td>`).join('')}<td class="mono"><strong>€ ${r.totale.toFixed(2)}</strong></td></tr>`;
+    }).join('');
+    const rigaTotaliCarb = `<tr style="font-weight:700;"><td>Totale</td>${totaliColonnaCarb.map(v=>`<td class="mono">€ ${v.toFixed(2)}</td>`).join('')}<td class="mono">€ ${totaleComplessivoCarb.toFixed(2)}</td></tr>`;
+    tabellaCarburanteMezzoMese = `<div class="section-title">Spesa carburante (€) per mezzo e mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr><th>Mezzo</th>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}<th>Totale</th></tr></thead><tbody>${righeHtmlCarb}${rigaTotaliCarb}</tbody></table>`;
+  }
+
   const tabellaRimborsoMezzo = righeRimborsoMezzo.length
     ? `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Totale ricevuto</th></tr></thead><tbody>${righeRimborsoMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">€ ${r.totale.toFixed(2)}</td></tr>`).join('')}</tbody></table>`
     : `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
@@ -6989,6 +7023,7 @@ async function renderStatistiche(){
     cardsHtml +
     tabellaMese +
     tabellaMezzoMese +
+    tabellaCarburanteMezzoMese +
     tabellaRimborsoMezzo +
     tabellaGuastiMezzo +
     tabellaSemplice('Uscite per motivazione (fogli di marcia)', perMotivazione);
