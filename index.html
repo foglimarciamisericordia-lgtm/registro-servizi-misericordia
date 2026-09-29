@@ -1478,6 +1478,12 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
         </div>
         <p class="map-hint">Un utente può avere più livelli contemporaneamente. Volontario e SCU: dashboard, elenco servizi, presidi. Responsabile Servizi: gestisce anche la chiusura dei servizi (non la scheda Eccedenze 118). Eccedenze 118: visualizza e gestisce la scheda Eccedenze 118. Responsabile 118: come Eccedenze 118, più modifica e validazione definitiva. Responsabile SCU: imposta i turni settimanali degli utenti SCU. Responsabile Mezzi: gestisce i guasti segnalati sui mezzi. Amministratore: accesso completo, a prescindere dagli altri livelli selezionati.</p>
       </div>
+      <div class="field">
+        <label>Abilitazione alla guida</label>
+        <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAmbulanza"><label for="uf-autistaAmbulanza">🚑 Autista ambulanza</label></div>
+        <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAuto"><label for="uf-autistaAuto">🚗 Autista auto</label></div>
+        <p class="map-hint">Compare come icona accanto al nome nei Turni SCU. Un utente può avere entrambe le abilitazioni, una sola, o nessuna.</p>
+      </div>
       <div class="field" id="uf-firma118-wrap" style="display:none;">
         <label>Firma per la scheda Eccedenze 118</label>
         <p class="map-hint">Verrà proposta in automatico quando questo utente è selezionato come autista o soccorritore nella firma di una scheda 118 (resta comunque modificabile al momento della firma).</p>
@@ -3207,6 +3213,15 @@ function calcolaUtentiScuAttivi(){
   return utenti.filter(u => !u.archiviato && !u.cestinato && ruoliUtente(u).includes('scu'))
     .sort((a,b) => (a.cognome||'').localeCompare(b.cognome||'') || (a.nome||'').localeCompare(b.nome||''));
 }
+// Restituisce l'icona (o le icone) dell'abilitazione alla guida di un
+// utente, da accostare al nome nei Turni SCU: 🚑 ambulanza, 🚗 auto,
+// stringa vuota se non ha nessuna delle due abilitazioni.
+function iconeAutistaUtente(u){
+  let icone = '';
+  if(u?.autistaAmbulanza) icone += ' 🚑';
+  if(u?.autistaAuto) icone += ' 🚗';
+  return icone;
+}
 function renderTurniScu(){
   if(!canVedereTurniScu()) return;
   const label = document.getElementById('turniscu-settimana-label');
@@ -3387,7 +3402,7 @@ function renderGrigliaFasceTurniScu(giorni, utentiScu, fonte){
             const f = fasciaPerOrarioInizio(seg.dalle);
             if(f && f.chiave === fascia.chiave){
               const [h,m] = seg.dalle.split(':').map(Number);
-              righe.push({ minuti: h*60+(m||0), titolo: `${u.cognome} ${u.nome} (${seg.dalle}–${seg.alle||'?'})`, nota: turno.nota || '' });
+              righe.push({ minuti: h*60+(m||0), titolo: `${u.cognome} ${u.nome} (${seg.dalle}–${seg.alle||'?'})${iconeAutistaUtente(u)}`, nota: turno.nota || '' });
             }
           });
         } else if((turno.tipo === 'riposo' || turno.tipo === 'assente') && fascia.chiave === 'mattina'){
@@ -3428,7 +3443,7 @@ function renderEditorTurniScu(giorni, utentiScu){
   });
   html += '</tr></thead><tbody>';
   utentiScu.forEach(u => {
-    html += `<tr><td>${escapeHtml(u.cognome)} ${escapeHtml(u.nome)}</td>`;
+    html += `<tr><td>${escapeHtml(u.cognome)} ${escapeHtml(u.nome)}${iconeAutistaUtente(u)}</td>`;
     giorni.forEach(d => {
       const dataISO = formatDataISOTurni(d);
       const turno = turnoScuDi(dataISO, u.id);
@@ -4773,6 +4788,8 @@ function openUserModal(id){
   document.getElementById('uf-password-hint').textContent = u ? 'Lascia vuoto per non cambiarla. Se la imposti, l\'utente dovrà cambiarla al prossimo accesso.' : 'L\'utente dovrà cambiarla al primo accesso.';
   const ruoliAttuali = u ? ruoliUtente(u) : ['operatore'];
   document.querySelectorAll('.uf-ruolo-cb').forEach(cb => { cb.checked = ruoliAttuali.includes(cb.value); });
+  document.getElementById('uf-autistaAmbulanza').checked = !!u?.autistaAmbulanza;
+  document.getElementById('uf-autistaAuto').checked = !!u?.autistaAuto;
   onUfRuoloChange();
   document.getElementById('user-modal-backdrop').classList.add('active');
   setTimeout(()=>{
@@ -4876,6 +4893,8 @@ async function saveUser(ev){
     u.username = username;
     u.ruoli = ruoli;
     u.ruolo = ruoli[0]; // mantenuto per compatibilità con eventuali letture del vecchio campo singolo
+    u.autistaAmbulanza = document.getElementById('uf-autistaAmbulanza').checked;
+    u.autistaAuto = document.getElementById('uf-autistaAuto').checked;
     if(ruoli.includes('eccedenza') || ruoli.includes('responsabile118')){
       u.firma118 = getFirmaDataUrl118('uf-firma118-canvas');
     }
@@ -4893,6 +4912,8 @@ async function saveUser(ev){
       ruoli: ruoli,
       ruolo: ruoli[0], // mantenuto per compatibilità con eventuali letture del vecchio campo singolo
       firma118: (ruoli.includes('eccedenza') || ruoli.includes('responsabile118')) ? getFirmaDataUrl118('uf-firma118-canvas') : null,
+      autistaAmbulanza: document.getElementById('uf-autistaAmbulanza').checked,
+      autistaAuto: document.getElementById('uf-autistaAuto').checked,
       mustChangePassword: true
     });
   }
