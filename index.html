@@ -254,10 +254,10 @@
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   @media(max-width:680px){.grid3,.grid2,.grid4{grid-template-columns:1fr;}}
   .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;}
-  #uf-ruoli-checkbox, #import-utenti-ruoli{display:flex;flex-direction:column;gap:2px;}
-  #uf-ruoli-checkbox .ruolo-check-row, #import-utenti-ruoli .ruolo-check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:6px;}
-  #uf-ruoli-checkbox .ruolo-check-row:hover, #import-utenti-ruoli .ruolo-check-row:hover{background:var(--surface-2);}
-  #uf-ruoli-checkbox .ruolo-check-row input[type="checkbox"], #import-utenti-ruoli .ruolo-check-row input[type="checkbox"]{flex:0 0 auto;width:17px;height:17px;margin:0;}
+  #uf-ruoli-checkbox, #import-utenti-ruoli, #uf-autista-checkbox{display:flex;flex-direction:column;gap:2px;}
+  #uf-ruoli-checkbox .ruolo-check-row, #import-utenti-ruoli .ruolo-check-row, #uf-autista-checkbox .ruolo-check-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:6px;}
+  #uf-ruoli-checkbox .ruolo-check-row:hover, #import-utenti-ruoli .ruolo-check-row:hover, #uf-autista-checkbox .ruolo-check-row:hover{background:var(--surface-2);}
+  #uf-ruoli-checkbox .ruolo-check-row input[type="checkbox"], #import-utenti-ruoli .ruolo-check-row input[type="checkbox"], #uf-autista-checkbox .ruolo-check-row input[type="checkbox"]{flex:0 0 auto;width:17px;height:17px;margin:0;}
   #uf-ruoli-checkbox label, #import-utenti-ruoli label{display:inline;flex:1 1 auto;font-size:13px;color:var(--ink);margin:0;cursor:pointer;}
   label.presidio-flag{flex:1 1 90px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;}
@@ -1480,8 +1480,10 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       </div>
       <div class="field">
         <label>Abilitazione alla guida</label>
-        <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAmbulanza"><label for="uf-autistaAmbulanza">🚑 Autista ambulanza</label></div>
-        <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAuto"><label for="uf-autistaAuto">🚗 Autista auto</label></div>
+        <div id="uf-autista-checkbox">
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAmbulanza"><label for="uf-autistaAmbulanza">🚑 Autista ambulanza</label></div>
+          <div class="ruolo-check-row"><input type="checkbox" id="uf-autistaAuto"><label for="uf-autistaAuto">🚗 Autista auto</label></div>
+        </div>
         <p class="map-hint">Compare come icona accanto al nome nei Turni SCU. Un utente può avere entrambe le abilitazioni, una sola, o nessuna.</p>
       </div>
       <div class="field" id="uf-firma118-wrap" style="display:none;">
