@@ -243,6 +243,10 @@
      accesso): lo sfondo deve essere del tutto opaco, senza far intravedere
      i dati dell'app dietro, finché l'utente non ha completato il passaggio. */
   .modal-backdrop.blocca-sfondo{background:var(--bg);z-index:200;}
+  /* Scelte su un servizio ricorrente (elimina/modifica): si aprono SOPRA il
+     modal del servizio già attivo, quindi devono stare più in alto nello
+     stack, indipendentemente dall'ordine in cui compaiono nell'HTML. */
+  #elimina-ricorrente-modal-backdrop, #modifica-ricorrente-modal-backdrop{z-index:60;}
   .modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:760px;padding:26px 30px 30px;position:relative;overflow:hidden;z-index:0;}
   .modal-wide{max-width:900px;}
   .modal h3{margin:0 0 2px;font-size:18px;}
