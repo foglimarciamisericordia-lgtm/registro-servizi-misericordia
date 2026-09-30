@@ -1325,9 +1325,14 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
             </div>
           </div>
           <div class="grid2">
-            <div class="field"><label>Luogo evento</label><input type="text" id="sf-luogoEvento" placeholder="es. Piazza Duomo" oninput="scheduleGeoPreviewEvento();"></div>
+            <div class="field"><label id="label-luogo-evento">Luogo evento</label><input type="text" id="sf-luogoEvento" placeholder="es. Piazza Duomo" oninput="scheduleGeoPreviewEvento();"></div>
+            <div class="field" id="campo-destinazioneEvento" style="display:none;"><label>A (destinazione)</label><input type="text" id="sf-destinazioneEvento" placeholder="es. Ospedale Garibaldi"></div>
           </div>
-          <div class="field"><label>Ulteriori dettagli evento</label><input type="text" id="sf-dettagliEvento"></div>
+          <div class="grid2" id="campo-orariConvenzione" style="display:none;">
+            <div class="field"><label>Orario partenza sede *</label><input type="time" id="sf-orarioPartenzaSedeConvenzione"></div>
+            <div class="field"><label>Orario eventuale ulteriore destinazione</label><input type="time" id="sf-orarioUlterioreDestinazione"></div>
+          </div>
+          <div class="field"><label id="label-dettagli-evento">Ulteriori dettagli evento</label><input type="text" id="sf-dettagliEvento"></div>
           <div class="field"><label>Mappa luogo evento</label><div id="geo-preview-evento"></div></div>
         </div>
       </fieldset>
@@ -7310,6 +7315,17 @@ function toggleTipoScheda(){
   document.getElementById('campo-oraFineTipoMezzoEvento').style.display = (tipo === 'evento') ? 'grid' : 'none';
   document.getElementById('btn-aggiungi-equipaggio').style.display = (tipo === 'evento') ? 'inline-block' : 'none';
 
+  // Campi specifici dei soli Servizi in convenzione (non per gli
+  // Eventi/manifestazioni, che pur condividendo la stessa scheda non li
+  // usano): etichette diverse per "Luogo evento"/"Ulteriori dettagli evento",
+  // più il campo "A (destinazione)" e gli orari di partenza sede / eventuale
+  // ulteriore destinazione (quest'ultimo mai obbligatorio).
+  document.getElementById('label-luogo-evento').textContent = (tipo === 'convenzione') ? 'Luogo evento/da (città, via, n.)' : 'Luogo evento';
+  document.getElementById('label-dettagli-evento').textContent = (tipo === 'convenzione') ? 'Ulteriori informazioni utili' : 'Ulteriori dettagli evento';
+  document.getElementById('campo-destinazioneEvento').style.display = (tipo === 'convenzione') ? 'block' : 'none';
+  document.getElementById('campo-orariConvenzione').style.display = (tipo === 'convenzione') ? 'grid' : 'none';
+  document.getElementById('sf-orarioPartenzaSedeConvenzione').required = (tipo === 'convenzione');
+
   document.getElementById('fieldset-ripetizione').style.display = mostraRipetizione ? 'block' : 'none';
   document.getElementById('fieldset-condizioni').style.display = modalitaRichiedente ? 'none' : 'block';
 
@@ -7492,9 +7508,12 @@ function viewServiceModal(id){
         ${item('Tipo di squadra 2', s.tipoMezzoEvento2)}
       ` : ''}
       ${isModalitaRichiedente(s.tipoScheda) ? `
-        ${item('Luogo evento', s.luogoEvento)}
+        ${item(s.tipoScheda === 'convenzione' ? 'Luogo evento/da (città, via, n.)' : 'Luogo evento', s.luogoEvento)}
         ${mappaCliccabile(s.luogoEvento)}
-        ${item('Ulteriori dettagli evento', s.dettagliEvento)}
+        ${s.tipoScheda === 'convenzione' ? item('A (destinazione)', s.destinazioneEvento) : ''}
+        ${s.tipoScheda === 'convenzione' ? item('Orario partenza sede', s.orarioPartenzaSedeConvenzione) : ''}
+        ${s.tipoScheda === 'convenzione' ? item('Orario eventuale ulteriore destinazione', s.orarioUlterioreDestinazione) : ''}
+        ${item(s.tipoScheda === 'convenzione' ? 'Ulteriori informazioni utili' : 'Ulteriori dettagli evento', s.dettagliEvento)}
       ` : `
         ${item('Orario partenza sede', s.orarioPartenzaSede)}
         ${item('Orario casa pz/luogo dimissione', s.aCasa)}
@@ -7673,6 +7692,7 @@ function fillServiceForm(sv, prefillDate, cloneData){
   document.getElementById('sf-tipoScheda').value = data?.tipoScheda || 'secondario';
   set('sf-enteRichiedenteEvento', data?.enteRichiedenteEvento); set('sf-telRiferimentoEvento', data?.telRiferimentoEvento);
   set('sf-luogoEvento', data?.luogoEvento); set('sf-dettagliEvento', data?.dettagliEvento);
+  set('sf-destinazioneEvento', data?.destinazioneEvento); set('sf-orarioPartenzaSedeConvenzione', data?.orarioPartenzaSedeConvenzione); set('sf-orarioUlterioreDestinazione', data?.orarioUlterioreDestinazione);
   set('sf-oraFineEvento', data?.oraFineEvento); set('sf-tipoMezzoEvento', data?.tipoMezzoEvento); set('sf-tipoMezzoEvento2', data?.tipoMezzoEvento2);
   set('sf-oraPartenzaSedeEvento', data?.oraPartenzaSedeEvento);
   toggleTipoScheda();
@@ -7965,6 +7985,7 @@ async function saveService(ev){
     tipoScheda,
     enteRichiedenteEvento: g('sf-enteRichiedenteEvento'), telRiferimentoEvento: g('sf-telRiferimentoEvento'),
     luogoEvento: g('sf-luogoEvento'), dettagliEvento: g('sf-dettagliEvento'),
+    destinazioneEvento: g('sf-destinazioneEvento'), orarioPartenzaSedeConvenzione: g('sf-orarioPartenzaSedeConvenzione'), orarioUlterioreDestinazione: g('sf-orarioUlterioreDestinazione'),
     oraFineEvento: g('sf-oraFineEvento'), tipoMezzoEvento: g('sf-tipoMezzoEvento'), tipoMezzoEvento2: g('sf-tipoMezzoEvento2'),
     oraPartenzaSedeEvento: g('sf-oraPartenzaSedeEvento'),
     enteSig: g('sf-enteSig'), telRichiedente: g('sf-telRichiedente'), telRichiedente2: g('sf-telRichiedente2'), relazione: g('sf-relazione'),
