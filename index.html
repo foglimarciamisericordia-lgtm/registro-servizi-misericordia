@@ -3940,7 +3940,7 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Presso', valore:v=>v.presso||'' },
       { titolo:'N° polizza', valore:v=>v.numeroPolizza||'' },
       { titolo:'Scadenza', valore:v=>formatDataIt(v.scadenza) },
-      { titolo:'Rinnovo', valore:v=>v.rinnovoAnnuale?'Annuale':'Non annuale' },
+      { titolo:'Rinnovo', valore:v=>v.tipoRinnovo ? (v.tipoRinnovo==='semestrale'?'Semestrale':'Annuale') : (v.rinnovoAnnuale?'Annuale':'Non annuale') },
       { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
       { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
@@ -3952,7 +3952,12 @@ function renderDettaglioSituazioneMezzo(){
       <div class="field"><label>Costo sostenuto €</label><input type="number" step="0.01" id="sm-assicurazione-costo" value="${vm && vm.costo!=null ? vm.costo : ''}"></div>
     </div>
     <div class="field"><label>Link PDF polizza (su Drive)</label><input type="url" id="sm-assicurazione-linkPdf" value="${escapeHtml(vm ? (vm.linkPdf||'') : '')}" placeholder="https://drive.google.com/..."></div>
-    <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoAnnuale" ${(vm ? !!vm.rinnovoAnnuale : true) ? 'checked' : ''}> <label for="sm-assicurazione-rinnovoAnnuale" style="margin:0;">Rinnovo annuale</label></div>
+    <div class="field"><label>Tipo di rinnovo</label>
+      <select id="sm-assicurazione-tipoRinnovo">
+        <option value="annuale" ${(!vm || (vm.tipoRinnovo||'annuale')==='annuale')?'selected':''}>Annuale</option>
+        <option value="semestrale" ${(vm && vm.tipoRinnovo==='semestrale')?'selected':''}>Semestrale</option>
+      </select>
+    </div>
     <div class="row-actions" style="margin-top:6px;">
       <button type="button" class="action-btn primary" onclick="salvaRegistroAssicurazioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
       <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
@@ -3998,6 +4003,7 @@ function renderDettaglioSituazioneMezzo(){
     [
       { titolo:'Data', valore:v=>formatDataIt(v.data) },
       { titolo:'Km', valore:v=>v.km||'' },
+      { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
       { titolo:'Note', valore:v=>v.note||'' }
     ],
     `<p class="map-hint" style="margin-top:8px;">Km attuali noti (dall'ultimo foglio di marcia): ${kmAttuali!=null ? kmAttuali : 'non disponibili'}</p>
@@ -4005,6 +4011,7 @@ function renderDettaglioSituazioneMezzo(){
       <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
     </div>
+    <div class="field"><label>Costo €</label><input type="number" step="0.01" id="sm-manutenzione-costo" value="${vm && vm.costo!=null ? vm.costo : ''}"></div>
     <div class="field"><label>Note</label><input type="text" id="sm-manutenzione-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
     <div class="row-actions" style="margin-top:6px;">
       <button type="button" class="action-btn primary" onclick="salvaRegistroManutenzioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
@@ -4019,13 +4026,17 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Data', valore:v=>formatDataIt(v.data) },
       { titolo:'Km', valore:v=>v.km||'' },
       { titolo:'Tipo di intervento', valore:v=>v.tipo||'' },
+      { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
       { titolo:'Note', valore:v=>v.note||'' }
     ],
     `<div class="grid2" style="margin-top:10px;">
       <div class="field"><label>Data intervento *</label><input type="date" id="sm-intervento-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Km al momento</label><input type="number" id="sm-intervento-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
     </div>
-    <div class="field"><label>Tipo di intervento</label><input type="text" id="sm-intervento-tipo" value="${escapeHtml(vm ? (vm.tipo||'') : '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>Tipo di intervento</label><input type="text" id="sm-intervento-tipo" value="${escapeHtml(vm ? (vm.tipo||'') : '')}"></div>
+      <div class="field"><label>Costo €</label><input type="number" step="0.01" id="sm-intervento-costo" value="${vm && vm.costo!=null ? vm.costo : ''}"></div>
+    </div>
     <div class="field"><label>Note</label><input type="text" id="sm-intervento-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
     <div class="row-actions" style="margin-top:6px;">
       <button type="button" class="action-btn primary" onclick="salvaRegistroInterventoMezzo()">${vm?'Salva modifiche':'Salva'}</button>
@@ -4047,7 +4058,7 @@ async function salvaRegistroAssicurazioneMezzo(){
     data, scadenza,
     presso: document.getElementById('sm-assicurazione-presso').value.trim(),
     numeroPolizza: document.getElementById('sm-assicurazione-numeroPolizza').value.trim(),
-    rinnovoAnnuale: document.getElementById('sm-assicurazione-rinnovoAnnuale').checked,
+    tipoRinnovo: document.getElementById('sm-assicurazione-tipoRinnovo').value,
     costo: document.getElementById('sm-assicurazione-costo').value || null,
     linkPdf: document.getElementById('sm-assicurazione-linkPdf').value.trim() || null
   };
@@ -4113,6 +4124,7 @@ async function salvaRegistroManutenzioneMezzo(){
     data,
     km: document.getElementById('sm-manutenzione-km').value || null,
     tipo: 'tagliando',
+    costo: document.getElementById('sm-manutenzione-costo').value || null,
     note: document.getElementById('sm-manutenzione-note').value.trim()
   };
   if(voceRegistroMezzoInModifica){
@@ -4138,6 +4150,7 @@ async function salvaRegistroInterventoMezzo(){
     data,
     km: document.getElementById('sm-intervento-km').value || null,
     tipo: document.getElementById('sm-intervento-tipo').value.trim(),
+    costo: document.getElementById('sm-intervento-costo').value || null,
     note: document.getElementById('sm-intervento-note').value.trim()
   };
   if(voceRegistroMezzoInModifica){
@@ -7031,8 +7044,29 @@ async function renderStatistiche(){
   });
   const guastiPerMezzo = {};
   guastiFiltrati.forEach(g=>{ const k = g.mezzoId || ''; guastiPerMezzo[k] = (guastiPerMezzo[k]||0) + 1; });
-  const righeGuastiMezzo = Object.keys(guastiPerMezzo).map(id=>({ nome: nomeMezzo(id), totale: guastiPerMezzo[id] }))
-    .sort((a,b)=> b.totale - a.totale);
+
+  // Costi di manutenzione (tagliandi + manutenzione generica) per mezzo: le
+  // voci vivono direttamente sul mezzo (registroManutenzioni per il
+  // tagliando, registroInterventi per gli interventi generici), quindi le
+  // raccogliamo qui filtrando per anno e periodo come per i guasti sopra.
+  const costiManutenzionePerMezzo = {};
+  mezzi.forEach(m=>{
+    [...(m.registroManutenzioni||[]), ...(m.registroInterventi||[])].forEach(v=>{
+      if(!v.data) return;
+      if(parseInt(v.data.slice(0,4)) !== annoCorrenteServizi) return;
+      if(!nelPeriodo(v.data)) return;
+      const costo = parseFloat(v.costo) || 0;
+      if(costo === 0) return;
+      costiManutenzionePerMezzo[m.id] = (costiManutenzionePerMezzo[m.id]||0) + costo;
+    });
+  });
+
+  const idMezziGuastiCosti = new Set([...Object.keys(guastiPerMezzo), ...Object.keys(costiManutenzionePerMezzo)]);
+  const righeGuastiMezzo = Array.from(idMezziGuastiCosti).map(id=>({
+    nome: nomeMezzo(id),
+    segnalazioni: guastiPerMezzo[id] || 0,
+    costoManutenzione: costiManutenzionePerMezzo[id] || 0
+  })).sort((a,b)=> b.segnalazioni - a.segnalazioni || b.costoManutenzione - a.costoManutenzione);
 
   const nomiMesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
@@ -7137,8 +7171,8 @@ async function renderStatistiche(){
     : `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
   const tabellaGuastiMezzo = righeGuastiMezzo.length
-    ? `<div class="section-title">Segnalazioni guasti per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>N. segnalazioni</th></tr></thead><tbody>${righeGuastiMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.totale}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="section-title">Segnalazioni guasti per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
+    ? `<div class="section-title">Segnalazioni guasti mezzi / Costi manutenzione${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>N. segnalazioni</th><th>Costo manutenzione €</th></tr></thead><tbody>${righeGuastiMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.segnalazioni}</td><td class="mono">€ ${r.costoManutenzione.toFixed(2)}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="section-title">Segnalazioni guasti mezzi / Costi manutenzione${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
   document.getElementById('statistiche-container').innerHTML =
     cardsHtml +
