@@ -7532,6 +7532,7 @@ function viewServiceModal(id){
         ${item(s.tipoScheda === 'convenzione' ? 'Luogo evento/da (città, via, n.)' : 'Luogo evento', s.luogoEvento)}
         ${mappaCliccabile(s.luogoEvento)}
         ${s.tipoScheda === 'convenzione' ? item('A (destinazione)', s.destinazioneEvento) : ''}
+        ${s.tipoScheda === 'convenzione' ? mappaCliccabile(s.destinazioneEvento) : ''}
         ${s.tipoScheda === 'convenzione' ? item('Orario partenza sede', s.orarioPartenzaSedeConvenzione) : ''}
         ${s.tipoScheda === 'convenzione' ? item('Orario eventuale ulteriore destinazione', s.orarioUlterioreDestinazione) : ''}
         ${item(s.tipoScheda === 'convenzione' ? 'Ulteriori informazioni utili' : 'Ulteriori dettagli evento', s.dettagliEvento)}
