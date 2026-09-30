@@ -1101,6 +1101,29 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
   </div>
 </div>
 
+<!-- MODAL MODIFICA SEGNALAZIONE GUASTO (solo Amministratore) -->
+<div class="modal-backdrop" id="modifica-guasto-modal-backdrop">
+  <div class="modal" style="max-width:480px;">
+    <button class="close-x" onclick="closeModificaGuastoModal()">✕</button>
+    <h3>Modifica segnalazione guasto</h3>
+    <form id="modifica-guasto-form" onsubmit="return salvaModificaGuasto(event)">
+      <div class="field"><label>Mezzo *</label><select id="mg-mezzoId" required></select></div>
+      <div class="field"><label>Descrizione del guasto *</label><textarea id="mg-descrizione" rows="4" required></textarea></div>
+      <div class="field"><label>Gravità</label>
+        <select id="mg-gravita">
+          <option value="bassa">Bassa — non impedisce l'uso del mezzo</option>
+          <option value="media">Media</option>
+          <option value="bloccante">Bloccante — il mezzo non può essere usato</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModificaGuastoModal()">Annulla</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Salva modifiche</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- MODAL ANNOTAZIONI DASHBOARD -->
 <div class="modal-backdrop" id="annotazione-modal-backdrop">
   <div class="modal" style="max-width:520px;">
@@ -4387,6 +4410,7 @@ function renderGuastiMezzi(){
           ? `<button class="action-btn" onclick="sbloccaMezzo('${mezzo.id}')">✓ Sblocca mezzo</button>`
           : `<button class="action-btn danger" onclick="bloccaMezzo('${mezzo.id}')">🚫 Blocca mezzo</button>`) : ''}
         ${isAdmin && g.stato==='risolto' ? `<button class="action-btn" onclick="riapriGuasto('${g.id}')">↺ Riapri</button>` : ''}
+        ${isAdmin ? `<button class="action-btn" onclick="apriModificaGuastoModal('${g.id}')">✎ Modifica</button>` : ''}
         ${isAdmin ? `<button class="action-btn danger" onclick="eliminaGuasto('${g.id}')">🗑 Elimina</button>` : ''}
       </div>
     </div>
@@ -4474,6 +4498,42 @@ async function eliminaGuasto(id){
   renderGuastiMezzi();
   aggiornaBadgeGuastiMezzi();
   await saveGuastiMezzi();
+}
+
+// Modifica di una segnalazione di guasto già esistente: riservata
+// all'Amministratore (a differenza della sola gravità, già modificabile da
+// chiunque gestisca i guasti mezzi tramite il menu a tendina in elenco).
+let guastoInModificaId = null;
+function apriModificaGuastoModal(id){
+  if(!haRuolo('amministratore')) return;
+  const guasto = guastiMezzi.find(g=>g.id===id);
+  if(!guasto) return;
+  guastoInModificaId = id;
+  const mezziSelezionabili = mezzi.filter(m=>!m.archiviato || m.id===guasto.mezzoId);
+  document.getElementById('mg-mezzoId').innerHTML = mezziOrdinati(mezziSelezionabili)
+    .map(m => `<option value="${m.id}">${escapeHtml(m.tipo)}${m.codice?' '+escapeHtml(m.codice):''} — ${escapeHtml(m.targa)}</option>`).join('');
+  document.getElementById('mg-mezzoId').value = guasto.mezzoId;
+  document.getElementById('mg-descrizione').value = guasto.descrizione;
+  document.getElementById('mg-gravita').value = guasto.gravita;
+  document.getElementById('modifica-guasto-modal-backdrop').classList.add('active');
+}
+function closeModificaGuastoModal(){
+  document.getElementById('modifica-guasto-modal-backdrop').classList.remove('active');
+  guastoInModificaId = null;
+}
+async function salvaModificaGuasto(ev){
+  ev.preventDefault();
+  if(!haRuolo('amministratore') || !guastoInModificaId) return false;
+  const guasto = guastiMezzi.find(g=>g.id===guastoInModificaId);
+  if(!guasto) return false;
+  guasto.mezzoId = document.getElementById('mg-mezzoId').value;
+  guasto.descrizione = document.getElementById('mg-descrizione').value.trim();
+  guasto.gravita = document.getElementById('mg-gravita').value;
+  await saveGuastiMezzi();
+  closeModificaGuastoModal();
+  renderGuastiMezzi();
+  aggiornaBadgeGuastiMezzi();
+  return false;
 }
 
 /* ============ CALENDARIO ============ */
