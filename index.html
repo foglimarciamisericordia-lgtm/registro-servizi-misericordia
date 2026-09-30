@@ -3971,11 +3971,10 @@ function renderDettaglioSituazioneMezzo(){
   }
 
   const kmAttuali = kmAttualiMezzo(m.id);
-  html += sezione('manutenzione', 'Tagliando e manutenzioni (ogni 15.000 km o 1 anno)', r.tagliando, m.registroManutenzioni,
+  html += sezione('manutenzione', 'Tagliando (ogni 15.000 km o 1 anno)', r.tagliando, m.registroManutenzioni,
     [
       { titolo:'Data', valore:v=>formatDataIt(v.data) },
       { titolo:'Km', valore:v=>v.km||'' },
-      { titolo:'Tipo', valore:v=>({tagliando:'Tagliando', riparazione:'Riparazione', altro:'Altro'}[v.tipo]||v.tipo) },
       { titolo:'Note', valore:v=>v.note||'' }
     ],
     `<p class="map-hint" style="margin-top:8px;">Km attuali noti (dall'ultimo foglio di marcia): ${kmAttuali!=null ? kmAttuali : 'non disponibili'}</p>
@@ -3983,16 +3982,30 @@ function renderDettaglioSituazioneMezzo(){
       <div class="field"><label>Data intervento *</label><input type="date" id="sm-manutenzione-data" value="${vm ? vm.data : dataOggiIso()}"></div>
       <div class="field"><label>Km al momento</label><input type="number" id="sm-manutenzione-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
     </div>
-    <div class="field"><label>Tipo intervento *</label>
-      <select id="sm-manutenzione-tipo">
-        <option value="tagliando" ${(!vm || vm.tipo==='tagliando')?'selected':''}>Tagliando ordinario</option>
-        <option value="riparazione" ${(vm && vm.tipo==='riparazione')?'selected':''}>Riparazione</option>
-        <option value="altro" ${(vm && vm.tipo==='altro')?'selected':''}>Altro</option>
-      </select>
-    </div>
     <div class="field"><label>Note</label><input type="text" id="sm-manutenzione-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
     <div class="row-actions" style="margin-top:6px;">
       <button type="button" class="action-btn primary" onclick="salvaRegistroManutenzioneMezzo()">${vm?'Salva modifiche':'Salva'}</button>
+      <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
+    </div>`
+  );
+
+  // Manutenzione: registro indipendente di interventi liberi (non concorre
+  // al conteggio dei 15.000 km / 1 anno del tagliando qui sopra).
+  html += sezione('interventi', 'Manutenzione', null, m.registroInterventi,
+    [
+      { titolo:'Data', valore:v=>formatDataIt(v.data) },
+      { titolo:'Km', valore:v=>v.km||'' },
+      { titolo:'Tipo di intervento', valore:v=>v.tipo||'' },
+      { titolo:'Note', valore:v=>v.note||'' }
+    ],
+    `<div class="grid2" style="margin-top:10px;">
+      <div class="field"><label>Data intervento *</label><input type="date" id="sm-intervento-data" value="${vm ? vm.data : dataOggiIso()}"></div>
+      <div class="field"><label>Km al momento</label><input type="number" id="sm-intervento-km" value="${vm && vm.km!=null ? vm.km : (kmAttuali!=null?kmAttuali:'')}"></div>
+    </div>
+    <div class="field"><label>Tipo di intervento</label><input type="text" id="sm-intervento-tipo" value="${escapeHtml(vm ? (vm.tipo||'') : '')}"></div>
+    <div class="field"><label>Note</label><input type="text" id="sm-intervento-note" value="${escapeHtml(vm ? (vm.note||'') : '')}"></div>
+    <div class="row-actions" style="margin-top:6px;">
+      <button type="button" class="action-btn primary" onclick="salvaRegistroInterventoMezzo()">${vm?'Salva modifiche':'Salva'}</button>
       <button type="button" class="action-btn" onclick="chiudiFormSituazioneMezzo()">Annulla</button>
     </div>`
   );
@@ -4076,7 +4089,7 @@ async function salvaRegistroManutenzioneMezzo(){
   const valori = {
     data,
     km: document.getElementById('sm-manutenzione-km').value || null,
-    tipo: document.getElementById('sm-manutenzione-tipo').value,
+    tipo: 'tagliando',
     note: document.getElementById('sm-manutenzione-note').value.trim()
   };
   if(voceRegistroMezzoInModifica){
@@ -4089,7 +4102,32 @@ async function salvaRegistroManutenzioneMezzo(){
   renderSituazioneMezzi();
   aggiornaBadgeGuastiMezzi();
 }
-const CHIAVE_REGISTRO_MEZZO = { assicurazione:'registroAssicurazione', revisione:'registroRevisioni', revisioneSanitaria:'registroRevisioneSanitaria', manutenzione:'registroManutenzioni' };
+// Registro "Manutenzione": interventi liberi (riparazioni, controlli, ecc.),
+// indipendente dal Tagliando qui sopra: non concorre al conteggio dei
+// 15.000 km / 1 anno e non ha una propria scadenza/badge di stato.
+async function salvaRegistroInterventoMezzo(){
+  const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
+  if(!m) return;
+  const data = document.getElementById('sm-intervento-data').value;
+  if(!data){ alert('Inserisci la data dell\'intervento.'); return; }
+  if(!m.registroInterventi) m.registroInterventi = [];
+  const valori = {
+    data,
+    km: document.getElementById('sm-intervento-km').value || null,
+    tipo: document.getElementById('sm-intervento-tipo').value.trim(),
+    note: document.getElementById('sm-intervento-note').value.trim()
+  };
+  if(voceRegistroMezzoInModifica){
+    Object.assign(voceRegistroMezzoInModifica, valori);
+  } else {
+    m.registroInterventi.push({ id: 'int-' + Date.now(), ...valori });
+  }
+  await saveMezzi();
+  chiudiFormSituazioneMezzo();
+  renderSituazioneMezzi();
+  aggiornaBadgeGuastiMezzi();
+}
+const CHIAVE_REGISTRO_MEZZO = { assicurazione:'registroAssicurazione', revisione:'registroRevisioni', revisioneSanitaria:'registroRevisioneSanitaria', manutenzione:'registroManutenzioni', interventi:'registroInterventi' };
 async function eliminaVoceRegistroMezzo(chiave, voceId){
   const m = mezzi.find(x=>x.id===editingSituazioneMezzoId);
   if(!m) return;
