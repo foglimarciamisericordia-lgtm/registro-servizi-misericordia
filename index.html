@@ -5883,11 +5883,18 @@ function selezionaServizioPerFoglio(servizioId){
   document.getElementById('fm-servizioCollegato').innerHTML = testoServizioCollegato({servizioId, servizioNumero: s.numeroProgressivo, servizioAnno: s.numeroAnno});
   document.getElementById('btn-scollega-servizio').style.display = 'inline-block';
   document.getElementById('fm-paziente').value = nomeVisualizzatoServizio(s);
-  // "Da dove" è sempre la sede della Misericordia (S.M. di Licodia), da cui
-  // parte il mezzo; "A dove" riporta insieme il punto di prelievo ("Trasportare
-  // da") e la destinazione ("A") del servizio, uniti da un trattino.
-  document.getElementById('fm-daDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : 'Misericordia S.M. di Licodia';
-  document.getElementById('fm-aDove').value = isModalitaRichiedente(s.tipoScheda) ? (s.luogoEvento||'') : [s.partenza, s.destinazione].filter(Boolean).join(' - ');
+  // "Da dove"/"A dove": per i servizi secondari e per i Servizi in
+  // convenzione, "Da dove" è sempre la sede della Misericordia (S.M. di
+  // Licodia), da cui parte il mezzo, e "A dove" unisce con un trattino il
+  // punto di prelievo/luogo e la destinazione del servizio (rispettivamente
+  // "Trasportare da"/"A" per i secondari, "Luogo evento/da"/"A (destinazione)"
+  // per i servizi in convenzione). Solo per gli Eventi/manifestazioni,
+  // che non hanno una vera e propria destinazione separata, entrambi i campi
+  // riportano semplicemente il luogo dell'evento.
+  document.getElementById('fm-daDove').value = (s.tipoScheda === 'evento') ? (s.luogoEvento||'') : 'Misericordia S.M. di Licodia';
+  document.getElementById('fm-aDove').value = (s.tipoScheda === 'evento') ? (s.luogoEvento||'')
+    : (s.tipoScheda === 'convenzione') ? [s.luogoEvento, s.destinazioneEvento].filter(Boolean).join(' - ')
+    : [s.partenza, s.destinazione].filter(Boolean).join(' - ');
   document.getElementById('fm-autista').value = s.autista || '';
   document.getElementById('fm-soccorritore1').value = s.soccorritore1 || '';
   document.getElementById('fm-soccorritore2').value = s.soccorritore2 || '';
