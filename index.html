@@ -1224,6 +1224,23 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
   </div>
 </div>
 
+<!-- MODAL SCELTA MODIFICA SERVIZIO RICORRENTE -->
+<div class="modal-backdrop" id="modifica-ricorrente-modal-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <button class="close-x" onclick="chiudiModificaRicorrente()">✕</button>
+    <h3>Servizio ricorrente</h3>
+    <p class="modal-sub">Questo servizio fa parte di una serie ricorrente. Applicare questa modifica solo a questo servizio o anche ai successivi?</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" style="text-align:left;" onclick="confermaModificaRicorrente('solo')">Solo questo servizio</button>
+      <button type="button" class="btn btn-primary" style="text-align:left;" onclick="confermaModificaRicorrente('successivi')">Questo servizio e tutti i successivi</button>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <div></div>
+      <button type="button" class="btn btn-ghost" onclick="chiudiModificaRicorrente()">Annulla</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AVVISO DISCONNESSIONE PER INATTIVITÀ -->
 <div class="modal-backdrop" id="avviso-inattivita-backdrop">
   <div class="modal" style="max-width:380px;text-align:center;">
@@ -1326,14 +1343,17 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
           </div>
           <div class="grid2">
             <div class="field"><label id="label-luogo-evento">Luogo evento</label><input type="text" id="sf-luogoEvento" placeholder="es. Piazza Duomo" oninput="scheduleGeoPreviewEvento();"></div>
-            <div class="field" id="campo-destinazioneEvento" style="display:none;"><label>A (destinazione)</label><input type="text" id="sf-destinazioneEvento" placeholder="es. Ospedale Garibaldi"></div>
+            <div class="field" id="campo-destinazioneEvento" style="display:none;"><label>A (destinazione)</label><input type="text" id="sf-destinazioneEvento" placeholder="es. Ospedale Garibaldi" oninput="scheduleGeoPreviewEvento();"></div>
           </div>
           <div class="grid2" id="campo-orariConvenzione" style="display:none;">
             <div class="field"><label>Orario partenza sede *</label><input type="time" id="sf-orarioPartenzaSedeConvenzione"></div>
             <div class="field"><label>Orario eventuale ulteriore destinazione</label><input type="time" id="sf-orarioUlterioreDestinazione"></div>
           </div>
           <div class="field"><label id="label-dettagli-evento">Ulteriori dettagli evento</label><input type="text" id="sf-dettagliEvento"></div>
-          <div class="field"><label>Mappa luogo evento</label><div id="geo-preview-evento"></div></div>
+          <div class="grid2" id="campo-mappeEvento">
+            <div class="field"><label>Mappa luogo evento</label><div id="geo-preview-evento"></div></div>
+            <div class="field" id="campo-mappaDestinazioneEvento" style="display:none;"><label>Mappa destinazione</label><div id="geo-preview-destinazioneEvento"></div></div>
+          </div>
         </div>
       </fieldset>
 
@@ -7323,6 +7343,7 @@ function toggleTipoScheda(){
   document.getElementById('label-luogo-evento').textContent = (tipo === 'convenzione') ? 'Luogo evento/da (città, via, n.)' : 'Luogo evento';
   document.getElementById('label-dettagli-evento').textContent = (tipo === 'convenzione') ? 'Ulteriori informazioni utili' : 'Ulteriori dettagli evento';
   document.getElementById('campo-destinazioneEvento').style.display = (tipo === 'convenzione') ? 'block' : 'none';
+  document.getElementById('campo-mappaDestinazioneEvento').style.display = (tipo === 'convenzione') ? 'block' : 'none';
   document.getElementById('campo-orariConvenzione').style.display = (tipo === 'convenzione') ? 'grid' : 'none';
   document.getElementById('sf-orarioPartenzaSedeConvenzione').required = (tipo === 'convenzione');
 
@@ -7803,6 +7824,18 @@ function scheduleGeoPreviewEvento(){
       const q = encodeURIComponent(luogo + ' Santa Maria di Licodia');
       box.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${q}&output=embed" loading="lazy"></iframe></div>`;
     }
+    // Mappa di "A (destinazione)": stessa logica delle mappe dei servizi
+    // ordinari (Mappa partenza/destinazione), qui presente solo per i
+    // Servizi in convenzione.
+    const boxDest = document.getElementById('geo-preview-destinazioneEvento');
+    if(boxDest){
+      const destinazione = document.getElementById('sf-destinazioneEvento').value.trim();
+      if(!destinazione){ boxDest.innerHTML = '<div class="map-hint">Inserisci l\'indirizzo di destinazione.</div>'; }
+      else {
+        const qD = encodeURIComponent(destinazione);
+        boxDest.innerHTML = `<div class="map-preview"><iframe src="https://www.google.com/maps?q=${qD}&output=embed" loading="lazy"></iframe></div>`;
+      }
+    }
   }, 600);
 }
 function scheduleRimborsoCalc(){
@@ -7901,6 +7934,72 @@ function calcolaModificheServizio(vecchio, nuovo){
   const pb = JSON.stringify(nuovo.presidi || []);
   if(pa !== pb) cambi.push('Presidi richiesti');
   return cambi;
+}
+
+// Campi che NON vengono mai propagati agli altri servizi della stessa serie
+// ricorrente quando, modificando un servizio, si sceglie "Questo servizio e
+// tutti i successivi": sono legati alla singola occorrenza (data,
+// identificativi, equipaggio assegnato, stato di conferma/annullamento/
+// assegnazione, cronologia), non al "modello" di servizio che la serie
+// ripete.
+const CAMPI_NON_PROPAGABILI_RICORRENZA = new Set([
+  'id','perGiorno','numeroProgressivo','numeroAnno','gruppoRipetizione',
+  'cronologia','registratoIl','operatoreInserimento','ultimoOperatore','ultimaModificaIl',
+  'chiuso','autista','soccorritore1','soccorritore2','soccorritore3','altriEquipaggi',
+  'stato','motivazioneAnnullamento','cestinato','cestinatoIl'
+]);
+// Quando si modifica un servizio che fa già parte di una serie ricorrente,
+// chiediamo se applicare la modifica solo a questo servizio o anche a tutti
+// i successivi della stessa serie (fino alla fine della ripetizione):
+// "modificaRicorrenteInSospeso" tiene da parte i dati già pronti per il
+// salvataggio nell'attesa della scelta dell'operatore.
+let modificaRicorrenteInSospeso = null;
+function chiudiModificaRicorrente(){
+  modificaRicorrenteInSospeso = null;
+  document.getElementById('modifica-ricorrente-modal-backdrop').classList.remove('active');
+}
+async function confermaModificaRicorrente(modalita){
+  const pending = modificaRicorrenteInSospeso;
+  if(!pending) return;
+  chiudiModificaRicorrente();
+  const { data, existing } = pending;
+  await salvaUnServizio(data, existing.numeroAnno);
+  if(modalita === 'successivi'){
+    await propagaModificaAiSuccessivi(data, existing);
+  }
+  closeServiceModal();
+  renderCalendar(); renderElenco();
+}
+// Applica gli stessi campi "di contenuto" della modifica appena salvata a
+// tutti gli altri servizi della stessa serie ricorrente con data uguale o
+// successiva a questo, lasciando invece intatti i campi legati alla singola
+// occorrenza (vedi CAMPI_NON_PROPAGABILI_RICORRENZA). Controlla ogni anno
+// disponibile, perché una serie ricorrente può generare date a cavallo di
+// più anni.
+async function propagaModificaAiSuccessivi(data, existing){
+  const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
+  const adesso = new Date().toISOString();
+  for(const anno of anniDisponibiliServizi){
+    const lista = await fetchServiziAnno(anno);
+    let modificato = false;
+    lista.forEach(x=>{
+      if(x.gruppoRipetizione === existing.gruppoRipetizione && !x.cestinato && x.id !== existing.id && x.perGiorno >= existing.perGiorno){
+        const prima = {...x};
+        for(const key in data){
+          if(!CAMPI_NON_PROPAGABILI_RICORRENZA.has(key)) x[key] = data[key];
+        }
+        const cambi = calcolaModificheServizio(prima, x);
+        if(cambi.length){
+          x.cronologia = [...(x.cronologia||[]), { tipo:'Modifica: ' + cambi.join(', ') + ' (applicata a tutta la serie)', chi: nomeUtenteCorrente, quando: adesso }];
+        }
+        modificato = true;
+      }
+    });
+    if(modificato){
+      await kvSet('servizi-' + anno, lista);
+      if(anno === annoCorrenteServizi) servizi = lista;
+    }
+  }
 }
 
 // Crea i servizi ricorrenti per le date indicate, con lo stesso schema dati
@@ -8081,6 +8180,14 @@ async function saveService(ev){
       data.gruppoRipetizione = gruppoId;
       await salvaUnServizio(data, existing.numeroAnno);
       if(dateFuture.length > 0) await generaServiziRicorrentiPerDate(data, dateFuture, gruppoId);
+    } else if(existing.gruppoRipetizione){
+      // Il servizio fa già parte di una serie ricorrente: chiediamo prima se
+      // applicare questa modifica solo a lui o anche a tutti i successivi
+      // della stessa serie, e sospendiamo qui il salvataggio in attesa della
+      // scelta (vedi confermaModificaRicorrente).
+      modificaRicorrenteInSospeso = { data, existing };
+      document.getElementById('modifica-ricorrente-modal-backdrop').classList.add('active');
+      return false;
     } else {
       await salvaUnServizio(data, existing.numeroAnno);
     }
