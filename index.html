@@ -4827,14 +4827,13 @@ function nomeMezzoAssegnato(s){
 // partenza dalla sede invece di quello dell'appuntamento/evento: è quello
 // che serve per organizzare i turni/uscite. Vale per ogni tipo di servizio
 // che abbia un proprio orario di partenza sede (i servizi secondari hanno
-// "Orario partenza sede", gli eventi/manifestazioni "Ora partenza sede");
-// i Servizi in convenzione non prevedono questo campo, quindi mostrano
-// l'orario dell'appuntamento come sempre. Se un servizio non ha ancora
-// l'orario di partenza sede compilato, si ripiega sull'orario principale
-// per non lasciare la cella vuota.
+// "Orario partenza sede", gli eventi/manifestazioni "Ora partenza sede", i
+// Servizi in convenzione "Orario partenza sede" dedicato). Se un servizio
+// non ha ancora l'orario di partenza sede compilato, si ripiega sull'orario
+// principale per non lasciare la cella vuota.
 function orarioVisualizzatoServizio(s){
   if(s.tipoScheda === 'evento') return s.oraPartenzaSedeEvento || s.alleOre;
-  if(s.tipoScheda === 'convenzione') return s.alleOre;
+  if(s.tipoScheda === 'convenzione') return s.orarioPartenzaSedeConvenzione || s.alleOre;
   return s.orarioPartenzaSede || s.alleOre;
 }
 function nomeVisualizzatoServizio(s){
