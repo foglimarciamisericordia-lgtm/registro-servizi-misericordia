@@ -2200,6 +2200,7 @@ let transizionePaziente118InCorso = false;
 // ripetuto, salvataggio automatico per inattività, ecc.) viene ignorato
 // finché il primo non è terminato (con successo o errore).
 let salvataggioServizioInCorso = false;
+let salvataggioFoglioInCorso = false;
 let fogliMarcia = [];
 let editingFoglioId = null;
 let servizioCollegatoFoglio = null;
@@ -3969,7 +3970,9 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Presso', valore:v=>v.presso||'' },
       { titolo:'N° polizza', valore:v=>v.numeroPolizza||'' },
       { titolo:'Scadenza', valore:v=>formatDataIt(v.scadenza) },
-      { titolo:'Rinnovo', valore:v=>v.tipoRinnovo ? (v.tipoRinnovo==='semestrale'?'Semestrale':'Annuale') : (v.rinnovoAnnuale?'Annuale':'Non annuale') },
+      { titolo:'Rinnovo', valore:v=>v.tipoRinnovo ? ({semestrale:'Semestrale',trimestrale:'Trimestrale',quadrimestrale:'Quadrimestrale'}[v.tipoRinnovo] || 'Annuale') : (v.rinnovoAnnuale?'Annuale':'Non annuale') },
+      { titolo:'Rinnovo contratto', valore:v=>v.rinnovoContratto ? 'Sì' : 'No' },
+      { titolo:'Frazionamento rata', valore:v=>v.frazionamentoRata||'' },
       { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
       { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
@@ -3985,6 +3988,16 @@ function renderDettaglioSituazioneMezzo(){
       <select id="sm-assicurazione-tipoRinnovo">
         <option value="annuale" ${(!vm || (vm.tipoRinnovo||'annuale')==='annuale')?'selected':''}>Annuale</option>
         <option value="semestrale" ${(vm && vm.tipoRinnovo==='semestrale')?'selected':''}>Semestrale</option>
+        <option value="trimestrale" ${(vm && vm.tipoRinnovo==='trimestrale')?'selected':''}>Trimestrale</option>
+        <option value="quadrimestrale" ${(vm && vm.tipoRinnovo==='quadrimestrale')?'selected':''}>Quadrimestrale</option>
+      </select>
+    </div>
+    <div class="checkrow"><input type="checkbox" id="sm-assicurazione-rinnovoContratto" ${(vm && vm.rinnovoContratto)?'checked':''}> <label for="sm-assicurazione-rinnovoContratto" style="margin:0;">Rinnovo contratto</label></div>
+    <div class="field"><label>Frazionamento rata</label>
+      <select id="sm-assicurazione-frazionamentoRata">
+        <option value="" ${(!vm || !vm.frazionamentoRata)?'selected':''}>Non specificato</option>
+        <option value="5 mesi" ${(vm && vm.frazionamentoRata==='5 mesi')?'selected':''}>5 mesi</option>
+        <option value="10 mesi" ${(vm && vm.frazionamentoRata==='10 mesi')?'selected':''}>10 mesi</option>
       </select>
     </div>
     <div class="row-actions" style="margin-top:6px;">
@@ -4088,6 +4101,8 @@ async function salvaRegistroAssicurazioneMezzo(){
     presso: document.getElementById('sm-assicurazione-presso').value.trim(),
     numeroPolizza: document.getElementById('sm-assicurazione-numeroPolizza').value.trim(),
     tipoRinnovo: document.getElementById('sm-assicurazione-tipoRinnovo').value,
+    rinnovoContratto: document.getElementById('sm-assicurazione-rinnovoContratto').checked,
+    frazionamentoRata: document.getElementById('sm-assicurazione-frazionamentoRata').value || null,
     costo: document.getElementById('sm-assicurazione-costo').value || null,
     linkPdf: document.getElementById('sm-assicurazione-linkPdf').value.trim() || null
   };
@@ -6313,8 +6328,14 @@ async function registraFoglioInCronologiaServizio(servizioId, servizioAnno){
 }
 async function saveFoglio(ev){
   ev.preventDefault();
+  if(salvataggioFoglioInCorso) return false;
   const mezzoId = document.getElementById('fm-mezzoId').value;
   if(!mezzoId){ alert('Seleziona il mezzo.'); return false; }
+  salvataggioFoglioInCorso = true;
+  const btnSalvaFoglio = document.getElementById('foglio-save-btn');
+  const testoBtnFoglioOriginale = btnSalvaFoglio ? btnSalvaFoglio.textContent : '';
+  if(btnSalvaFoglio){ btnSalvaFoglio.disabled = true; btnSalvaFoglio.textContent = 'Salvataggio in corso…'; }
+  try{
   const g = id => document.getElementById(id).value.trim();
   const isAdmin = haRuolo('amministratore');
   const nomeUtenteCorrente = currentUser.nome + ' ' + currentUser.cognome;
@@ -6409,6 +6430,14 @@ async function saveFoglio(ev){
   closeFoglioModal();
   renderFogliMarcia();
   return false;
+  } catch(errore){
+    console.error('Errore nel salvataggio del foglio di marcia:', errore);
+    alert('Si è verificato un errore durante il salvataggio: ' + errore.message + '\n\nLa riga non è stata salvata. Riprova, e se il problema persiste segnalalo indicando questo messaggio.');
+    return false;
+  } finally {
+    salvataggioFoglioInCorso = false;
+    if(btnSalvaFoglio){ btnSalvaFoglio.disabled = false; btnSalvaFoglio.textContent = testoBtnFoglioOriginale; }
+  }
 }
 async function deleteFoglio(id){
   if(!confirm('Spostare questa riga nel cestino? Potrai ripristinarla entro 7 giorni.')) return;
