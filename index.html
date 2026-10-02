@@ -5774,7 +5774,11 @@ function toggleCarburanteFoglio(){
   document.getElementById('fm-carburante-box').style.display = on ? 'grid' : 'none';
 }
 async function onFoglioMezzoChange(){
-  if(editingFoglioId) return; // non alterare km iniziali se si sta modificando una riga esistente
+  // Non alterare km iniziali se si sta modificando una riga esistente, a meno
+  // che non sia l'amministratore a cambiare il mezzo: in quel caso si applica
+  // la stessa logica automatica usata in fase di creazione (km iniziali =
+  // km finali dell'ultimo foglio registrato per il mezzo appena selezionato).
+  if(editingFoglioId && !haRuolo('amministratore')) return;
   const mezzoId = document.getElementById('fm-mezzoId').value;
   document.getElementById('fm-kmIniziali').value = mezzoId ? (await ultimoKmFinaliAsync(mezzoId)) : '';
 }
@@ -5884,7 +5888,7 @@ function cercaServizioPerFoglio(){
   if(!mezzoId){ alert('Seleziona prima il mezzo in questa scheda.'); return; }
   const numero = document.getElementById('cs-numero').value.trim();
   const data = document.getElementById('cs-data').value;
-  let risultati = servizi.filter(s => s.chiuso === true && s.mezzoId === mezzoId);
+  let risultati = servizi.filter(s => s.chiuso === true && s.mezzoId === mezzoId && s.stato !== 'rosso');
   risultati = risultati.filter(s => !fogliMarcia.some(f => f.servizioId === s.id && f.id !== editingFoglioId));
   if(numero){
     const parti = numero.split('/');
