@@ -7217,7 +7217,9 @@ async function renderStatistiche(){
   const tabellaSemplice = (titolo, obj) => {
     const righe = Object.entries(obj).sort((a,b)=>b[1]-a[1]);
     if(righe.length===0) return `<div class="section-title">${titolo}</div><div class="empty-state">Nessun dato.</div>`;
-    return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Voce</th><th>Conteggio</th></tr></thead><tbody>${righe.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td class="mono">${v}</td></tr>`).join('')}</tbody></table>`;
+    const totaleConteggio = righe.reduce((tot,[,v])=>tot+v, 0);
+    const rigaTotale = `<tr style="font-weight:700;"><td>Totale</td><td class="mono">${totaleConteggio}</td></tr>`;
+    return `<div class="section-title">${titolo}</div><table class="mini-table"><thead><tr><th>Voce</th><th>Conteggio</th></tr></thead><tbody>${righe.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td class="mono">${v}</td></tr>`).join('')}${rigaTotale}</tbody></table>`;
   };
 
   const tabellaMese = `<div class="section-title">Servizi effettivi per mese, da fogli di marcia (${annoCorrenteServizi})</div><table class="mini-table"><thead><tr>${nomiMesi.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr>${perMese.map(v=>`<td class="mono">${v}</td>`).join('')}</tr></tbody></table>`;
@@ -7255,11 +7257,11 @@ async function renderStatistiche(){
   }
 
   const tabellaRimborsoMezzo = righeRimborsoMezzo.length
-    ? `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Totale ricevuto</th></tr></thead><tbody>${righeRimborsoMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">€ ${r.totale.toFixed(2)}</td></tr>`).join('')}</tbody></table>`
+    ? `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>Totale ricevuto</th></tr></thead><tbody>${righeRimborsoMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">€ ${r.totale.toFixed(2)}</td></tr>`).join('')}<tr style="font-weight:700;"><td>Totale</td><td class="mono">€ ${righeRimborsoMezzo.reduce((tot,r)=>tot+r.totale,0).toFixed(2)}</td></tr></tbody></table>`
     : `<div class="section-title">Rimborso spese ricevuto per mezzo${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
   const tabellaGuastiMezzo = righeGuastiMezzo.length
-    ? `<div class="section-title">Segnalazioni guasti mezzi / Costi manutenzione${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>N. segnalazioni</th><th>Costo manutenzione €</th></tr></thead><tbody>${righeGuastiMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.segnalazioni}</td><td class="mono">€ ${r.costoManutenzione.toFixed(2)}</td></tr>`).join('')}</tbody></table>`
+    ? `<div class="section-title">Segnalazioni guasti mezzi / Costi manutenzione${periodoLabel}</div><table class="mini-table"><thead><tr><th>Mezzo</th><th>N. segnalazioni</th><th>Costo manutenzione €</th></tr></thead><tbody>${righeGuastiMezzo.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td class="mono">${r.segnalazioni}</td><td class="mono">€ ${r.costoManutenzione.toFixed(2)}</td></tr>`).join('')}<tr style="font-weight:700;"><td>Totale</td><td class="mono">${righeGuastiMezzo.reduce((tot,r)=>tot+r.segnalazioni,0)}</td><td class="mono">€ ${righeGuastiMezzo.reduce((tot,r)=>tot+r.costoManutenzione,0).toFixed(2)}</td></tr></tbody></table>`
     : `<div class="section-title">Segnalazioni guasti mezzi / Costi manutenzione${periodoLabel}</div><div class="empty-state">Nessun dato.</div>`;
 
   document.getElementById('statistiche-container').innerHTML =
