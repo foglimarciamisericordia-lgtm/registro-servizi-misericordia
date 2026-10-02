@@ -5706,7 +5706,8 @@ function getFogliFiltrati(mezzoId){
   if(dataDa) righe = righe.filter(f => (f.dataPartenza||'') >= dataDa);
   if(dataA) righe = righe.filter(f => (f.dataPartenza||'') <= dataA);
   if(cercaPaziente) righe = righe.filter(f => (f.paziente||'').toLowerCase().includes(cercaPaziente));
-  return righe.sort((a,b)=> (a.registratoIl||'').localeCompare(b.registratoIl||''));
+  const chiaveRientro = f => (f.dataArrivo||'') + ' ' + (f.orarioRientro||'');
+  return righe.sort((a,b)=> chiaveRientro(a).localeCompare(chiaveRientro(b)));
 }
 function renderFogliMarcia(){
   const sel = document.getElementById('fm-selettoreMezzo');
