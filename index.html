@@ -3990,7 +3990,7 @@ function renderDettaglioSituazioneMezzo(){
       { titolo:'Scadenza', valore:v=>formatDataIt(v.scadenza) },
       { titolo:'Rinnovo', valore:v=>v.tipoRinnovo ? ({semestrale:'Semestrale',trimestrale:'Trimestrale',quadrimestrale:'Quadrimestrale'}[v.tipoRinnovo] || 'Annuale') : (v.rinnovoAnnuale?'Annuale':'Non annuale') },
       { titolo:'Rinnovo contratto', valore:v=>v.rinnovoContratto ? 'Sì' : 'No' },
-      { titolo:'Frazionamento rata', valore:v=>v.frazionamentoRata||'' },
+      { titolo:'Frazionamento rata', valore:v=>({'nessuno-saldata':'Nessuno/Saldata'}[v.frazionamentoRata] || v.frazionamentoRata || '') },
       { titolo:'Costo €', valore:v=>v.costo!=null && v.costo!=='' ? parseFloat(v.costo).toFixed(2) : '' },
       { titolo:'Polizza PDF', html:true, valore:v=>v.linkPdf ? `<a href="${escapeHtml(v.linkPdf)}" target="_blank" rel="noopener">apri</a>` : '' }
     ],
@@ -4014,6 +4014,7 @@ function renderDettaglioSituazioneMezzo(){
     <div class="field"><label>Frazionamento rata</label>
       <select id="sm-assicurazione-frazionamentoRata">
         <option value="" ${(!vm || !vm.frazionamentoRata)?'selected':''}>Non specificato</option>
+        <option value="nessuno-saldata" ${(vm && vm.frazionamentoRata==='nessuno-saldata')?'selected':''}>Nessuno/Saldata</option>
         <option value="5 mesi" ${(vm && vm.frazionamentoRata==='5 mesi')?'selected':''}>5 mesi</option>
         <option value="10 mesi" ${(vm && vm.frazionamentoRata==='10 mesi')?'selected':''}>10 mesi</option>
       </select>
