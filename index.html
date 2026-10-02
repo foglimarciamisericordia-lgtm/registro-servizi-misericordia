@@ -1694,7 +1694,7 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
     <h3>IBAN</h3>
     <div class="view-sheet" style="white-space:pre-line;user-select:text;">IBAN: IT13X0200883881000106338752
 Intestato a: Fraternita di Misericordia di S.M. di Licodia
-Causale: Offerta per trasporto (inserisci nome e cognome paziente)</div>
+<span id="iban-servizio-causale">Causale: Offerta per trasporto (nome e cognome paziente)</span></div>
     <div class="view-sheet" style="white-space:pre-line;user-select:text;margin-top:24px;">Note: Se eseguito bonifico istantaneo, chiamare un responsabile e verificare l'accredito. Solo dopo rilasciare ricevuta. Se eseguito bonifico ordinario, informare l'utente che riceverà la ricevuta tramite WhatsApp al momento dell'accredito sul nostro conto corrente.</div>
     <div class="modal-actions">
       <div></div>
@@ -7691,6 +7691,9 @@ function duplicaDaVisualizzazione(){
   if(id) duplicateService(id);
 }
 function apriIbanServizio(){
+  const s = servizi.find(x=>x.id===currentViewServiceId);
+  const nomePaziente = s ? nomeVisualizzatoServizio(s) : '';
+  document.getElementById('iban-servizio-causale').textContent = 'Causale: Offerta per trasporto ' + (nomePaziente ? nomePaziente : '(nome e cognome paziente)');
   document.getElementById('iban-servizio-modal-backdrop').classList.add('active');
 }
 function chiudiIbanServizio(){
