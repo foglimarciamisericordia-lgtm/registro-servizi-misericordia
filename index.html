@@ -284,7 +284,7 @@
   .btn-toggle-chiuso:hover{background:var(--navy-dark);}
   .btn-toggle-chiuso.riapri{background:var(--surface);color:var(--navy);border:1px solid var(--navy);}
   .mini-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:20px;}
-  .mini-table th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:600;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line);}
+  .mini-table th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:600;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line);white-space:nowrap;}
   .mini-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line-soft);}
   .mini-table tr:last-child td{border-bottom:none;}
   .inline-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;}
@@ -3948,7 +3948,7 @@ function renderDettaglioSituazioneMezzo(){
 
   const sezione = (chiave, titolo, info, registro, colonne, formHtml) => {
     const righeRegistro = [...(registro||[])].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-    const tabellaRegistro = righeRegistro.length ? `<table class="mini-table" style="margin-top:8px;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td style="white-space:nowrap;">${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td style="white-space:nowrap;"><button class="action-btn" style="padding:5px 8px;" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button> <button class="action-btn danger" style="padding:5px 8px;" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
+    const tabellaRegistro = righeRegistro.length ? `<div style="overflow-x:auto;margin-top:8px;"><table class="mini-table" style="margin-top:0;"><thead><tr>${colonne.map(c=>`<th>${c.titolo}</th>`).join('')}<th></th></tr></thead><tbody>${righeRegistro.map(v=>`<tr>${colonne.map(c=>`<td style="white-space:nowrap;">${c.html ? c.valore(v) : escapeHtml(c.valore(v))}</td>`).join('')}<td style="white-space:nowrap;"><button class="action-btn" style="padding:5px 8px;" onclick="modificaVoceRegistroMezzo('${chiave}','${v.id}')">✎</button> <button class="action-btn danger" style="padding:5px 8px;" onclick="eliminaVoceRegistroMezzo('${chiave}','${v.id}')">🗑</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="map-hint" style="margin-top:8px;">Nessuna registrazione.</p>';
     return `
     <div class="user-card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
