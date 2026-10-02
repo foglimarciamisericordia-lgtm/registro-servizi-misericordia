@@ -1680,8 +1680,26 @@ Crispi	Antonino Placido	a.crispi	123456"></textarea>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" onclick="closeViewModal()">Chiudi</button>
         <button type="button" class="btn btn-ghost" id="btn-stampa-scheda-servizio" onclick="window.print()">Stampa scheda</button>
+        <button type="button" class="btn btn-ghost" onclick="apriIbanServizio()">IBAN</button>
         <button type="button" class="btn btn-ghost" onclick="duplicaDaVisualizzazione()">⧉ Duplica</button>
         <button type="button" class="btn btn-primary" style="width:auto;" onclick="modificaDaVisualizzazione()">Modifica</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- MODAL IBAN SERVIZIO -->
+<div class="modal-backdrop" id="iban-servizio-modal-backdrop">
+  <div class="modal" style="max-width:520px;">
+    <button class="close-x" onclick="chiudiIbanServizio()">✕</button>
+    <h3>IBAN</h3>
+    <div class="view-sheet" style="white-space:pre-line;user-select:text;">IBAN: IT13X0200883881000106338752
+Intestato a: Fraternita di Misericordia di S.M. di Licodia
+Causale: Offerta per trasporto (inserisci nome e cognome paziente)</div>
+    <div class="view-sheet" style="white-space:pre-line;user-select:text;margin-top:24px;">Note: Se eseguito bonifico istantaneo, chiamare un responsabile e verificare l'accredito. Solo dopo rilasciare ricevuta. Se eseguito bonifico ordinario, informare l'utente che riceverà la ricevuta tramite WhatsApp al momento dell'accredito sul nostro conto corrente.</div>
+    <div class="modal-actions">
+      <div></div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-ghost" onclick="chiudiIbanServizio()">Chiudi</button>
       </div>
     </div>
   </div>
@@ -4796,7 +4814,7 @@ async function renderElenco(){
       <td class="mono">${formatDataIt(s.perGiorno)} ${orarioVisualizzatoServizio(s)||''}</td>
       <td>${escapeHtml(nomeVisualizzatoServizio(s))}</td>
       <td>${escapeHtml(mezzoVisualizzatoServizio(s)||'—')}</td>
-      <td>${escapeHtml(s.destinazione||'—')}</td>
+      <td>${escapeHtml((isModalitaRichiedente(s.tipoScheda) ? s.luogoEvento : s.destinazione)||'—')}</td>
       <td>${escapeHtml(nomeMezzoAssegnato(s))}</td>
       <td>${escapeHtml(s.ultimoOperatore || s.operatoreInserimento || '—')}<br><span class="mono" style="font-size:11px;color:var(--ink-soft);">${formatDateTime(s.ultimaModificaIl || s.registratoIl)}</span></td>
       <td><div class="row-actions">
@@ -7671,6 +7689,12 @@ function duplicaDaVisualizzazione(){
   const id = currentViewServiceId;
   closeViewModal();
   if(id) duplicateService(id);
+}
+function apriIbanServizio(){
+  document.getElementById('iban-servizio-modal-backdrop').classList.add('active');
+}
+function chiudiIbanServizio(){
+  document.getElementById('iban-servizio-modal-backdrop').classList.remove('active');
 }
 
 function gestisciPresidioSelezionato(checkbox){
